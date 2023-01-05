@@ -1,4 +1,4 @@
-# Xenharmonic MuseScore plugin suite
+# Microtonal/Xenharmonic MuseScore plugin suite
 
 **Work in progress.**
 
@@ -42,7 +42,7 @@ bb b (113.685) # x 130
   - A chain of accidentals are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note.
   - Declaring the chain of accidentals limits the search space of the 'transpose up/down to nearest pitch' function such that only the declared accidentals are regarded. (too many accidentals / nominals will cause lag.)
 - `35 \ (21.506) / 39`
-  - Declares a second chain of accidentals that go double-syntonic down (let's accidental code `35`), syntonic down, natural/none, syntonic up, double-syntonic up (accidental code `39`) --- where each adjacent step in the accidental chain is 21.506 cents apart.
+  - Declares a second chain of accidentals that go double-syntonic down (let's say it's accidental code `35` for now), syntonic down, natural/none, syntonic up, double-syntonic up (e.g. accidental code `39`) --- where each adjacent step in the accidental chain is 21.506 cents apart.
   - You can combine accidentals from different chains.
 
 Upon parsing the above tuning config, the plugin should generate all permutations of nominals and accidentals within an equave and sort it in ascending pitch order like so:
