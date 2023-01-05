@@ -124,6 +124,25 @@ For O(1) lookup purposes, the plugin should store:
 - a mapping of note name to cents
 - a mapping of cents to note name
 
+#### Behavior of accidentals
+
+Before we can do anything, we need to address how MuseScore handles accidentals.
+
+There are 3 categories of accidentals, and for the sake of this plugin, let's call them:
+
+1. **Fully supported**
+2. **Half supported**
+3. **Symbolic**
+
+Fully supported accidentals are the result an internal property of the Note element called `tpc` (tonal pitch class), which is a number that ranges from -8 to 40. This represents a cycle of 49 fifths ranging from Fbbb (3ple flat) to Bx# (3ple sharp). Any of these accidentals will affect playback in steps of 100 cents as it registers a different MIDI note.
+
+Half supported accidentals are accidentals that exist in the `accidental` property of the Note element, but they do not affect the `tpc` nor playback, and they are treated like the 'natural' accidental (cancelling all prior accidentals). Only a fraction of SMuFL accidental symbols are available as half-supported accidentals. These accidentals are identifiable with UPPER_CAMEL_CASE IDs.
+
+Symbolic accidentals are accidentals that are the result of the `elements` array property of the Note element. This property includes **all** elements attached to the Note head. Accidental symbols will have the `symbol` property set to the SMuFL ID of the symbol. These accidentals are identifiable with lowerCamelCase IDs. E.g. if a note only has one symbol element attached to it, then you can access it with `note.elements[0].symbol`.
+
+
+Because of this mess, we need to keep track of which accidentals are fully supported and which ones are not, because we need to account for the fact that fully supported accidentals affect playback.
+
 #### Parsing of accidentals
 
 Let's say we have the above tuning system with two accidental chains defined.
@@ -132,13 +151,14 @@ Here's an example of the parsing of `Ebbbb\\`.
 
 First, note that this plugin does not factor the order of appearance of accidentals. That is, `Ebbbb\\` is the same as `E\bb\bb`.
 
-The notename object is tokenized from the MuseScore Note element and outputs this data structure:
+The `NoteName` object is tokenized from the MuseScore Note element and outputs this data structure:
 
-```json
+```js
+// NoteName
 {
-  nominal: 4, // A is the 0th nominal, E is the 4th
-  accidentals: {
-
+  "nominal": 4, // A is the 0th nominal, E is the 4th
+  "accidentals": {
+    ""
   }
 }
 ```

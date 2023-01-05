@@ -941,7 +941,7 @@ MuseScore {
           console.log('steps on KeySig: ' + stepsFromBaseNote);
         }
 
-        console.log("Base Note: " + baseNote + ", steps: " + stepsFromBaseNote + ", tick: " + note.parent.parent.tick);
+        console.log("Base Note: " + baseNote + ", steps: " + stepsFromBaseNote + ", tick: " + note.parent.parent.tick + ", tpc: " + note.tpc);
         var isConcert = note.tpc == note.tpc1;
         note.tuning = getCentOffset(baseNote, stepsFromBaseNote, 0, parms.currEdo, parms.currCenter, isConcert ? 0 : parms.currTranspose);
         return;
