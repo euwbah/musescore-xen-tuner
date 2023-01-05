@@ -32,11 +32,12 @@ See [this post](https://www.facebook.com/groups/497105067092502/permalink/270072
 
 https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
 
-This is still a work in progress. Free for all to edit, so please contribute! (Read [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/))
+This is still a work in progress. Free for all to edit, and in need of community contribution! (Read [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/))
 
 ## Caveats
 
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
+- Does not regard the order of appearance of accidentals.
 - Could be very laggy...
 
 ## Dev Notes
@@ -48,7 +49,7 @@ This tuning system/staff text specifies a 2.3.5 JI subset:
 ```
 A4: 440
 0 203.91 294.13 498.04 701.96 792.18 996.09 1200
-bb.bb 129 bb b (113.685) # x 130 x.x
+bb.bb 7 bb b (113.685) # x 2 x.x
 \.\ \ (21.506) / /./
 ```
 
@@ -59,21 +60,87 @@ bb.bb 129 bb b (113.685) # x 130 x.x
   - Sets a cycle of 7 nominals extending upwards/downwards from A4.
   - Tunes 7 nominals to 203.91cents, 294.13c, 498.04c, 701.96c, etc... respectively, representing the note names A, B, C, etc... (3-limit JI)
   - The last number sets equave to 1200c.
-- `bb.bb 129 bb b (113.685) # x 130 x.x`
-  - Declares a chain of accidentals that goes: two double-flats, triple-flat, double-flat, flat, natural/none, sharp, double-sharp, triple-sharp, two double-sharps.
+- `bb.bb 7 bb b (113.685) # x 2 x.x`
+  - Declares a chain of accidentals that goes: two double-flats, triple-flat (accidental code `7` according to the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), double-flat, flat, natural/none, sharp, double-sharp, triple-sharp (accidental code `2`), two double-sharps.
   - Each step in the flat/sharp direction lowers/raises the pitch by 113.685 cents respectively.
-  - A chain of accidentals are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note.
+  - Accidentals in a one chain are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note.
   - Declaring the chain of accidentals limits the search space of the 'transpose up/down to nearest pitch' function such that only the declared accidentals are regarded. (too many accidentals / nominals will cause lag.)
 - `\.\ \ (21.506) / /./`
-  - Declares a second chain of accidentals that go double-syntonic down (let's say it's accidental code `35` for now), syntonic down, natural/none, syntonic up, double-syntonic up (e.g. accidental code `39`) --- where each adjacent step in the accidental chain is 21.506 cents apart.
+  - Declares a second chain of accidentals that go double-syntonic down, syntonic down, natural/none, syntonic up, double-syntonic up --- where each adjacent step in the accidental chain is 21.506 cents apart.
   - You can combine accidentals from different chains.
 
-Upon parsing the above tuning config, the plugin should generate all permutations of nominals and accidentals within an equave and sort it in ascending pitch order like so:
 
 ### Implementation Details
 
-#### Greedy parsing of accidentals
+Upon parsing the above tuning config, the plugin should generate all permutations of nominals and accidentals within an equave and sort it in ascending pitch order like so:
 
-Let's say we have a tuning system with two accidental chains defined. In the first accidental chain, we have
+```
+... omitted for brevity
+A 0.00c
+Dbbbb\\ 0.29c
+Bbb// 19.55c
+A/ 21.51c
+Dbbbb\ 21.79c
+Cbb\\ 23.75c
+A// 43.01c
+Dbbbb 43.30c
+Cbb\ 45.25c
+Bb\\ 47.21c
+Dbbbb/ 64.81c
+Cbb 66.76c
+Bb\ 68.72c
+A#\\ 70.67c
+Dbbbb// 86.31c
+Cbb/ 88.27c
+Bb 90.22c
+A#\ 92.18c
+Cbb// 109.77c
+Bb/ 111.73c
+A# 113.69c
+Dbbb\\ 113.97c
+Bb// 133.24c
+A#/ 135.19c
+Dbbb\ 135.48c
+Cb\\ 137.43c
+A#// 156.70c
+Dbbb 156.99c
+Cb\ 158.94c
+B\\ 160.90c
+Dbbb/ 178.49c
+Cb 180.44c
+B\ 182.40c
+Ax\\ 184.36c
+Dbbb// 200.00c
+Cb/ 201.95c
+B 203.91c
+Ebbbb\\ 204.21c
+... omitted for brevity
+```
+
+For O(1) lookup purposes, the plugin should store:
+
+- a mapping of index to note name (which is the unique permutation of nominal and accidental)
+- a mapping of note name to index
+- a mapping of note name to cents
+- a mapping of cents to note name
+
+#### Parsing of accidentals
+
+Let's say we have the above tuning system with two accidental chains defined.
+
+Here's an example of the parsing of `Ebbbb\\`.
+
+First, note that this plugin does not factor the order of appearance of accidentals. That is, `Ebbbb\\` is the same as `E\bb\bb`.
+
+The notename object is tokenized from the MuseScore Note element and outputs this data structure:
+
+```json
+{
+  nominal: 4, // A is the 0th nominal, E is the 4th
+  accidentals: {
+
+  }
+}
+```
 
 ### Data Structures
