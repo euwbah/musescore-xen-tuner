@@ -117,12 +117,16 @@ For the same reason as `up/down.qml`, recommend the user to **always manually ru
 
 1. Repeat steps 1-6 of `up/down.qml`.
 2. Take note of the special auxiliary step config annotation which specifies which accidental cycles/sets to regard/disregard for the auxiliary up/down operation.
-3. For this aux up/down operation, instead of using the nearest adjacent non-equivalent pitch. Skip to the nearest non-equivalent `NoteName` spelling such that accidentals present in disregarded accidental cycles remain unchanged. This is effectively a quotient group of the original permutations.
+3. For this aux up/down operation, instead of using the nearest adjacent non-equivalent pitch. Skip to the nearest non-equivalent `NoteName` spelling such that accidentals present in disregarded accidental cycles remain unchanged. This is effectively forms a 'quotient group' (ish).
 4. Continue with steps 8-10 of `up/down.qml`.
 
 Let's use the current 2.3.5 JI subset example:
 
-Assume we configure the aux up/down to disregard the syntonic comma accidentals. Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `Dbbbb/`, because it is the next nearest `NoteName` in the `tuningTable` which has an identical syntonic comma accidental. This way, the user can move a note up/down in bigger increments to save time.
+Assume we configure aux up/down to disregard the syntonic comma accidental chain and only regard the sharps/flats chain.
+
+Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `Dbbbb/`, followed by `Cbb/`, `Bb/`, `A#/`... because those are the next nearest `NoteName`s in the `tuningTable` which have an identical syntonic comma accidental. This way, the user can move a note up/down in bigger increments to save time.
+
+We can also make clones `aux2 up/down.qml` etc... which work the same way with individually configurable accidental chains.
 
 #### Example
 
@@ -176,7 +180,7 @@ For O(1) lookup purposes, the plugin should store:
 - a mapping of index to note name (which is the unique permutation of nominal and accidental)
 - a mapping of note name to index
 - a mapping of note name to cents
-- a mapping of cents to note name
+- ~~a mapping of cents to note name~~ (no use case yet) 
 
 #### Behavior of accidentals
 
