@@ -42,9 +42,9 @@ This is still a work in progress. Free for all to edit, and in need of community
 - Does not regard the order of appearance of accidentals.
 - Could be very laggy...
 
-## Dev Notes
+# Dev Notes
 
-### Case Study/Example
+## Case Study/Example
 
 This tuning system/staff text specifies a 2.3.5 JI subset:
 
@@ -72,9 +72,9 @@ bb.bb 7 bb b (113.685) # x 2 x.x
   - You can combine accidentals from different chains.
 
 
-### Implementation Details
+## Implementation Details
 
-#### Overview
+### Overview
 
 `tune.qml`:
 
@@ -128,7 +128,7 @@ Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `D
 
 We can also make clones `aux2 up/down.qml` etc... which work the same way with individually configurable accidental chains.
 
-#### Example
+### `tuningTable`
 
 Upon parsing the above example of the 2.3.5 JI subset tuning config, the plugin should generate all permutations of nominals and accidentals within an equave and sort it in ascending pitch order like so:
 
@@ -182,7 +182,7 @@ For O(1) lookup purposes, the plugin should store:
 - a mapping of note name to cents
 - ~~a mapping of cents to note name~~ (no use case yet) 
 
-#### Behavior of accidentals
+### Behavior of accidentals
 
 Before we can do anything, we need to address how MuseScore handles accidentals.
 
@@ -206,7 +206,7 @@ A half accidental naturalizes any prior accidentals, but a symbolic accidental d
 Thankfully all we need to do is check the `tpc` of each note, and take into account the semitone offsets of the `tpc`. There is no need for handling all edge cases.
 
 
-#### Parsing of explicit accidentals
+### Parsing of explicit accidentals
 
 Let's say we have the above tuning system with two accidental chains defined.
 
@@ -214,11 +214,11 @@ Here's an example of the parsing of `Ebbbb\\`. Let's assume that the first doubl
 
 Let's also assume that the comma down is the `accidentalArrowDown` SMuFL (Gould arrow) symbol, which looks like an arrow pointing straight down. Let's say for example this is represented by accidental code 34.
 
-Hence, this note's `tpc` is 3, and it has three Symbolic Accidental attached under the `elements` property in no particular order: a double flat, a comma down, and a comma down.
+Hence, this note's `tpc` is 3 (E double flat), and it has three Symbolic Accidental attached under the `elements` property. In no particular order: double flat, comma down, comma down.
 
-First, note that this plugin does not factor the order of appearance of accidentals. That is, `Ebbbb\\` is the same as `E\bb\bb`.
+Note that this plugin does not factor the order of appearance of accidentals. That is, `Ebbbb\\` is the same as `E\bb\bb`.
 
-The `NoteName` object is tokenized from the MuseScore Note element and outputs this data structure:
+The `readNote()` function 'tokenizes' the MuseScore Note element to output the following `NoteName` object:
 
 ```js
 // NoteName
@@ -232,8 +232,18 @@ The `NoteName` object is tokenized from the MuseScore Note element and outputs t
 }
 ```
 
-#### Parsing of implicit accidentals
+### Parsing of implicit accidentals
+
+Let's say immediately after the above `Ebbbb\\` note, we have a `E` with no accidentals.
+
+This note's `tpc` is still 4 (Ebb), because the Full Accidental is still in effect from before. However, it has no explicit accidentals attached to it.
+
+In this situation, we calculate the effectiveNoteName of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `NoteName` object of a precceeding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
 
 
 
-### Data Structures
+## Data Structures
+
+
+
+## Functions
