@@ -6,7 +6,7 @@ A rewrite of the n-edo plugin.
 
 ## HELP NEEDED
 
-See this post: https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/
+See [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/)
 
 ## Goals:
 
@@ -27,6 +27,12 @@ See this post: https://www.facebook.com/groups/497105067092502/permalink/2700729
 - transpose up/down to the nearest pitch
 - enharmonic respell
 - a list of copyable tuning configs of commonly used tunings for beginner users.
+
+## List of Supported Accidentals
+
+https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+
+This is still a work in progress. Free for all to edit, so please contribute! (Read [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/))
 
 ## Caveats
 
@@ -54,11 +60,11 @@ bb.bb 129 bb b (113.685) # x 130 x.x
   - Tunes 7 nominals to 203.91cents, 294.13c, 498.04c, 701.96c, etc... respectively, representing the note names A, B, C, etc... (3-limit JI)
   - The last number sets equave to 1200c.
 - `bb.bb 129 bb b (113.685) # x 130 x.x`
-  - Declares a chain of accidentals two double-flats, triple-flat, double-flat, flat, natural/none, sharp, double-sharp, triple-sharp (let's just assume for now `130` is the accidental code for triple-sharp).
+  - Declares a chain of accidentals that goes: two double-flats, triple-flat, double-flat, flat, natural/none, sharp, double-sharp, triple-sharp, two double-sharps.
   - Each step in the flat/sharp direction lowers/raises the pitch by 113.685 cents respectively.
   - A chain of accidentals are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note.
   - Declaring the chain of accidentals limits the search space of the 'transpose up/down to nearest pitch' function such that only the declared accidentals are regarded. (too many accidentals / nominals will cause lag.)
-- `35 \ (21.506) / 39`
+- `\.\ \ (21.506) / /./`
   - Declares a second chain of accidentals that go double-syntonic down (let's say it's accidental code `35` for now), syntonic down, natural/none, syntonic up, double-syntonic up (e.g. accidental code `39`) --- where each adjacent step in the accidental chain is 21.506 cents apart.
   - You can combine accidentals from different chains.
 
