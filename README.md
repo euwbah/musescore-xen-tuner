@@ -4,6 +4,10 @@
 
 A rewrite of the n-edo plugin.
 
+## HELP NEEDED
+
+See this post: https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/
+
 ## Goals:
 
 - [ ] The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
