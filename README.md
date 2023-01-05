@@ -238,7 +238,7 @@ Let's say immediately after the above `Ebbbb\\` note, we have a `E` with no acci
 
 This note's `tpc` is still 4 (Ebb), because the Full Accidental is still in effect from before. However, it has no explicit accidentals attached to it.
 
-In this situation, we calculate the effectiveNoteName of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `NoteName` object of a precceeding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
+In this situation, we calculate the effectiveNoteName of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `NoteName` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
 
 
 
