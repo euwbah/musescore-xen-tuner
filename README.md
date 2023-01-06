@@ -46,7 +46,7 @@ This is still a work in progress. Free for all to edit, and in need of community
 
 ## Case Study/Example
 
-This tuning system/staff text specifies a 2.3.5 JI subset:
+This tuning system/staff text specifies a 315-note subset of 2.3.5 JI:
 
 ```
 A4: 440
@@ -78,35 +78,30 @@ bb.bb 7 bb b (113.685) # x 2 x.x
 
 `tune.qml`:
 
-1. Parse tuning text annotation to construct a 'tuning system'.
+1. Parse tuning text annotation to construct the 'TuningConfig`.
 2. Using key signature annotations, implicit & explicit accidentals, calculate the effective accidental applied on to a note. Explicit > implicit > key signature.
 3. Calculate cents interval (from tuning note) of the original 12edo note.
-4. Calculate cents interval (from tuning note) of the note with the effective accidental applied.
+4. Look up the `TuningConfig` for cents interval (from tuning note) for microtonal tuning.
 5. Subtract the xen tuning cents from the original cents to get the cents offset.
 6. Apply cents offset.
 
 `up/down.qml`:
 
-1. Parse tuning text annotation to construct a 'tuning system'.
-2. Exhaust all permutations of accidentals & nominals and sort in order of ascending pitch (in cents)
-3. Some permutations may exceed the range of the equave, and they should be wrapped around modulo the equave. These equave-wrapped spellings should have a flag attributed to them to signify how many equaves up/down it has been transposed.
-4. If two notes differ by less than some threshold interval (e.g. 0.01 cents), group them together as enharmonic equivalents.
-5. The resulting memoized structure is called `tuningTable` and should be a list of lists of triples. Each triple contains a `NoteName` data structure, cents offset, and equave offset. Each list of triples represent enharmonic spellings of one distinct pitch.
-6. The lists of tuple-pairs in the `tuningTable` is indexed two-ways in order of increasing pitch.
-7. The up/down operation should move the current selected note(s) stepwise to the nearest `NoteName` in the `tuningTable` that is **not** enharmonically equivalent. It should also choose the enharmonic spelling with the minimal number of required explicit accidentals.
-8. Run through a series of checks:
+1. Parse tuning text annotation to construct the `TuningConfig`.
+2. The up/down operation should move the current selected note(s) stepwise to the nearest `XenNote` in the `TuningConfig` that is **not** enharmonically equivalent. It should also choose the enharmonic spelling with the minimal number of required explicit accidentals.
+3. Run through a series of checks:
    - If the newly adjusted note has a side-effect of adjusting the effective accidental of a succeeding note/grace note, apply the effective accidental of the succeeding note as explicit accidental(s), **before** the current note is adjusted.
    - If the newly adjusted note has a side-effect of making explicit accidentals of a succeeding note/grace redundant, remove the explicit accidental(s) of the succeeding note.
    - If the newly adjusted note agrees with the prior effective accidental context, then simply remove explicit accidentals of the current note.
-9. Finally, apply/remove explicit accidentals as needed on the adjusted note.
-10. Apply the same method as `tune.qml` to tune the newly adjusted note.
+4. Finally, apply/remove explicit accidentals as needed on the adjusted note.
+5.  Apply the same method as `tune.qml` to tune the newly adjusted note.
 
 In some edge cases, the newly adjusted note may cause succeeding notes to sound off-pitch (because of how symbolic accidentals allow standard accidental pitch offsets to pass through). **Recommend the user to always manually run `tune.qml` on the whole score after moving notes around.**
 
 `enharmonic.qml`:
 
-1. Repeat steps 1-6 of `up/down.qml`.
-2. All enharmonically equivalent spellings are grouped together in the `tuningTable`. One at a time, for each note in the selection, construct a lookup table mapping the note's enharmonic `NoteName`s to an index indexed by the order of appearance in the `tuningTable`.
+1. Parse tuning text annotation to construct the `TuningConfig`.
+2. All enharmonically equivalent spellings are indexed/logically grouped together in the `TuningConfig`.
 3. Cycle enharmonic spellings by index using the lookup table.
 
 No checks on subsequent notes are needed because enharmonically equivalent notes/accidentals should always result in the same pitch.
@@ -115,72 +110,64 @@ For the same reason as `up/down.qml`, recommend the user to **always manually ru
 
 `aux up/down.qml`:
 
-1. Repeat steps 1-6 of `up/down.qml`.
+1. Parse tuning text annotation to construct the `TuningConfig`.
 2. Take note of the special auxiliary step config annotation which specifies which accidental cycles/sets to regard/disregard for the auxiliary up/down operation.
-3. For this aux up/down operation, instead of using the nearest adjacent non-equivalent pitch. Skip to the nearest non-equivalent `NoteName` spelling such that accidentals present in disregarded accidental cycles remain unchanged. This is effectively forms a 'quotient group' (ish).
+3. For this aux up/down operation, instead of using the nearest adjacent non-equivalent pitch. Skip to the nearest non-equivalent `XenNote` spelling such that accidentals present in disregarded accidental cycles remain unchanged. This is effectively forms a 'quotient group' (ish).
 4. Continue with steps 8-10 of `up/down.qml`.
 
 Let's use the current 2.3.5 JI subset example:
 
 Assume we configure aux up/down to disregard the syntonic comma accidental chain and only regard the sharps/flats chain.
 
-Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `Dbbbb/`, followed by `Cbb/`, `Bb/`, `A#/`... because those are the next nearest `NoteName`s in the `tuningTable` which have an identical syntonic comma accidental. This way, the user can move a note up/down in bigger increments to save time.
+Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `Gx/`, followed by `Dbbbb/`, `Fxx/`, `Cbb/`, etc... because those are the next nearest `XenNote`s in the `TuningTable` which have an identical syntonic comma accidental. This way, the user can move a note up/down in bigger increments to save time.
 
 We can also make clones `aux2 up/down.qml` etc... which work the same way with individually configurable accidental chains.
 
-### `tuningTable`
+### Construct `TuningTable` & `TuningConfig`
 
-Upon parsing the above example of the 2.3.5 JI subset tuning config, the plugin should generate all permutations of nominals and accidentals within an equave and sort it in ascending pitch order like so:
+Upon parsing the above example of the 2.3.5 JI subset tuning config, the plugin should generate the `TuningTable`. This contains all permutations of nominals and accidentals within an equave and sort it in ascending pitch order like so:
 
-```
-... omitted for brevity
-A 0.00c
-Dbbbb\\ 0.29c
-Bbb// 19.55c
-A/ 21.51c
-Dbbbb\ 21.79c
-Cbb\\ 23.75c
-A// 43.01c
-Dbbbb 43.30c
-Cbb\ 45.25c
-Bb\\ 47.21c
-Dbbbb/ 64.81c
-Cbb 66.76c
-Bb\ 68.72c
-A#\\ 70.67c
-Dbbbb// 86.31c
-Cbb/ 88.27c
-Bb 90.22c
-A#\ 92.18c
-Cbb// 109.77c
-Bb/ 111.73c
-A# 113.69c
-Dbbb\\ 113.97c
-Bb// 133.24c
-A#/ 135.19c
-Dbbb\ 135.48c
-Cb\\ 137.43c
-A#// 156.70c
-Dbbb 156.99c
-Cb\ 158.94c
-B\\ 160.90c
-Dbbb/ 178.49c
-Cb 180.44c
-B\ 182.40c
-Ax\\ 184.36c
-Dbbb// 200.00c
-Cb/ 201.95c
-B 203.91c
-Ebbbb\\ 204.21c
-... omitted for brevity
+```csv
+NoteName,  cents,  equavesAdjusted
+A      ,   0.00c,  0
+Dbbbb\\,   0.29c,  0
+Gx\    ,   1.95c,  -1
+Fxx\\  ,   3.91c,  -1
+Bbb//  ,  19.55c,  0
+A/     ,  21.51c,  0
+Dbbbb\ ,  21.79c,  0
+Gx     ,  23.46c,  -1
+Cbb\\  ,  23.75c,  0
+Fxx\   ,  25.41c,  -1
+A//    ,  43.01c,  0
+Dbbbb  ,  43.30c,  0
+Gx/    ,  44.97c,  -1
+Cbb\   ,  45.25c,  0
+Fxx    ,  46.92c,  -1
+Bb\\   ,  47.21c,  0
+Dbbbb/ ,  64.81c,  0
+Gx//   ,  66.47c,  -1
+Cbb    ,  66.76c,  0
+Fxx/   ,  68.43c,  -1
+Bb\    ,  68.72c,  0
+A#\\   ,  70.67c,  0
+Dbbbb//,  86.31c,  0
+Cbb/   ,  88.27c,  0
+Fxx//  ,  89.93c,  -1
+Bb     ,  90.22c,  0
+A#\    ,  92.18c,  0
+Gx#\\  ,  94.13c,  -1
+... etc (see 2.3.5 JI tuning example.csv for all 315 notes)
 ```
 
-For O(1) lookup purposes, the plugin should store:
+This `TuningTable` is the common resource that exhausts all possible unique spellings of the nominals, and belongs to the `TuningConfig`. It is implemented as a mapping from `XenNote`s to cent offsets.
+
+During the parsing of tuning, the `TuningConfig` needs to index the `TuningTable` several ways so that we can quickly obtain required information in O(1) time.
 
 - a mapping of index to note name (which is the unique permutation of nominal and accidental)
 - a mapping of note name to index
 - a mapping of note name to cents
-- ~~a mapping of cents to note name~~ (no use case yet) 
+- ~~a mapping of cents to note name~~ (no use case yet)
 
 ### Behavior of accidentals
 
@@ -208,27 +195,31 @@ Thankfully all we need to do is check the `tpc` of each note, and take into acco
 
 ### Parsing of explicit accidentals
 
-Let's say we have the above tuning system with two accidental chains defined.
+Let's continue the example using the same tuning system as above with two accidental chains, 7 nominals, and tuning note set to A4.
 
-Here's an example of the parsing of `Ebbbb\\`. Let's assume that the first double flat is a Full Accidental, and the second double flat is a Symbolic Accidental. (You cannot have more than one Full/Half Accidentals on the same note) The double flat is accidental code 6.
+Here's an example of the parsing of `Ebbbb\\4`. Let's assume that the first double flat is a Full Accidental, and the second double flat is a Symbolic Accidental. (You cannot have more than one Full/Half Accidentals on the same note) The double flat is accidental code 6.
 
-Let's also assume that the comma down is the `accidentalArrowDown` SMuFL (Gould arrow) symbol, which looks like an arrow pointing straight down. Let's say for example this is represented by accidental code 34.
+Let's also assume that the comma down is the `accidentalArrowDown` SMuFL (Gould arrow) symbol, which looks like an arrow pointing straight down. Let's say it is represented by accidental code 34 (not finalized yet).
 
 Hence, this note's `tpc` is 3 (E double flat), and it has three Symbolic Accidental attached under the `elements` property. In no particular order: double flat, comma down, comma down.
 
 Note that this plugin does not factor the order of appearance of accidentals. That is, `Ebbbb\\` is the same as `E\bb\bb`.
 
-The `readNote()` function 'tokenizes' the MuseScore Note element to output the following `NoteName` object:
+The `readNote()` function 'tokenizes' the MuseScore Note element to output the following `NoteData` object:
 
 ```js
-// NoteName
+// NoteData
 {
-  nominal: 4, // A is the 0th nominal, E is the 4th
+  name: { // XenNote
+    nominal: 4, // A is the 0th nominal, E is the 4th
+    accidentals: {
+      6: 2, // there are two double flats
+      34: 2, // there are two comma downs
+    },
+    hash: '4 6 2 34 2'
+  },
+  equaves: -1, // E4 is the 1 equave below A4 (tuning note)
   tpc: 4, // Fbbb is -8, Fbb is -1, Ebb is 4
-  accidentals: {
-    6: 2, // there are two double flats
-    34: 2, // there are two comma downs
-  },.
 }
 ```
 
@@ -238,43 +229,124 @@ Let's say immediately after the above `Ebbbb\\` note, we have a `E` with no acci
 
 This note's `tpc` is still 4 (Ebb), because the Full Accidental is still in effect from before. However, it has no explicit accidentals attached to it.
 
-In this situation, we calculate the `effectiveNoteName` of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `NoteName` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
+In this situation, we calculate the `effectiveXenNote` of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `XenNote` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
+
+As of now, this plugin does not intend to support the ability to have independently explicit/implicit accidentals per accidental chain. I.e. any single explicit accidental on a new note will override any prior accidentals no matter which accidental chains were applied prior. If there's compelling use cases/enough demand for that, then this feature will be a goal.
 
 
-### Greedy matching of an accidental
+### Matching of an accidental
 
-Now that we have the `accidentals` object denoting how many of each accidental there are, we start the process for deconstructing that accidental based on the accidental chains. This is done in the `compileAccidentals` function, which uses the declared accidental chains to semantically understand the accidentals in a `NoteName`.
+Because the `TuningConfig` has a mapping for all `XenNote`s to `AccidentalVector`s, we can simply look that up.
 
-First, declare a `unmatchedAccidentals` object which is a clone of the `accidentals` object to store which accidentals haven't been accounted for yet.
-
-```
-unmatchedAccidentals: {
-  6: 2, // there are two double flats
-  34: 2, // there are two comma downs
-}
-```
-
-The accidental chains are iterated in the order which they are declared. In this example, we start with the sharps and flats first.
-
-We look for an entry in the first accidental chain that matches the most amount of accidentals in the `NoteName`. The `bb.bb` entry is the best match, so the 2 double flats match away and now there are 2 comma downs left to be matched.
-
-```js
-unmatchedAccidentals: {
-  6: 0, // there are no double flats left
-  34: 2, // there are two comma downs left
-}
-```
-
-Then, we move on to the next accidental chain. The `\.\` entry matches the most amount of accidentals in the `NoteName`, so that matches.
-
-We end with the `unmatchedAccidentals` object having zero unmatched accidentals left, so we terminate.
-
-In the edge case where all accidental chains are exhausted and there are still unmatched accidentals, we just ignore the unmatched accidentals.
-
-Thus, the `compileAccidentals()` function outputs this structure: `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
+We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
 
 ## Data Structures
 
+#### `XenNote`
+
+```js
+{
+  nominal: number, // no. of nominals away from tuning note (mod equave)
+  accidentals: {
+    // Maps accidental code numbers to number of such accidentals present
+    <acc code>: number
+    <acc code>: number,
+    // if a tuning-declared accidental is not present in this note,
+    // do not add it
+    <unused acc>: 0 // DON'T DO THIS.
+    ...
+  }
+  hash: string, // for lookup purposes
+}
+```
+
+This is how the plugin represents a 'microtonal' note, containing data pertaining to how the note should be spelt/represented microtonally.
+
+Think of this as the xen version of 'tonal pitch class'.
+
+The `hash` string is to save performance cost of JSON.stringify and acts as a unique identifier for this `XenNote`.
+
+`"<nominal> <acc code> <num> <acc code> <num> ..."`
+
+The accidental codes must appear in increasing order.
+
+For example, the note `A bb d` (1 double flat, 1 mirrored flat) should have the hash string: `"0 6 1 10 1"`.
+
+#### `NotesTable`
+
+```js
+{
+  'XenNote.hash': {XenNote},
+  'XenNote.hash', {XenNote},
+  ...
+}
+```
+
+Contains a lookup for all unique `XenNote`s in a tuning system.
+
+Maps `XenNote.hash` to `XenNote` object.
+
+#### `AccidentalVector`
+
+```
+[<acc chain 1>, <acc chain 2>, ...]
+```
+
+A list of the effective accidentals applied in terms of the accidental chains declared in the tuning config.
+
+
+For example, declare a tuning system with two accidental chains in this order: sharps/flats, up/down.
+
+Then, the `AccidentalVector` of `[2, -3]` represents the degree 2 of the sharps/flat chain (e.g. double sharp) and degree -3 of the arrows chain (e.g. three down arrows).
+
+The n-th number represents the degree of the n-th accidental chain. The order of which the accidental chains are declared/stored determines which number corresponds to which accidental chain.
+
+#### `NoteToAccidentalVectorTable`
+
+```js
+{
+  'XenNote.hash': AccidentalVector,
+  'XenNote.hash': AccidentalVector,
+  ...
+}
+```
+
+Contains a map of `XenNote`s to their respective `AccidentalVector`s.
+
+Note that this mapping is not bijective - two `XenNote`s can have different nominals but the same `AccidentalVector`.
+
+NOTE: There doesn't seem to be a use case for an inverse mapping of this yet, plus, it is possible to manually construct a `XenNote.hash` string if need be.
+
+#### `TuningTable`
+
+```js
+{
+  'XenNote.hash': [number, number], // [cents, equavesAdjusted]
+  'XenNote.hash': [number, number],
+  ...
+}
+```
+
+Lookup table for the tuning of `XenNote`s.
+
+`cents`: the number of cents this note is from tuning note modulo the equave.
+
+`equavesAdjusted`: the number of times this note has to be taken up/down an equave so that its cents mapping will fit modulo the equave.
+
+The equave adjustment has to be kept track of so that notes are tuned with in the correct equave, and stepwise up/down operations use the correct equave for certain notenames.
+
+For example, 
+
+#### `TuningConfig`
+
+```js
+{
+  tuningTable: TuningTable, // calculated upon parsing TuningConfig
+  nominals: [number], // List of cent offsets from tuning note, includes equave to signify equave size.
+  tuningNote: number, // MIDI note number of tuning note
+  tuningFreq: number // Hz of tuning note.
+}
+```
 
 
 
@@ -282,10 +354,8 @@ Thus, the `compileAccidentals()` function outputs this structure: `[-4,-2]`. Whi
 
 #### `readNote`
 
-Takes in a MuseScore Note element and returns a `NoteName` object.
+Takes in a MuseScore Note element and returns a `XenNote` object.
 
 #### `getAccidental`
 
 Checks the current (or preceding if `before=true`) note for explicit accidentals.
-
-#### `compileAccidental`

@@ -36,9 +36,20 @@ notes_in_equave = []
 for (cents, letter) in nominals:
     for apotome in range(-4, 5):
         for syntonic in range(-2, 3):
-            notes_in_equave.append((letter + apotome_map[apotome] + syntonic_map[syntonic], cents + apotome * 113.685 + syntonic * 21.506))
+            name = letter + apotome_map[apotome] + syntonic_map[syntonic]
+            interval = cents + apotome * 113.685 + syntonic * 21.506
+            equaves = 0
+            while interval >= 1200:
+                interval -= 1200
+                equaves -= 1
+            while interval < 0:
+                interval += 1200
+                equaves += 1
+            notes_in_equave.append((name, interval, equaves))
 
 notes_in_equave.sort(key=lambda x: x[1])
 
-for (note, cents) in notes_in_equave:
-    print(f'{note} {cents:.2f}c')
+print(len(notes_in_equave))
+
+for (note, cents, equaves) in notes_in_equave:
+    print(f'{note:7}, {cents:6.2f}c,  {equaves}')

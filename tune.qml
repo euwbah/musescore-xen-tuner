@@ -114,12 +114,12 @@ MuseScore {
       })()
 
       /*
-      Reads accidentals attached to a note.
-
-      note: the Ms::PluginAPI::Note to read from.
+      Reads the Ms::PluginAPI::Note and creates a NoteName object.
       */
-      function readAccidentalFromNote(note) {
-
+      function readNote(note) {
+        noteName = {
+          tpc: note.tpc,
+        };
       }
 
       // MuseScore's annotations contain formatting code in angle brackets if the
