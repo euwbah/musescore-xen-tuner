@@ -276,8 +276,8 @@ For example, the note `A bb d` (1 double flat, 1 mirrored flat) should have the 
 
 ```js
 {
-  'XenNote.hash': {XenNote},
-  'XenNote.hash', {XenNote},
+  'XenNote.hash': XenNote,
+  'XenNote.hash', XenNote,
   ...
 }
 ```
@@ -377,14 +377,35 @@ This structure is computed at the same time as the `StepwiseList`.
 
 ```js
 {
-  tuningTable: TuningTable, // calculated upon parsing TuningConfig
-  nominals: [number], // List of cent offsets from tuning note, includes equave to signify equave size.
+  notesTable: NotesTable,
+  tuningTable: TuningTable,
+  avTable: AccidentalVectorTable,
+  stepsList: StepwiseList,
+  enharmonics: EnharmonicGraph,
+  nominals: [number], // List of cents from tuning note
+  numNominals: number, // = nominals.length
+  equaveSize: number, // = the last cents value in nominals list
   tuningNote: number, // MIDI note number of tuning note
   tuningFreq: number // Hz of tuning note.
 }
 ```
 
+This is the resulting data structure to be generated after parsing a tuning config staff/system text annotation.
 
+
+#### `TuningConfigLookup`
+
+```js
+{
+  'staff/system text string': TuningConfig,
+  'staff/system text string': TuningConfig,
+  ...
+}
+```
+
+A lookup for memoized parsed `TuningConfig`s. Because of how the plugin cursor API requires each voice to be tuned separately one at a time, it will cause many unnecessary re-parsings of the same System/Staff Text element.
+
+To prevent unneeded parsings, this lookup maps verbatim system/staff texts to the `TuningConfig` it results in when parsed. Hopefully this would reduce plugin lag.
 
 ## Functions
 
