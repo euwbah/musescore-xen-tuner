@@ -288,4 +288,4 @@ Takes in a MuseScore Note element and returns a `NoteName` object.
 
 Checks the current (or preceding if `before=true`) note for explicit accidentals.
 
-#### `compileAccidental`
+#### `compileAccidentals`
