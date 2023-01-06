@@ -238,12 +238,54 @@ Let's say immediately after the above `Ebbbb\\` note, we have a `E` with no acci
 
 This note's `tpc` is still 4 (Ebb), because the Full Accidental is still in effect from before. However, it has no explicit accidentals attached to it.
 
-In this situation, we calculate the effectiveNoteName of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `NoteName` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
+In this situation, we calculate the `effectiveNoteName` of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `NoteName` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
 
 
+### Greedy matching of an accidental
+
+Now that we have the `accidentals` object denoting how many of each accidental there are, we start the process for deconstructing that accidental based on the accidental chains. This is done in the `compileAccidentals` function, which uses the declared accidental chains to semantically understand the accidentals in a `NoteName`.
+
+First, declare a `unmatchedAccidentals` object which is a clone of the `accidentals` object to store which accidentals haven't been accounted for yet.
+
+```
+unmatchedAccidentals: {
+  6: 2, // there are two double flats
+  34: 2, // there are two comma downs
+}
+```
+
+The accidental chains are iterated in the order which they are declared. In this example, we start with the sharps and flats first.
+
+We look for an entry in the first accidental chain that matches the most amount of accidentals in the `NoteName`. The `bb.bb` entry is the best match, so the 2 double flats match away and now there are 2 comma downs left to be matched.
+
+```js
+unmatchedAccidentals: {
+  6: 0, // there are no double flats left
+  34: 2, // there are two comma downs left
+}
+```
+
+Then, we move on to the next accidental chain. The `\.\` entry matches the most amount of accidentals in the `NoteName`, so that matches.
+
+We end with the `unmatchedAccidentals` object having zero unmatched accidentals left, so we terminate.
+
+In the edge case where all accidental chains are exhausted and there are still unmatched accidentals, we just ignore the unmatched accidentals.
+
+Thus, the `compileAccidentals()` function outputs this structure: `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
 
 ## Data Structures
 
 
 
+
 ## Functions
+
+#### `readNote`
+
+Takes in a MuseScore Note element and returns a `NoteName` object.
+
+#### `getAccidental`
+
+Checks the current (or preceding if `before=true`) note for explicit accidentals.
+
+#### `compileAccidental`
