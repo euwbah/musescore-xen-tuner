@@ -260,9 +260,9 @@ We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need 
 }
 ```
 
-This is how the plugin represents a 'microtonal' note, containing data pertaining to how the note should be spelt/represented microtonally.
-
 Think of this as the xen version of 'tonal pitch class'.
+
+This is how the plugin represents a 'microtonal' note, containing data pertaining to how the note should be spelt/represented microtonally.
 
 The `hash` string is to save performance cost of JSON.stringify and acts as a unique identifier for this `XenNote`.
 
@@ -301,7 +301,7 @@ Then, the `AccidentalVector` of `[2, -3]` represents the degree 2 of the sharps/
 
 The n-th number represents the degree of the n-th accidental chain. The order of which the accidental chains are declared/stored determines which number corresponds to which accidental chain.
 
-#### `NoteToAccidentalVectorTable`
+#### `AccidentalVectorTable`
 
 ```js
 {
@@ -315,7 +315,7 @@ Contains a map of `XenNote`s to their respective `AccidentalVector`s.
 
 Note that this mapping is not bijective - two `XenNote`s can have different nominals but the same `AccidentalVector`.
 
-NOTE: There doesn't seem to be a use case for an inverse mapping of this yet, plus, it is possible to manually construct a `XenNote.hash` string if need be.
+NOTE: There doesn't seem to be a use case for an inverse mapping of this yet. However, if it is required later down the line, that would mean a lot of the implementation has to change. Hmm.
 
 #### `TuningTable`
 
@@ -327,7 +327,9 @@ NOTE: There doesn't seem to be a use case for an inverse mapping of this yet, pl
 }
 ```
 
-Lookup table for the tuning of `XenNote`s.
+Lookup table for the tuning of `XenNote`s. Entries do not need to be sorted in any particular order as the indexing for pitch sorting is done in `StepwiseList`.
+
+See [2.3.5 JI tuning table.csv](https://github.com/euwbah/musescore-ji-rtt-plugin/blob/master/2.3.5%20JI%20tuning%20table%20example.csv) for an example.
 
 `cents`: the number of cents this note is from tuning note modulo the equave.
 
@@ -335,7 +337,41 @@ Lookup table for the tuning of `XenNote`s.
 
 The equave adjustment has to be kept track of so that notes are tuned with in the correct equave, and stepwise up/down operations use the correct equave for certain notenames.
 
-For example, 
+Look at the above 2.3.5 JI subset tuning for an example. (A4 is the tuning note & equave: 1200 cents.)
+
+Going up stepwise from the note `Dbbbb\\` to `Gx\`, we actually need to lower Gx\ by one equave to actually get the correct next note up.
+
+Similarly, going up stepwise from `Fxx\\` to `Bbb//`, we'll need to increase the equave by 1 so that it sounds in the correct equave.
+
+#### `StepwiseList`
+
+```js
+[
+  ['XenNote.hash', 'XenNote.hash', ...],
+  ['XenNote.hash', 'XenNote.hash', ...],
+  ...
+]
+```
+
+This list of lists indexes the `XenNote` hashes in order of ascending pitch.
+
+Each list represents 'enharmonically equivalent' `XenNote`s. The stepwise up/down plugins uses this to determine what are the possible spellings of the next stepwise note, and it chooses the best option of enharmonic spelling based on the context (use of implicit accidentals/key signature/minimizing accidentals)
+
+#### `EnharmonicGraph`
+
+```js
+{
+  'XenNote.hash': 'XenNote.hash',
+  'XenNote.hash': 'XenNote.hash',
+  ...
+}
+```
+
+A simple lookup table where `EnharmonicGraph[XenNote]` gives the next enharmonic equivalent spelling of the note, or `null` if there are no other enharmonic equivalents.
+
+This lookup table describes a graph composed of several distinct cyclic directional paths. Each cyclic loop represents enharmonically equivalent notes.
+
+This structure is computed at the same time as the `StepwiseList`.
 
 #### `TuningConfig`
 
