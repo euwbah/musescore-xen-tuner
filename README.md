@@ -23,14 +23,14 @@ See [this post](https://www.facebook.com/groups/497105067092502/permalink/270072
 - [ ] MIDI/MPE export with channel pitch bend support.
 
 
-## Target features
+## Feature target (for now)
 
-- Multiple accidentals (using symbols attached to a note)
+- Multiple accidental symbols (using symbols attached to a note) functioning as a single accidental.
 - any number of nominals + custom nominal tuning
 - equave stretching (1 equave = 1 cycle of nominals)
 - custom accidental tuning
-- declare a finite number of accidental permutations
-- rank-N tunings/JI subgroups of dim-N with N different chains of accidentals
+- declare a finite number of accidental permutations using chains of accidentals to support rank-N tunings & JI subgroups. (up to 1 accidental per chain can be present on a note).
+- Allow irregular step sizes within a single accidental chain.
 - transpose up/down to the nearest pitch
 - enharmonic respell
 - a list of copyable tuning configs of commonly used tunings for beginner users.
@@ -56,7 +56,7 @@ This is still a work in progress. Free for all to edit, and in need of community
 
 This tuning system/staff text specifies a 315-note subset of 2.3.5 JI:
 
-```
+```txt
 A4: 440
 0 203.91 294.13 498.04 701.96 792.18 996.09 1200
 bb.bb 7 bb b (113.685) # x 2 x.x
@@ -66,13 +66,14 @@ bb.bb 7 bb b (113.685) # x 2 x.x
 - `A4: 440`
   - Chooses the 12edo nominal A4 as the reference note, sets A4 to 440hz.
   - Because of how this plugin works, the tuning note must be without accidental (it has to be a nominal)
+  - **Do not suffix this line with 'hz'**
 - `0 203.91 294.13 498.04 701.96 792.18 996.09 1200`
   - Sets a cycle of 7 nominals extending upwards/downwards from A4.
   - Tunes 7 nominals to 203.91cents, 294.13c, 498.04c, 701.96c, etc... respectively, representing the note names A, B, C, etc... (3-limit JI)
   - The last number sets equave to 1200c.
 - `bb.bb 7 bb b (113.685) # x 2 x.x`
   - Declares a chain of accidentals that goes: two double-flats, triple-flat (accidental code `7` according to the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), double-flat, flat, natural/none, sharp, double-sharp, triple-sharp (accidental code `2`), two double-sharps.
-  - Each step in the flat/sharp direction lowers/raises the pitch by 113.685 cents respectively.
+  - Each step in the flat/sharp direction lowers/raises the pitch by 113.685 cents respectively. It is also possible to have irregular sizes for different accidentals in a chain, separate example below.
   - Accidentals in a one chain are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note.
   - Declaring the chain of accidentals limits the search space of the 'transpose up/down to nearest pitch' function such that only the declared accidentals are regarded. (too many accidentals / nominals will cause lag.)
 - `\.\ \ (21.506) / /./`
@@ -89,6 +90,9 @@ This produces the following `TuningConfig`:
   stepsList: [ ... StepwiseList ],
   stepsLookup: { ... StepwiseLookup },
   enharmonics: { ... EnharmonicGraph },
+  accChains: [
+    
+  ],
   nominals: [0, 203.91, 294.13, 498.04, 701.96, 792.18, 996.09],
   numNominals: 7,
   equaveSize: 1200,
@@ -198,6 +202,8 @@ During the parsing of tuning, the `TuningConfig` needs to index the `TuningTable
 - `enharmonics`: maps `XenNote` string hashes to enharmonic equivalent `XenNote` string hashes.
 - ~~a mapping of cents to note name~~ (no use case yet)
 
+We also need to store the accidental chains in the order which they are declared.
+
 ### Behavior of accidentals
 
 Before we can do anything, we need to address how MuseScore handles accidentals.
@@ -288,7 +294,41 @@ Because the `TuningConfig` has a mapping for all `XenNote`s to `AccidentalVector
 
 We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
 
-## Advanced example: composite accidentals
+-----
+
+## Advanced example: irregular steps
+
+For whatever reason, if you wish to irregular intervals between accidentals within one accidental chain, you can do so with this syntax:
+
+```txt
+b.b(-50) bbb bb b (100) # x(25) x# x.x
+```
+
+This declares an accidental chain ranging from 2 double flats to 2 double sharps.
+
+The `(-50)` symbolizes that the two double flat `b.b` accidental is 50 cents lower than what it should be. Hence, it signifies -450 cents.
+
+Similarly, the `(25)` symbolizes that the double sharp `x` accidental now refers to 225 cents.
+
+**There should not be a space between the accidental notation and the `(cent offset)`**
+
+If you have a chain of accidentals that are completely irregular, what you can do is to set the generator interval to 0, and specify manual offsets for each accidental:
+
+```txt
+b^(-90) v(-50) (0) ^(30) ^2(70)
+```
+
+This sets the b^ accidental to -90 cents, v to -50 cents, and so on.
+
+However, do note that if you're using this feature, you're either dealing with a really, really, complicated/obscure tuning system, or you're doing something wrong.
+
+Reasonably sized regular temperament & JI subsets should be representable with only regularly-generated accidental chains.
+
+If you require accidental ligatures where some individual symbols (like in HEJI/Sagittal) represent accidentals from multiple chains, you should use the accidental ligature feature instead.
+
+-----
+
+## Advanced example: accidental ligatures
 
 For proper HEJI and Sagittal notation, we need to take into account that there are combinations of accidentals that can combine into one single symbol.
 
@@ -300,7 +340,7 @@ For example, we can have 7-limit JI with 3 accidental chains: apotomes, 5-commas
 
 In HEJI, there are composite accidental ligatures for compositions of apotomes and 5-commas. The user can append the following text to the Tuning Config text annotation:
 
-```
+```txt
 lig(1,2)
 <acc chain 1 amount> <acc chain 2 amount> <acc code>
 1 3 23
@@ -321,7 +361,7 @@ If some obscure tuning system requires more than one ligature declaration betwee
 
 E.g.:
 
-```
+```txt
 lig(1,2)
 ...
 lig(2,3)
@@ -362,7 +402,7 @@ If no explicit accidentals are present, `accidentals` is null.
 
 #### `AccidentalVector`
 
-```
+```js
 [<acc chain 1>, <acc chain 2>, ...]
 ```
 

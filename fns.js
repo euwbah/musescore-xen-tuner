@@ -82,16 +82,30 @@ LABELS_TO_CODE = (function() {
 })();
 
 /**
- * Mapping of 12EDO note letters to nominals from A4.
+ * Mapping of 12EDO note letters to nominals from A.
  */
-LETTER_TO_NOMINAL = {
-    'A': 0,
-    'B': 1,
-    'C': 2,
-    'D': 3,
-    'E': 4,
-    'F': 5,
-    'G': 6
+LETTERS_TO_NOMINAL = {
+    'a': 0,
+    'b': 1,
+    'c': 2,
+    'd': 3,
+    'e': 4,
+    'f': 5,
+    'g': 6
+};
+
+/**
+ * Mapping of 12EDO note letters to semitones from A.
+ * (A is the reference note which the octave is based on).
+ */
+LETTERS_TO_SEMITONES = {
+    'a': 0,
+    'b': 2,
+    'c': -9,
+    'd': -7,
+    'e': -5,
+    'f': -4,
+    'g': -2
 };
 
 /**
@@ -172,7 +186,7 @@ TPC_TO_NOMINAL = (function() {
 })();
 
 function test() {
-    console.log("Hello world! Helper function.")
+    (() => console.log("Hello world! Helper function."))();
 }
 
 
@@ -190,13 +204,82 @@ function readNote(note) {
     if (note.accidental) {
         // If note has a Full/Half supported accidental,
 
-        LABELS_TO_CODE
+        accidentals[LABELS_TO_CODE['' + note.accidental]] = 1;
+    }
+
+    for (var i = 0; i < note.elements.length; i++) {
+        // If note has a Full/Half supported accidental,
+
+        var acc = LABELS_TO_CODE['' + note.elements[i].symbol];
+
+        if (acc) {
+            if (accidentals[acc])
+                accidentals[acc] += 1;
+            else
+                accidentals[acc] = 1;
+        }
     }
 
     var msNote = { // MSNote
         tpc: note.tpc,
         nominalsFromA4: nominals + (octavesFromA4 * 7),
+        accidentals: accidentals
     };
 
     return msNote;
+}
+
+/**
+ * Tests system/staff text to see if it is a tuning config.
+ * 
+ * If it is, parses it and creates a TuningConfig object.
+ * 
+ * @param {string} text The system/staff text contents to parse.
+ * 
+ * @returns {TuningConfig} The parsed tuning configuration object, or null text was not a tuning config.
+ */
+function parseTuningConfig(text) {
+    var text = text.trim();
+
+    if (text.length == 0)
+        return null;
+    
+    var tuningConfig = {
+        notesTable: {},
+        tuningTable: {},
+        avTable: {},
+        stepsList: [],
+        stepsLookup: {},
+        enharmonics: {},
+        nominals: [],
+        numNominals: null,
+        equaveSize: null,
+        tuningNote: null,
+        tuningNominal: null,
+        tuningFreq: null,
+    };
+
+    var lines = text.split('\n');
+
+    var referenceTuning = lines[0].split(':').forEach(x => x.trim());
+
+    if (referenceTuning.length != 2)
+        return null;
+
+    var referenceLetter = referenceTuning[0][0].toLowerCase();
+    var referenceOctave = parseInt(referenceTuning[0].slice(1));
+
+    var nominalsFromA4 = (referenceOctave - 4) * 7;
+    var lettersNominal = LETTERS_TO_NOMINAL[referenceLetter];
+    nominalsFromA4 += lettersNominal;
+
+    // Since the written octave resets at C, but we need to convert it
+    // such that the octave resets at A4, we need to subtract one octave
+    // if the nominal is within C to G.
+    if (lettersNominal >= 2)
+        nominalsFromA4 -= 7;
+    
+    tuningConfig.tuningNominal = nominalsFromA4;
+    tuningConfig.tuningNote = LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
+    tuningConfig.tuningFreq = parseFloat(referenceTuning[1]);
 }
