@@ -8,7 +8,7 @@ A rewrite of the n-edo plugin.
 
 See [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/)
 
-## Goals:
+## Goals
 
 - [ ] The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
 
@@ -45,7 +45,7 @@ This is still a work in progress. Free for all to edit, and in need of community
 
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
 - Does not regard the order of appearance of accidentals.
-- If writing music in non-ET tunings, only concert pitch is supported. If you wish to write for transposing instruments in transposed key, put the score in Concert Pitch mode and set the instruments' Tuning Config's tuning frequency to match the transposition of the instrument. When you do this, you cannot toggle between concert and transposed.
+- Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
 - Could be very laggy...
 
 -----
@@ -64,8 +64,8 @@ bb.bb 7 bb b (113.685) # x 2 x.x
 ```
 
 - `A4: 440`
-  - Sets tuning note to MIDI note A4, sets A4 to 440hz.
-  - Because of how this plugin works, the tuning note must be without accidental.
+  - Chooses the 12edo nominal A4 as the reference note, sets A4 to 440hz.
+  - Because of how this plugin works, the tuning note must be without accidental (it has to be a nominal)
 - `0 203.91 294.13 498.04 701.96 792.18 996.09 1200`
   - Sets a cycle of 7 nominals extending upwards/downwards from A4.
   - Tunes 7 nominals to 203.91cents, 294.13c, 498.04c, 701.96c, etc... respectively, representing the note names A, B, C, etc... (3-limit JI)
@@ -79,6 +79,24 @@ bb.bb 7 bb b (113.685) # x 2 x.x
   - Declares a second chain of accidentals that go double-syntonic down, syntonic down, natural/none, syntonic up, double-syntonic up --- where each adjacent step in the accidental chain is 21.506 cents apart.
   - You can combine accidentals from different chains.
 
+This produces the following `TuningConfig`:
+
+```js
+{
+  notesTable: { ... NotesTable },
+  tuningTable: { ... TuningTable },
+  avTable: { ... AccidentalVectorTable },
+  stepsList: [ ... StepwiseList ],
+  stepsLookup: { ... StepwiseLookup },
+  enharmonics: { ... EnharmonicGraph },
+  nominals: [0, 203.91, 294.13, 498.04, 701.96, 792.18, 996.09],
+  numNominals: 7,
+  equaveSize: 1200,
+  tuningNote: 69, // A4
+  tuningNominal: 0, // number of 12edo nominals from A4.
+  tuningFreq: 440 // Hz
+}
+```
 
 ## Implementation Details
 
@@ -221,7 +239,7 @@ The `readNote()` function 'tokenizes' the MuseScore Note element to output the f
 // MSNote
 {
   tpc: 4, // Ebb is 4
-  octaves: 4, // Ebb4 is 4th octave.
+  nominalsFromA4: -3, // E4 is 3 nominals below A4.
   accidentals: {
     6: 2, // two double flats
     34: 2, // two comma downs
@@ -242,6 +260,27 @@ As of now, this plugin does not intend to support the ability to have independen
 ### Parsing a note
 
 Once the implicit/explicit accidentals on a `MSNote` has been tokenized, we apply information from the TuningConfig to calculate the `XenNote` string hash from properties of the `MSNote`. Then, we can obtain `NoteData` from the `XenNote` + equaves calculation.
+
+Example `NoteData` of the above `Ebbbb\\4` note with implicit accidentals.
+
+```js
+{
+  ms: { // MSNote
+    tpc: 4, // Ebb is 4
+    nominalsFromA4: -3, // E4 is 3 nominals below A4.
+    accidentals: null // no explicit accidentals
+  },
+  xen: { // XenNote
+    nominal: 4, // E
+    accidentals: {
+      6: 2, // two double flats
+      34: 2, // two comma downs
+    },
+    hash: "4 6 2 34 2"
+  },
+  equaves: -1 // E4 is in the equave below tuning note A4
+}
+```
 
 ### Matching of an accidental
 
@@ -308,7 +347,7 @@ Though, this is a very extreme example and I can't think of any notation system 
 ```js
 {
   tpc: number, // tpc of note
-  octave: number, // octave of note A4 = 4.
+  nominalsFromA4: number, // number of 12edo nominals from A4.
   accidentals?: {
     // map of all explicit accidentals attached to this note
     <acc code>: number,
@@ -367,6 +406,18 @@ The `hash` string is to save performance cost of JSON.stringify and acts as a un
 The accidental codes must appear in increasing order.
 
 For example, the note `A bb d` (1 double flat, 1 mirrored flat) should have the hash string: `"0 6 1 10 1"`.
+
+#### `NoteData`
+
+```js
+{
+  ms: MSNote, // 12edo representation
+  xen: XenNote, // xen pitch class
+  equaves: number // no. of xen equaves from tuning note.
+}
+```
+
+Represents a semantically parsed note after `TuningConfig` lookup is applied to a `MSNote` to calculate its `XenNote` pitch class.
 
 #### `NotesTable`
 
@@ -482,6 +533,7 @@ This structure is computed at the same time as the `StepwiseList`.
   numNominals: number, // = nominals.length
   equaveSize: number, // = the last cents value in nominals list
   tuningNote: number, // MIDI note number of tuning note
+  tuningNominal: number, // tuning note number of 12edo nominals from A4.
   tuningFreq: number // Hz of tuning note.
 }
 ```

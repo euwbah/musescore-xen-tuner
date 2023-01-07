@@ -1,6 +1,7 @@
 import QtQuick 2.1
 import QtQuick.Controls 1.3
 import QtQuick.Controls.Styles 1.3
+import "fns.js" as Fns
 import MuseScore 3.0
 
 MuseScore {
@@ -28,98 +29,6 @@ MuseScore {
         '': 0,
         '#': 7,
         'x': 14
-      }
-
-      /**
-        Lookup table for mapping accidental code/ID number to 
-        musescore's internal accidental names and accidental symbol names.
-
-        Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
-        that look alike but have different internal representations. This plugin
-        should treat identical looking accidentals all the same.
-        
-        All caps are accidental names (the string value of Note.accidentalType)
-        Non caps are symbol names (string value of Element.symbol)
-
-        E.g. codeToLabels[2] contains all the possible accidental names/symbol names
-        that represent the sesquisharp (#+) accidental.
-
-        Whenever 'accidentalID' is used in code, it refers to the index of the
-        accidental in this array.
-        */
-      property variant codeToLabels: [
-          ['NONE'],
-          ['NATURAL'],
-          ['SHARP_SLASH4', 'accidentalWyschnegradsky9TwelfthsSharp'],
-          ['SHARP_SLASH'],
-          ['MIRRORED_FLAT'],
-          ['MIRRORED_FLAT2'],
-          ['DOUBLE_SHARP_THREE_ARROWS_UP'],
-          ['DOUBLE_SHARP_TWO_ARROWS_UP'],
-          ['SHARP2_ARROW_UP'],
-          ['DOUBLE_SHARP_ONE_ARROW_UP'],
-          ['SHARP2'],
-          ['SHARP2_ARROW_DOWN'],
-          ['DOUBLE_SHARP_ONE_ARROW_DOWN'],
-          ['DOUBLE_SHARP_TWO_ARROWS_DOWN'],
-          ['DOUBLE_SHARP_THREE_ARROWS_DOWN'],
-          ['SHARP_THREE_ARROWS_UP'],
-          ['SHARP_TWO_ARROWS_UP'],
-          ['SHARP_ARROW_UP'],
-          ['SHARP_ONE_ARROW_UP'],
-          ['SHARP'],
-          ['SHARP_ARROW_DOWN'],
-          ['SHARP_ONE_ARROW_DOWN'],
-          ['SHARP_TWO_ARROWS_DOWN'],
-          ['SHARP_THREE_ARROWS_DOWN'],
-          ['NATURAL_THREE_ARROWS_UP'],
-          ['NATURAL_TWO_ARROWS_UP'],
-          ['NATURAL_ARROW_UP'],
-          ['NATURAL_ONE_ARROW_UP'],
-          ['NATURAL_ARROW_DOWN'],
-          ['NATURAL_ONE_ARROW_DOWN'],
-          ['NATURAL_TWO_ARROWS_DOWN'],
-          ['NATURAL_THREE_ARROWS_DOWN'],
-          ['FLAT_THREE_ARROWS_UP'],
-          ['FLAT_TWO_ARROWS_UP'],
-          ['FLAT_ARROW_UP'],
-          ['FLAT_ONE_ARROW_UP'],
-          ['FLAT'],
-          ['FLAT_ARROW_DOWN'],
-          ['FLAT_ONE_ARROW_DOWN'],
-          ['FLAT_TWO_ARROWS_DOWN'],
-          ['FLAT_THREE_ARROWS_DOWN'],
-          ['DOUBLE_FLAT_THREE_ARROWS_UP'],
-          ['DOUBLE_FLAT_TWO_ARROWS_UP'],
-          ['FLAT2_ARROW_UP'],
-          ['DOUBLE_FLAT_ONE_ARROW_UP'],
-          ['FLAT2'],
-          ['FLAT2_ARROW_DOWN'],
-          ['DOUBLE_FLAT_ONE_ARROW_DOWN'],
-          ['DOUBLE_FLAT_TWO_ARROWS_DOWN'],
-          ['DOUBLE_FLAT_THREE_ARROWS_DOWN']
-      ]
-
-      /*
-      A many-to-one mapping of accidental label string to accidental code number.
-      */
-      property variant labelToCode: (function() {
-        var mapping = {};
-        for (var i = 0; i < codeToLabels.length; i++) {
-          for (var j = 0; j < codeToLabels[i].length; j++)
-            mapping[codeToLabels[i][j]] = i;
-        }
-        Object.freeze(mapping);
-        return mapping;
-      })()
-
-      /*
-      Reads the Ms::PluginAPI::Note and creates a NoteName object.
-      */
-      function readNote(note) {
-        msNote = { // MSNote
-          tpc: note.tpc,
-        };
       }
 
       // MuseScore's annotations contain formatting code in angle brackets if the
@@ -948,7 +857,9 @@ MuseScore {
       }
 
       onRun: {
-        console.log("hello n-edo");
+        console.log("Xen Tune v0.1");
+        Fns.test();
+        console.log(Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')
               Qt.quit();
