@@ -203,7 +203,7 @@ A half accidental naturalizes any prior accidentals, but a symbolic accidental d
 
 Thankfully all we need to do is check the `tpc` of each note, and take into account the semitone offsets of the `tpc`. There is no need for handling all edge cases.
 
-### Parsing of explicit accidentals
+### Tokenizing of explicit accidentals
 
 Let's continue the example using the same tuning system as above with two accidental chains, 7 nominals, and tuning note set to A4.
 
@@ -229,7 +229,7 @@ The `readNote()` function 'tokenizes' the MuseScore Note element to output the f
 }
 ```
 
-### Parsing of implicit accidentals
+### Tokenizing of implicit accidentals
 
 Let's say immediately after the above `Ebbbb\\` note, we have a `E` with no accidentals.
 
@@ -238,6 +238,10 @@ This note's `tpc` is still 4 (Ebb), because the Full Accidental is still in effe
 In this situation, we need to check for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `accidentals` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
 
 As of now, this plugin does not intend to support the ability to have independently explicit/implicit accidentals per accidental chain. This means that ups and downs notation where prior sharps/flats carry through an up/down accidental will not be supported. If there's enough demand for that, then this feature will be a goal.
+
+### Parsing a note
+
+Once the implicit/explicit accidentals on a `MSNote` has been tokenized. We apply the TuningConfig to calculate the `XenNote` string hash from properties of the `MSNote`.
 
 ### Matching of an accidental
 
