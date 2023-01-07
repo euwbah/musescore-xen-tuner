@@ -1,5 +1,5 @@
 /**
-    Lookup table for mapping accidental code/ID number to 
+    Lookup table for mapping SymbolCode number to 
     musescore's internal accidental names and accidental symbol names.
 
     Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
@@ -14,6 +14,8 @@
 
     Whenever 'accidentalID' is used in code, it refers to the index of the
     accidental in this array.
+
+    To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
  */
 CODE_TO_LABELS = [
     ['NONE'],
@@ -70,6 +72,8 @@ CODE_TO_LABELS = [
 
 /**
  * The inverse many-to-one mapping of the above CODE_TO_LABELS array.
+ * 
+ * Maps internal labels/IDs to SymbolCode number.
  */
 LABELS_TO_CODE = (function() {
     var mapping = {};
@@ -80,6 +84,24 @@ LABELS_TO_CODE = (function() {
     Object.freeze(mapping);
     return mapping;
 })();
+
+/**
+ * Mapping of Text Codes to SymbolCode.
+ * 
+ * To be kept updated with https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+ * 
+ * (For inputting symbols via text representation)
+ */
+
+TEXT_TO_CODE = {
+    '#x': 3,
+    'x': 4,
+    '#': 5,
+    'b': 6,
+    'bb': 7,
+    'bbb': 8,
+    // TODO: etc...
+}
 
 /**
  * Mapping of 12EDO note letters to nominals from A.
@@ -234,6 +256,13 @@ function readNote(note) {
  * 
  * If it is, parses it and creates a TuningConfig object.
  * 
+ * Example tuning config text:
+ * 
+ * A4: 440
+ * 0 203.91 294.13 498.04 701.96 792.18 996.09 1200
+ * bb.bb 7 bb b (113.685) # x 2 x.x
+ * \.\ \ (21.506) / /./
+ * 
  * @param {string} text The system/staff text contents to parse.
  * 
  * @returns {TuningConfig} The parsed tuning configuration object, or null text was not a tuning config.
@@ -244,7 +273,7 @@ function parseTuningConfig(text) {
     if (text.length == 0)
         return null;
     
-    var tuningConfig = {
+    var tuningConfig = { // TuningConfig
         notesTable: {},
         tuningTable: {},
         avTable: {},
@@ -252,6 +281,7 @@ function parseTuningConfig(text) {
         stepsLookup: {},
         enharmonics: {},
         nominals: [],
+        accChains: [],
         numNominals: null,
         equaveSize: null,
         tuningNote: null,
@@ -260,6 +290,14 @@ function parseTuningConfig(text) {
     };
 
     var lines = text.split('\n');
+
+    // Need at least reference note and nominal declarations.
+    if (lines.length < 2)
+        return null;
+    
+    // SETTLE TUNING NOTE.
+    //
+    //
 
     var referenceTuning = lines[0].split(':').forEach(x => x.trim());
 
@@ -271,6 +309,10 @@ function parseTuningConfig(text) {
 
     var nominalsFromA4 = (referenceOctave - 4) * 7;
     var lettersNominal = LETTERS_TO_NOMINAL[referenceLetter];
+
+    if (!lettersNominal)
+        return null;
+    
     nominalsFromA4 += lettersNominal;
 
     // Since the written octave resets at C, but we need to convert it
@@ -282,4 +324,108 @@ function parseTuningConfig(text) {
     tuningConfig.tuningNominal = nominalsFromA4;
     tuningConfig.tuningNote = LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
     tuningConfig.tuningFreq = parseFloat(referenceTuning[1]);
+
+    // SETTLE NOMINALS
+    //
+    //
+
+    var hasNaN = false;
+    var nominals = lines[1].split(' ').forEach(x => {
+        var f = parseFloat(x);
+        if (f == NaN) hasNaN = true;
+        return f
+    });
+
+    if (hasNaN)
+        return null;
+    
+    tuningConfig.nominals = nominals.slice(0, nominals.length - 1);
+    tuningConfig.equaveSize = nominals[nominals.length - 1];
+    tuningConfig.numNominals = tuningConfig.nominals.length;
+
+    // SETTLE ACCIDENTAL CHAINS
+    //
+    //
+
+    var ligDeclarationStartLine = null;
+
+    for (var i = 2; i < lines.length; i++) {
+        // each new line is a new accidental chain.
+
+        // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
+
+        if (lines[i].match(/lig\([0-9,]+\)/)) {
+            ligDeclarationStartLine = i;
+            break;
+        }
+
+        var accChainStr = lines[i].split(' ').forEach(x => x.trim());
+
+        var increment = null;
+        var degreesSymbols = [];
+        var tunings = [];
+        var offsets = [];
+        var centralIdx = null;
+
+        for (var j = 0; j < accChainStr.length; j++) {
+            var word = accChainStr[j];
+
+            if (word.match(/\([0-9.]+\)/)) {
+                increment = parseFloat(word.slice(1, word.length - 1));
+                degreesSymbols.push(null);
+                offsets.push(0);
+                centralIdx = j;
+            } else {
+                // degree syntax: sym1.sym2.symN(<optional additional cents offset>)
+                // e.g.: +.7./(-23.5) declares a degree containing:
+                // SHARP_SLASH, FLAT2, ARROW_UP symbols
+                // with additional offset -23.5 cents
+
+                var symbols_offset = word.split('(');
+
+                hasNaN = false;
+
+                // each symbol is either a text code or symbol code number
+                var symbolCodes = symbols_offset[0].split('.').map(x => {
+                    var code = TEXT_TO_CODE[x];
+                    if (!code)
+                        code = parseInt(x);
+
+                    if (code == NaN) hasNaN = true;
+                    return code;
+                });
+
+                if (hasNaN) return null;
+
+                var offset = symbols_offset.length > 1 ? parseFloat(symbols_offset[1].slice(0, symbols_offset[1].length - 1)) : 0;
+
+                degreesSymbols.push(symbolCodes);
+                offsets.push(offset);
+            }
+        }
+
+        if (!increment || !centralIdx)
+            return null;
+        
+        for (var j = 0; j < offsets.length; j++) {
+            if (j == centralIdx)
+                tunings.push(0);
+            else
+                tunings.push((j - centralIdx) * increment + offsets[j]);
+        }
+
+        // Add new acc chain
+        tuningConfig.accChains.push({ // AccidentalChain
+            degreesSymbols: degreesSymbols,
+            tunings: tunings,
+            centralIdx: centralIdx,
+        });
+    }
+
+    // SETTLE LIGATURES
+    //
+    //
+
+    
+
 }

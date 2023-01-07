@@ -122,8 +122,26 @@ This produces the following `TuningConfig`:
   stepsLookup: { ... StepwiseLookup },
   enharmonics: { ... EnharmonicGraph },
   accChains: [
-    
+    {
+      // Accidental chain of bb.bb, bbb, bb, b, etc...
+      degreesSymbols: [
+        [7,7], [8], [7], [6], null, 
+        [5], [4], [3], [4,4]
+      ],
+      tunings: [
+        -454.74, -341.055, -227.37, -113.685, 0, 
+        113.685, ...
+      ],
+      centralIdx: 4
+    },
+    {
+      // Accidental chain of \.\ \, \, /, /./
+      degreesSymbols: [...],
+      tunings: [...],
+      centralIdx: 2
+    }
   ],
+  ligatures: [],
   nominals: [0, 203.91, 294.13, 498.04, 701.96, 792.18, 996.09],
   numNominals: 7,
   equaveSize: 1200,
@@ -230,7 +248,7 @@ Cbb/   ,  88.27c,  0
 Fxx//  ,  89.93c,  -1
 Bb     ,  90.22c,  0
 A#\    ,  92.18c,  0
-Gx#\\  ,  94.13c,  -1
+G#x\\  ,  94.13c,  -1
 ... etc (see 2.3.5 JI tuning example.csv for all 315 notes)
 ```
 
@@ -258,7 +276,7 @@ There are 3 categories of accidentals, and for the sake of this plugin, let's ca
 2. **Half supported** aka 'half accidentals'
 3. **Symbolic** accidentals
 
-Full accidentals are the result an internal property of the Note element called `tpc` (tonal pitch class), which is a number that ranges from -8 to 40. This represents a cycle of 49 fifths ranging from Fbbb (3ple flat) to Bx# (3ple sharp). Any of these standard accidentals will affect playback in steps of 100 cents as it registers a different MIDI note.
+Full accidentals are the result an internal property of the Note element called `tpc` (tonal pitch class), which is a number that ranges from -8 to 40. This represents a cycle of 49 fifths ranging from Fbbb (3ple flat) to B#x (3ple sharp). Any of these standard accidentals will affect playback in steps of 100 cents as it registers a different MIDI note.
 
 Half accidentals are accidentals that exist in the `accidental` property of the Note element, but they do not affect the `tpc` nor playback, and they are treated like the 'natural' accidental (cancelling all prior accidentals). Only a fraction of SMuFL accidental symbols are available as half-supported accidentals. These accidentals are identifiable with UPPER_CAMEL_CASE IDs.
 
@@ -345,7 +363,7 @@ We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need 
 For whatever reason, if you wish to irregular intervals between accidentals within one accidental chain, you can do so with this syntax:
 
 ```txt
-b.b(-50) bbb bb b (100) # x(25) x# x.x
+b.b(-50) bbb bb b (100) # x(25) #x x.x
 ```
 
 This declares an accidental chain ranging from 2 double flats to 2 double sharps.
@@ -423,6 +441,16 @@ Then, ligatures for chains 2 and 3 will be searched, and any matches will be fla
 Finally, if nothing has been matched so far, then ligatures involving all 3 chains will be searched.
 
 Though, this is a very extreme example and I can't think of any notation system that requires that much complexity.
+
+### Ligature implementation
+
+If ligatures are defined, these will add additional entries to the `NotesTable` when there is an exact match in the degrees of the `AccidentalVector` regarding `considered` accidental chains.
+
+A ligatured entry will contribute additional `XenNote` spellings pointing to the same `AccidentalVector` (+ other lookup entries). There's no need to worry about this many-to-one map because there is no need for an inverse mapping.
+
+With these additional lookup entries, a ligatured spelling is implemented simply as an 'enharmonic spelling', and ligatures can be toggled with the enharmonic cycling operation.
+
+When creating/managing accidentals during up/down operations, this plugin favours spellings with lesser symbols. If for whatever reason, a ligatured spelling has more symbols than an non-ligatured one, the plugin will not automatically use the ligatured spelling. Thus, it only makes sense to define ligatures if the ligatured spellings will always have fewer symbols than the non-ligatured one.
 
 ## Data Structures
 
@@ -615,7 +643,7 @@ This structure is computed at the same time as the `StepwiseList`.
 
 ```js
 {
-  accidentals: [[number]], // list of list of SymbolCodes. Central element is null.
+  degreesSymbols: [[SymbolCode]?], // Central element is null.
   tunings: [number], // tuning of each accidental in cents. Central elemnent is 0.
   centralIdx: number, // the index of the central element.
 }
@@ -623,7 +651,22 @@ This structure is computed at the same time as the `StepwiseList`.
 
 Represents a user declared accidental chain.
 
-Each element of `accidentals` is a list of `SymbolCode`s --- the list of symbols composed together to represent one degree in the accidental chain.
+Each element of `degreesSymbols` is a list of `SymbolCode`s containing the symbols composed together to represent one degree in the accidental chain (in the order of which the user declared)
+
+The accidental degree of the chain represented by `degrees[n]` and `tunings[n]` is equal to `n - centralIdx`.
+
+#### `Ligature`
+
+```js
+{
+  concerning: [number], // acc chain indices
+  avToSymbols: {
+    // Search & replace map AccidentalVector -> SymbolCode
+    AccidentalVector: [SymbolCode],
+    AccidentalVector: [SymbolCode],
+  },
+}
+```
 
 #### `TuningConfig`
 
@@ -632,9 +675,11 @@ Each element of `accidentals` is a list of `SymbolCode`s --- the list of symbols
   notesTable: NotesTable,
   tuningTable: TuningTable,
   avTable: AccidentalVectorTable,
-  stepsList: StepwiseList,
+  stepsList: StepwiseList, // Sorted by increasing pitch
   stepsLookup: StepwiseLookup,
   enharmonics: EnharmonicGraph,
+  accChains: [AccidentalChain], // In the order of decl.
+  ligatures: [Ligature], // In order of decl.
   nominals: [number], // List of cents from tuning note
   numNominals: number, // = nominals.length
   equaveSize: number, // = the last cents value in nominals list
