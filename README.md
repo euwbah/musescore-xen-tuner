@@ -1,12 +1,12 @@
 # Microtonal/Xenharmonic MuseScore plugin suite
 
-**Work in progress.**
-
-A rewrite of the n-edo plugin.
+A rewrite of the n-edo plugin to support as many notation & xen tuning systems as possible.
 
 ## HELP NEEDED
 
-See [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/)
+This project is still a **work in progress.** (See [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/))
+
+I need help with the [data entry of accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing) to complete this plugin.
 
 ## Goals
 
@@ -22,19 +22,6 @@ See [this post](https://www.facebook.com/groups/497105067092502/permalink/270072
 
 - [ ] MIDI/MPE export with channel pitch bend support.
 
-
-## Feature target (for now)
-
-- Multiple accidental symbols (using symbols attached to a note) functioning as a single accidental.
-- any number of nominals + custom nominal tuning
-- equave stretching (1 equave = 1 cycle of nominals)
-- custom accidental tuning
-- declare a finite number of accidental permutations using chains of accidentals to support rank-N tunings & JI subgroups. (up to 1 accidental per chain can be present on a note).
-- Allow irregular step sizes within a single accidental chain.
-- transpose up/down to the nearest pitch
-- enharmonic respell
-- a list of copyable tuning configs of commonly used tunings for beginner users.
-
 ## List of Supported Accidentals
 
 https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
@@ -49,11 +36,32 @@ A **symbol code** represents a visually unique symbol, which could have multiple
 
 Technically speaking, MuseScore has two different types of 'accidentals'. You can use accidentals from the usual 'Accidentals' palette, but you can access a larger range of accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). You can only have one 'accidental' attached to a note, but you can attach multiple symbols to get multiple accidentals on one note. No matter how you attach the accidental, this plugin will identical looking accidentals/symbols as the same and assign them the same **symbol code**
 
-One or more symbol codes can come together to form a single accidental that represents a **degree** of an **accidental chain**. We are all familiar with sharps and flats. We can also have double sharps, triple flats etc...
+One or more symbol codes can come together to form a single accidental that represents a **degree** on an **accidental chain**. 
 
-When we say "sharps and flats", what we're really referring to is an **accidental chain**. Each successive item in this chain of sharps and flats refer to a regular (or regular-ish) pitch increment. The number of increments of the unit interval is the **degree**. In other words, `bb` (double flat) is "degree -2" of the "sharps and flats"" **accidental chain**.
+We are all familiar with sharps and flats. We can also have double sharps, triple flats etc...
 
-You can compose different symbols together to form an accidental degree. E.g. if you want 5 flats, you can do `bbb.bb` to compose a triple flat and a double flat together as one logically grouped accidental degree.
+When we say "sharps and flats", what we're really referring to is an **accidental chain**. Each successive item in this chain of sharps and flats refer to a regular (or regular-ish) pitch increment. The number of increments of the unit interval is the **degree**. In other words, `bb` (double flat) is really "degree -2" of the "sharps and flats" chain. In 12edo, each degree represents a 100 cent increment, so `bb` represents -200 cents.
+
+You can compose different symbols together to form a degree. E.g. if you want 5 flats, you can do `bbb.bb` to compose a triple flat and a double flat together as one logically grouped accidental degree.
+
+You can't attach two accidental degrees from the same accidental chain on to a single note (like how it wouldn't make sense to call a note "C-sharp-flat-natural").
+
+However, you can combine different degrees of different accidental chains together to form the composite accidental aka **accidental vector**. 
+
+For example, in 5-limit just intonation, we will need to tune the 'ditone' (81/64) down a syntonic comma (81/80) to arrive at a classic major third (5/4). Let's say our 'sharp-flats' chain are all 3-limit apotomes -- so the interval between D and F# is a ditone. We can lower F# down a syntonic comma by adding an accidental from a second accidental chain. 
+
+We can declare a new accidental chain (the 5-commas chain) with a 21 cents increment between each degree.
+
+Then, we can get the note `F#\`, which represents +1 steps in the sharps-flats chain and -1 steps in the 5-commas chain.
+
+This plugin enables xen notation by giving you free-reign over declaring:
+
+- Accidental chains with regular/irregular step sizes between each degree
+- The combinations of one or more symbols that represent a single degree on an accidental chain.
+- The tunings of the nominals (A, B, C, D, etc...)
+- The number of nominals within an octave/equave (so you can emulate Bohlen-Pierce & other non-octave notations)
+- The interval of the 'equave' (so you can have stretched octave/tritave/etc... tunings)
+- Accidental ligatures --- where a single symbol (or multiple) can represent & substitute for a combination of accidentals from differing accidental chains (useful for HEJI & Sagittal)
 
 ## Caveats
 
@@ -65,6 +73,17 @@ You can compose different symbols together to form an accidental degree. E.g. if
 -----
 
 # Dev Notes
+### Feature target (for now)
+
+- Multiple accidental symbols (using symbols attached to a note) functioning as a single accidental.
+- any number of nominals + custom nominal tuning
+- equave stretching (1 equave = 1 cycle of nominals)
+- custom accidental tuning
+- declare a finite number of accidental permutations using chains of accidentals to support rank-N tunings & JI subgroups. (up to 1 accidental per chain can be present on a note).
+- Allow irregular step sizes within a single accidental chain.
+- transpose up/down to the nearest pitch
+- enharmonic respell
+- a list of copyable tuning configs of commonly used tunings for beginner users.
 
 ## Case Study/Example
 
