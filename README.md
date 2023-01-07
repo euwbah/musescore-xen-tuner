@@ -382,11 +382,11 @@ b^(-90) v(-50) (0) ^(30) ^2(70)
 
 This sets the b^ accidental to -90 cents, v to -50 cents, and so on.
 
-However, do note that if you're using this feature, you're either dealing with a really, really, complicated/obscure tuning system, or you're doing something wrong.
+However, do note that if you're using this feature, you're either dealing with a really, complicated/obscure tuning system (8th-32nd harmonics scale stretched by pi?), or you're doing something wrong.
 
 Reasonably sized regular temperament & JI subsets should be representable with only regularly-generated accidental chains.
 
-If you require accidental ligatures where some individual symbols (like in HEJI/Sagittal) represent accidentals from multiple chains, you should use the accidental ligature feature instead.
+If you require accidental ligatures where some individual symbols represent accidentals from multiple chains (like in HEJI & Sagittal), you should use the accidental ligature feature instead.
 
 -----
 
@@ -404,7 +404,7 @@ In HEJI, there are composite accidental ligatures for compositions of apotomes a
 
 ```txt
 lig(1,2)
-<acc chain 1 amount> <acc chain 2 amount> <acc code>
+<acc chain 1 degree> <acc chain 2 degree> <SymbolCode(s)>
 1 3 23
 1 2 24
 1 1 25
@@ -413,23 +413,27 @@ lig(1,2)
 1 -3 28
 ```
 
-`lig(0,1)` signifies that the plugin should perform search-and-replace for exact matches pertaining to the 1st and 2nd accidental chains (which are apotomes and 5-commas respectively).
+`lig(0,1)` signifies that the plugin should perform search-and-replace for exact matches regarding the 1st and 2nd accidental chains only (which are apotomes and 5-commas respectively).
 
-This means that if some note has an accidental vector of `[1,3,2]` (sharp + 3 syntonic commas + 2 7-commas), then the plugin will note that, between the 1st and 2nd chains, `1,3` should be notated as accidental code 23 (SHARP_THREE_ARROWS_UP).
+This means that if some note has an accidental vector of `[1,3,2]` (sharp + 3 syntonic commas + 2 7-commas). As declared in the first line `1 3 23`, the plugin will find that there is an exact match in the 1st and 2nd chains of `[1,3,2]` to the `1 3` ligature vector, and thus the `1,3` part gets ligatured as SymbolCode 23 (`SHARP_THREE_ARROWS_UP`).
 
-Hence, the resulting accidental on the note should be sharp-3-arrows + 7-comma up.
+Hence, the resulting symbols combination on the note should be sharp-3-arrows + 2 7-commas up.
 
-If some obscure tuning system requires more than one ligature declaration between any number of accidental chains, the user can do so by appending more `lig(x,y,z,...)` declarations below.
+If you require a ligature that consists of more than one symbol, separate `SymbolCode`s with a dot (`.`). E.g., `1 3 #.^3` will ligature `[1,3,2]` into `SHARP` + `NATURAL_THREE_ARROWS_UP` + 2 7-commas up. (Though, this is not practical use).
+
+If you require more than one ligature declaration between any number of accidental chains, the user can do so by appending more `lig(x,y,z,...)` declarations below.
 
 E.g.:
 
 ```txt
 lig(1,2)
-...
+1 1 108
+1 -1 109
+etc...
 lig(2,3)
-...
+etc...
 lig(1,2,3)
-...
+etc...
 ```
 
 The ligatures will be searched and replaced in the order of which they are declared.
@@ -660,7 +664,7 @@ The accidental degree of the chain represented by `degrees[n]` and `tunings[n]` 
 ```js
 {
   regarding: [number], // acc chain indices
-  avToSymbols: {
+  ligAvToSymbols: {
     // Search & replace map AccidentalVector -> SymbolCode
     LigAccVector: [SymbolCode],
     LigAccVector: [SymbolCode],

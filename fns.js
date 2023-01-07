@@ -211,6 +211,20 @@ function test() {
     (() => console.log("Hello world! Helper function."))();
 }
 
+/**
+ * Convert user-string input SymbolCode or Text Code into SymbolCode ID.
+ * 
+ * @param {string} codeOrText
+ * @returns SymbolCode ID or null if invalid.
+ */
+function readSymbolCode(codeOrText) {
+    var code = TEXT_TO_CODE[codeOrText];
+    if (!code)
+        code = parseInt(codeOrText) || null;
+    
+    return code;
+}
+
 
 /**
  * Reads the Ms::PluginAPI::Note and creates a `MSNote` data structure.
@@ -330,14 +344,14 @@ function parseTuningConfig(text) {
     //
     //
 
-    var hasNaN = false;
+    var hasInvalid = false;
     var nominals = lines[1].split(' ').forEach(x => {
         var f = parseFloat(x);
-        if (f == NaN) hasNaN = true;
+        if (f == NaN) hasInvalid = true;
         return f
     });
 
-    if (hasNaN)
+    if (hasInvalid)
         return null;
     
     tuningConfig.nominals = nominals.slice(0, nominals.length - 1);
@@ -384,19 +398,17 @@ function parseTuningConfig(text) {
 
                 var symbols_offset = word.split('(');
 
-                hasNaN = false;
+                hasInvalid = false;
 
                 // each symbol is either a text code or symbol code number
                 var symbolCodes = symbols_offset[0].split('.').map(x => {
-                    var code = TEXT_TO_CODE[x];
-                    if (!code)
-                        code = parseInt(x);
+                    var code = readSymbolCode(x);
 
-                    if (code == NaN) hasNaN = true;
+                    if (code == null) hasInvalid = true;
                     return code;
                 });
 
-                if (hasNaN) return null;
+                if (hasInvalid) return null;
 
                 var offset = symbols_offset.length > 1 ? parseFloat(symbols_offset[1].slice(0, symbols_offset[1].length - 1)) : 0;
 
@@ -428,14 +440,40 @@ function parseTuningConfig(text) {
     //
 
     for (var i = ligDeclarationStartLine; i < lines.length; i++) {
-        hasNaN = false;
+        hasInvalid = false;
+
+        // lig(m, n) will be regarding the mth and nth accidental chains only.
+        //
+        // An exact match of the degrees of the mth and nth chains must be found
+        // in order for the ligature regarding m and n to be applied.
+
         var regarding = lines[i]
             .match(/lig\(([0-9,]+)\)/)[1]
             .split(',')
             .map(x => {
                 let n = parseInt(x);
-                if (n == NaN) hasNaN = true;
+                if (n == NaN || n < 1) hasInvalid = true;
                 return n;
             });
+        
+        var ligAvToSymbols = {};
+
+        for (var j = i + 1; j < lines.length; j++) {
+            // each line represents a mapping in `ligAvToSymbols`
+
+            // syntax: <chain 1 degree> <chain 2 degree> ... <dot separated acc symbols>
+
+            var words = lines[j].split(' ').forEach(x => x.trim());
+            var ligAv = words.slice(0, words.length - 1).map(x => parseInt(x));
+
+            hasInvalid = false;
+            var ligatureSymbols = words[words.length - 1]
+                .split('.')
+                .forEach(x => {
+                    var code = readSymbolCode(x);
+                    if (code == null) hasInvalid = true;
+                    return code;
+                });
+        }
     }
 }
