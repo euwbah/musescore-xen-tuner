@@ -281,6 +281,7 @@ function parseTuningConfig(text) {
         stepsLookup: {},
         enharmonics: {},
         nominals: [],
+        ligatures: [],
         accChains: [],
         numNominals: null,
         equaveSize: null,
@@ -426,6 +427,15 @@ function parseTuningConfig(text) {
     //
     //
 
-    
-
+    for (var i = ligDeclarationStartLine; i < lines.length; i++) {
+        hasNaN = false;
+        var regarding = lines[i]
+            .match(/lig\(([0-9,]+)\)/)[1]
+            .split(',')
+            .map(x => {
+                let n = parseInt(x);
+                if (n == NaN) hasNaN = true;
+                return n;
+            });
+    }
 }

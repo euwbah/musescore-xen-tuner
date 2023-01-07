@@ -659,14 +659,20 @@ The accidental degree of the chain represented by `degrees[n]` and `tunings[n]` 
 
 ```js
 {
-  concerning: [number], // acc chain indices
+  regarding: [number], // acc chain indices
   avToSymbols: {
     // Search & replace map AccidentalVector -> SymbolCode
-    AccidentalVector: [SymbolCode],
-    AccidentalVector: [SymbolCode],
+    LigAccVector: [SymbolCode],
+    LigAccVector: [SymbolCode],
   },
 }
 ```
+
+Represents a ligature declaration.
+
+`regarding` is an unordered set representing which n-th accidental chains to consider when searching for exact `AccidentalVector` matches.
+
+`LigAccVector` is a subspace of `AccidentalVector` with only the `n`-th accidental chains included by `regarding`.
 
 #### `TuningConfig`
 
