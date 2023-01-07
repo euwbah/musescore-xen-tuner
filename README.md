@@ -241,7 +241,7 @@ As of now, this plugin does not intend to support the ability to have independen
 
 ### Parsing a note
 
-Once the implicit/explicit accidentals on a `MSNote` has been tokenized. We apply the TuningConfig to calculate the `XenNote` string hash from properties of the `MSNote`.
+Once the implicit/explicit accidentals on a `MSNote` has been tokenized, we apply information from the TuningConfig to calculate the `XenNote` string hash from properties of the `MSNote`. Then, we can obtain `NoteData` from the `XenNote` + equaves calculation.
 
 ### Matching of an accidental
 
