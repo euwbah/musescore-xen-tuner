@@ -14,9 +14,14 @@ See [this post](https://www.facebook.com/groups/497105067092502/permalink/270072
 
 - [ ] The user should not need to open up the symbols palette and manually search for the accidental the user needs. Every unique accidental and note in the equave should be accessible with just up/down arrows and 'J' to cycle through enharmonics.
 
-- [ ] In large tuning systems, the user should not need to press the up arrow one [gongulus](https://googology.fandom.com/wiki/Gongulus) times to get to the desired note. An auxiliary up/down operation should be provided that transposes to the next nearest note that considers a smaller subset of accidentals and leaves the other accidentals unchanged.
+- [ ] In large tuning systems, the user should not need to press the up arrow one [gongulus](https://googology.fandom.com/wiki/Gongulus) times to get to the desired note. An auxiliary up/down operation should be provided that transposes to the next note that considers a smaller subset of accidentals and leaves the other accidentals unchanged.
+
+- [ ] Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol.
 
 - [ ] Proper transposition by any interval of choice for all regular mappings.
+
+- [ ] MIDI/MPE export with channel pitch bend support.
+
 
 ## Target features
 
@@ -40,7 +45,10 @@ This is still a work in progress. Free for all to edit, and in need of community
 
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
 - Does not regard the order of appearance of accidentals.
+- If writing music in non-ET tunings, only concert pitch is supported. If you wish to write for transposing instruments in transposed key, put the score in Concert Pitch mode and set the instruments' Tuning Config's tuning frequency to match the transposition of the instrument. When you do this, you cannot toggle between concert and transposed.
 - Could be very laggy...
+
+-----
 
 # Dev Notes
 
@@ -123,7 +131,7 @@ Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `G
 
 We can also make clones `aux2 up/down.qml` etc... which work the same way with individually configurable accidental chains.
 
-### Construct `TuningTable` & `TuningConfig`
+### Construction of `TuningTable` & `TuningConfig`
 
 Upon parsing the above example of the 2.3.5 JI subset tuning config, the plugin should generate the `TuningTable`. This contains all permutations of nominals and accidentals within an equave and sort it in ascending pitch order like so:
 
@@ -164,9 +172,12 @@ This `TuningTable` is the common resource that exhausts all possible unique spel
 
 During the parsing of tuning, the `TuningConfig` needs to index the `TuningTable` several ways so that we can quickly obtain required information in O(1) time.
 
-- a mapping of index to note name (which is the unique permutation of nominal and accidental)
-- a mapping of note name to index
-- a mapping of note name to cents
+- `notesTable`: maps `XenNote` string hashes to `XenNote` objects
+- `tuningTable`: maps `XenNote` string hashes to cent offsets
+- `avTable`: maps `XenNote` string hashes to `AccidentalVector`s
+- `stepsList`: a list of collated sets of enharmonic-equivalent `XenNote` string hashes, sorted by increasing pitch
+- `stepsLookup`: maps `XenNote` string hashes to the index it appears in the `stepsList`
+- `enharmonics`: maps `XenNote` string hashes to enharmonic equivalent `XenNote` string hashes.
 - ~~a mapping of cents to note name~~ (no use case yet)
 
 ### Behavior of accidentals
@@ -192,7 +203,6 @@ A half accidental naturalizes any prior accidentals, but a symbolic accidental d
 
 Thankfully all we need to do is check the `tpc` of each note, and take into account the semitone offsets of the `tpc`. There is no need for handling all edge cases.
 
-
 ### Parsing of explicit accidentals
 
 Let's continue the example using the same tuning system as above with two accidental chains, 7 nominals, and tuning note set to A4.
@@ -205,21 +215,17 @@ Hence, this note's `tpc` is 3 (E double flat), and it has three Symbolic Acciden
 
 Note that this plugin does not factor the order of appearance of accidentals. That is, `Ebbbb\\` is the same as `E\bb\bb`.
 
-The `readNote()` function 'tokenizes' the MuseScore Note element to output the following `NoteData` object:
+The `readNote()` function 'tokenizes' the MuseScore Note element to output the following `MSNote` object:
 
 ```js
-// NoteData
+// MSNote
 {
-  name: { // XenNote
-    nominal: 4, // A is the 0th nominal, E is the 4th
-    accidentals: {
-      6: 2, // there are two double flats
-      34: 2, // there are two comma downs
-    },
-    hash: '4 6 2 34 2'
-  },
-  equaves: -1, // E4 is the 1 equave below A4 (tuning note)
-  tpc: 4, // Fbbb is -8, Fbb is -1, Ebb is 4
+  tpc: 4, // Ebb is 4
+  octaves: 4, // Ebb4 is 4th octave.
+  accidentals: {
+    6: 2, // two double flats
+    34: 2, // two comma downs
+  }
 }
 ```
 
@@ -229,10 +235,9 @@ Let's say immediately after the above `Ebbbb\\` note, we have a `E` with no acci
 
 This note's `tpc` is still 4 (Ebb), because the Full Accidental is still in effect from before. However, it has no explicit accidentals attached to it.
 
-In this situation, we calculate the `effectiveXenNote` of this `E` note by looking for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `XenNote` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
+In this situation, we need to check for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `accidentals` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
 
-As of now, this plugin does not intend to support the ability to have independently explicit/implicit accidentals per accidental chain. I.e. any single explicit accidental on a new note will override any prior accidentals no matter which accidental chains were applied prior. If there's compelling use cases/enough demand for that, then this feature will be a goal.
-
+As of now, this plugin does not intend to support the ability to have independently explicit/implicit accidentals per accidental chain. This means that ups and downs notation where prior sharps/flats carry through an up/down accidental will not be supported. If there's enough demand for that, then this feature will be a goal.
 
 ### Matching of an accidental
 
@@ -240,15 +245,100 @@ Because the `TuningConfig` has a mapping for all `XenNote`s to `AccidentalVector
 
 We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
 
+## Advanced example: composite accidentals
+
+For proper HEJI and Sagittal notation, we need to take into account that there are combinations of accidentals that can combine into one single symbol.
+
+For example, the sharp and syntonic comma up (ARROW_UP) accidentals can combine into `SHARP_ARROW_UP`.
+
+The solution here is to allow the user to specify a list of ligatures/replacement symbols that apply to specific accidental chains only.
+
+For example, we can have 7-limit JI with 3 accidental chains: apotomes, 5-commas and 7-commas.
+
+In HEJI, there are composite accidental ligatures for compositions of apotomes and 5-commas. The user can append the following text to the Tuning Config text annotation:
+
+```
+lig(1,2)
+<acc chain 1 amount> <acc chain 2 amount> <acc code>
+1 3 23
+1 2 24
+1 1 25
+1 -1 26
+1 -2 27
+1 -3 28
+```
+
+`lig(0,1)` signifies that the plugin should perform search-and-replace for exact matches pertaining to the 1st and 2nd accidental chains (which are apotomes and 5-commas respectively).
+
+This means that if some note has an accidental vector of `[1,3,2]` (sharp + 3 syntonic commas + 2 7-commas), then the plugin will note that, between the 1st and 2nd chains, `1,3` should be notated as accidental code 23 (SHARP_THREE_ARROWS_UP).
+
+Hence, the resulting accidental on the note should be sharp-3-arrows + 7-comma up.
+
+If some obscure tuning system requires more than one ligature declaration between any number of accidental chains, the user can do so by appending more `lig(x,y,z,...)` declarations below.
+
+E.g.:
+
+```
+lig(1,2)
+...
+lig(2,3)
+...
+lig(1,2,3)
+...
+```
+
+The ligatures will be searched and replaced in the order of which they are declared.
+
+The above example will first try to find matches between chains 1 and 2. If a match is found, then it will flag that accidental chains 1 and 2 has been replaced with and will no longer search for matches involving chains 1 and 2.
+
+Then, ligatures for chains 2 and 3 will be searched, and any matches will be flagged.
+
+Finally, if nothing has been matched so far, then ligatures involving all 3 chains will be searched.
+
+Though, this is a very extreme example and I can't think of any notation system that requires that much complexity.
+
 ## Data Structures
+
+#### `MSNote`
+
+```js
+{
+  tpc: number, // tpc of note
+  octave: number, // octave of note A4 = 4.
+  accidentals?: {
+    // map of all explicit accidentals attached to this note
+    <acc code>: number,
+    ...
+  }
+}
+```
+
+Represents a tokenized MuseScore note element.
+
+If no explicit accidentals are present, `accidentals` is null.
+
+#### `AccidentalVector`
+
+```
+[<acc chain 1>, <acc chain 2>, ...]
+```
+
+A list of the effective accidentals applied in terms of the accidental chains declared in the tuning config.
+
+
+For example, declare a tuning system with two accidental chains in this order: sharps/flats, up/down.
+
+Then, the `AccidentalVector` of `[2, -3]` represents the degree 2 of the sharps/flat chain (e.g. double sharp) and degree -3 of the arrows chain (e.g. three down arrows).
+
+The n-th number represents the degree of the n-th accidental chain. The order of which the accidental chains are declared/stored determines which number corresponds to which accidental chain.
 
 #### `XenNote`
 
 ```js
 {
   nominal: number, // no. of nominals away from tuning note (mod equave)
-  accidentals: {
-    // Maps accidental code numbers to number of such accidentals present
+  accidentals?: {
+    // map of the effective accidentals required to spell this note.
     <acc code>: number
     <acc code>: number,
     // if a tuning-declared accidental is not present in this note,
@@ -263,6 +353,8 @@ We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need 
 Think of this as the xen version of 'tonal pitch class'.
 
 This is how the plugin represents a 'microtonal' note, containing data pertaining to how the note should be spelt/represented microtonally.
+
+If `accidentals` is null, represents a nominal of the tuning system (note without accidental).
 
 The `hash` string is to save performance cost of JSON.stringify and acts as a unique identifier for this `XenNote`.
 
@@ -285,21 +377,6 @@ For example, the note `A bb d` (1 double flat, 1 mirrored flat) should have the 
 Contains a lookup for all unique `XenNote`s in a tuning system.
 
 Maps `XenNote.hash` to `XenNote` object.
-
-#### `AccidentalVector`
-
-```
-[<acc chain 1>, <acc chain 2>, ...]
-```
-
-A list of the effective accidentals applied in terms of the accidental chains declared in the tuning config.
-
-
-For example, declare a tuning system with two accidental chains in this order: sharps/flats, up/down.
-
-Then, the `AccidentalVector` of `[2, -3]` represents the degree 2 of the sharps/flat chain (e.g. double sharp) and degree -3 of the arrows chain (e.g. three down arrows).
-
-The n-th number represents the degree of the n-th accidental chain. The order of which the accidental chains are declared/stored determines which number corresponds to which accidental chain.
 
 #### `AccidentalVectorTable`
 
@@ -347,6 +424,7 @@ Similarly, going up stepwise from `Fxx\\` to `Bbb//`, we'll need to increase the
 
 ```js
 [
+  // Groups enharmonically equivalent oredered by ascending pitch
   ['XenNote.hash', 'XenNote.hash', ...],
   ['XenNote.hash', 'XenNote.hash', ...],
   ...
@@ -356,6 +434,19 @@ Similarly, going up stepwise from `Fxx\\` to `Bbb//`, we'll need to increase the
 This list of lists indexes the `XenNote` hashes in order of ascending pitch.
 
 Each list represents 'enharmonically equivalent' `XenNote`s. The stepwise up/down plugins uses this to determine what are the possible spellings of the next stepwise note, and it chooses the best option of enharmonic spelling based on the context (use of implicit accidentals/key signature/minimizing accidentals)
+
+#### `StepwiseLookup`
+
+```js
+{
+  // Mapping of XenNote to index of StepwiseList
+  `XenNote.hash`: number,
+  `XenNote.hash`: number,
+  ...
+}
+```
+
+A lookup table for the index of a `XenNote` in the `StepwiseList`. This lookup is used to determine the index of a current note, and the next note up/down is simply the enharmonically equivalent `XenNote`s at index + 1 or index - 1 of `StepwiseList`.
 
 #### `EnharmonicGraph`
 
@@ -381,6 +472,7 @@ This structure is computed at the same time as the `StepwiseList`.
   tuningTable: TuningTable,
   avTable: AccidentalVectorTable,
   stepsList: StepwiseList,
+  stepsLookup: StepwiseLookup,
   enharmonics: EnharmonicGraph,
   nominals: [number], // List of cents from tuning note
   numNominals: number, // = nominals.length
@@ -411,7 +503,7 @@ To prevent unneeded parsings, this lookup maps verbatim system/staff texts to th
 
 #### `readNote`
 
-Takes in a MuseScore Note element and returns a `XenNote` object.
+Takes in a MuseScore Note element and returns a `MSNote` object.
 
 #### `getAccidental`
 

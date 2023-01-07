@@ -117,7 +117,7 @@ MuseScore {
       Reads the Ms::PluginAPI::Note and creates a NoteName object.
       */
       function readNote(note) {
-        noteName = {
+        msNote = { // MSNote
           tpc: note.tpc,
         };
       }
