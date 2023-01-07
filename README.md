@@ -41,6 +41,20 @@ https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46
 
 This is still a work in progress. Free for all to edit, and in need of community contribution! (Read [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/))
 
+## What???
+
+To use this plugin, we first need to know how this plugin conceptualizes accidentals. Let's fix some terminology first.
+
+A **symbol code** represents a visually unique symbol, which could have multiple different IDs under the hood. For the purposes of this plugin, all similar-looking symbols are considered the same symbol.
+
+Technically speaking, MuseScore has two different types of 'accidentals'. You can use accidentals from the usual 'Accidentals' palette, but you can access a larger range of accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). You can only have one 'accidental' attached to a note, but you can attach multiple symbols to get multiple accidentals on one note. No matter how you attach the accidental, this plugin will identical looking accidentals/symbols as the same and assign them the same **symbol code**
+
+One or more symbol codes can come together to form a single accidental that represents a **degree** of an **accidental chain**. We are all familiar with sharps and flats. We can also have double sharps, triple flats etc...
+
+When we say "sharps and flats", what we're really referring to is an **accidental chain**. Each successive item in this chain of sharps and flats refer to a regular (or regular-ish) pitch increment. The number of increments of the unit interval is the **degree**. In other words, `bb` (double flat) is "degree -2" of the "sharps and flats"" **accidental chain**.
+
+You can compose different symbols together to form an accidental degree. E.g. if you want 5 flats, you can do `bbb.bb` to compose a triple flat and a double flat together as one logically grouped accidental degree.
+
 ## Caveats
 
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
@@ -74,8 +88,6 @@ bb.bb 7 bb b (113.685) # x 2 x.x
 - `bb.bb 7 bb b (113.685) # x 2 x.x`
   - Declares a chain of accidentals that goes: two double-flats, triple-flat (accidental code `7` according to the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), double-flat, flat, natural/none, sharp, double-sharp, triple-sharp (accidental code `2`), two double-sharps.
   - Each step in the flat/sharp direction lowers/raises the pitch by 113.685 cents respectively. It is also possible to have irregular sizes for different accidentals in a chain, separate example below.
-  - Accidentals in a one chain are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note.
-  - Declaring the chain of accidentals limits the search space of the 'transpose up/down to nearest pitch' function such that only the declared accidentals are regarded. (too many accidentals / nominals will cause lag.)
 - `\.\ \ (21.506) / /./`
   - Declares a second chain of accidentals that go double-syntonic down, syntonic down, natural/none, syntonic up, double-syntonic up --- where each adjacent step in the accidental chain is 21.506 cents apart.
   - You can combine accidentals from different chains.
@@ -102,6 +114,19 @@ This produces the following `TuningConfig`:
 }
 ```
 
+
+Note that accidentals in one chain are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note. Following this e.g., you can't have flat and sharp on one note at the same time.
+
+Declaring the chain of accidentals limits the search space of the stepwise 'up/down' action such that only the declared accidentals are regarded. (too many declared accidentals/chains/nominals will cause lag / OOM)
+
+Multiple symbols can logically represent one accidental. To do this, connect multiple accidental codes with a dot (`.`). **Do not put a space between dots and symbols**.
+
+For example, `x.+./` declares a single accidental that comprises a double-sharp, a Stein semisharp, and an up arrow. When this accidental is constructed by the plugin, it will have these symbols follow this layout in this order left-to-right, but internally, there is no difference in the ordering of these symbols and they can appear in any order and be tuned the same.
+
+Even if you declare a multi-symbol accidental, these individual symbols cannot be used in the accidentals within any other accidental chain. This is a user-constriction put in place to reduce lag & computation complexity.
+
+E.g. if you declare `x.+./` in chain 1, you cannot declare `x.d` in chain 2, because `x` is already being used by chain 1.
+
 ## Implementation Details
 
 ### Overview
@@ -126,7 +151,7 @@ This produces the following `TuningConfig`:
 4. Finally, apply/remove explicit accidentals as needed on the adjusted note.
 5.  Apply the same method as `tune.qml` to tune the newly adjusted note.
 
-In some edge cases, the newly adjusted note may cause succeeding notes to sound off-pitch (because of how symbolic accidentals allow standard accidental pitch offsets to pass through). **Recommend the user to always manually run `tune.qml` on the whole score after moving notes around.**
+In some edge cases, the newly adjusted note may cause succeeding notes to sound off-pitch (because of how symbolic accidentals allow standard accidental pitch offsets to pass through). **The user is recommended to always manually run `tune.qml` on the whole score after moving notes around.**
 
 `enharmonic.qml`:
 
@@ -382,6 +407,16 @@ Though, this is a very extreme example and I can't think of any notation system 
 
 ## Data Structures
 
+#### `SymbolCode`
+
+```js
+number
+```
+
+A number representing a uniquely identifiable accidental symbol. A single symbol code maps to all MuseScore accidental enums/SMuFL IDs that looks identical.
+
+[See list of symbol codes](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
+
 #### `MSNote`
 
 ```js
@@ -389,8 +424,9 @@ Though, this is a very extreme example and I can't think of any notation system 
   tpc: number, // tpc of note
   nominalsFromA4: number, // number of 12edo nominals from A4.
   accidentals?: {
-    // map of all explicit accidentals attached to this note
-    <acc code>: number,
+    // number of each explicit accidental symbol attached to this note
+    SymbolCode: number,
+    SymbolCode: number,
     ...
   }
 }
@@ -403,15 +439,12 @@ If no explicit accidentals are present, `accidentals` is null.
 #### `AccidentalVector`
 
 ```js
-[<acc chain 1>, <acc chain 2>, ...]
+[number, number, ...]
 ```
 
-A list of the effective accidentals applied in terms of the accidental chains declared in the tuning config.
+Represents a single abstract composite accidental being applied to a note, represented by the degrees of each accidental chain.
 
-
-For example, declare a tuning system with two accidental chains in this order: sharps/flats, up/down.
-
-Then, the `AccidentalVector` of `[2, -3]` represents the degree 2 of the sharps/flat chain (e.g. double sharp) and degree -3 of the arrows chain (e.g. three down arrows).
+For example, in a tuning system with two accidental chains in this order: sharps/flats, up/down --- the `AccidentalVector` of `[2, -3]` represents the degree 2 of the sharps/flat chain (double sharp) and degree -3 of the arrows chain (three down arrows).
 
 The n-th number represents the degree of the n-th accidental chain. The order of which the accidental chains are declared/stored determines which number corresponds to which accidental chain.
 
@@ -421,12 +454,12 @@ The n-th number represents the degree of the n-th accidental chain. The order of
 {
   nominal: number, // no. of nominals away from tuning note (mod equave)
   accidentals?: {
-    // map of the effective accidentals required to spell this note.
-    <acc code>: number
-    <acc code>: number,
+    // map of the accidentals required to spell this note.
+    SymbolCode: number
+    SymbolCode: number,
     // if a tuning-declared accidental is not present in this note,
     // do not add it
-    <unused acc>: 0 // DON'T DO THIS.
+    SymbolCode: 0 // DON'T DO THIS.
     ...
   }
   hash: string, // for lookup purposes
@@ -441,7 +474,7 @@ If `accidentals` is null, represents a nominal of the tuning system (note withou
 
 The `hash` string is to save performance cost of JSON.stringify and acts as a unique identifier for this `XenNote`.
 
-`"<nominal> <acc code> <num> <acc code> <num> ..."`
+`"<nominal> SymbolCode <degree> SymbolCode <degree> ..."`
 
 The accidental codes must appear in increasing order.
 
@@ -558,6 +591,20 @@ A simple lookup table where `EnharmonicGraph[XenNote]` gives the next enharmonic
 This lookup table describes a graph composed of several distinct cyclic directional paths. Each cyclic loop represents enharmonically equivalent notes.
 
 This structure is computed at the same time as the `StepwiseList`.
+
+#### `AccidentalChain`
+
+```js
+{
+  accidentals: [[number]], // list of list of SymbolCodes. Central element is null.
+  tunings: [number], // tuning of each accidental in cents. Central elemnent is 0.
+  centralIdx: number, // the index of the central element.
+}
+```
+
+Represents a user declared accidental chain.
+
+Each element of `accidentals` is a list of `SymbolCode`s --- the list of symbols composed together to represent one degree in the accidental chain.
 
 #### `TuningConfig`
 
