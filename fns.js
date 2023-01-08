@@ -215,9 +215,10 @@ function test() {
  * Convert user-string input SymbolCode or Text Code into SymbolCode ID.
  * 
  * @param {string} codeOrText
- * @returns SymbolCode ID or null if invalid.
+ * @returns {number?} SymbolCode ID or null if invalid.
  */
 function readSymbolCode(codeOrText) {
+    var codeOrText = codeOrText.trim();
     var code = TEXT_TO_CODE[codeOrText];
     if (!code)
         code = parseInt(codeOrText) || null;
@@ -474,6 +475,22 @@ function parseTuningConfig(text) {
                     if (code == null) hasInvalid = true;
                     return code;
                 });
+            
+            if (hasInvalid) return null;
+
+            ligAvToSymbols[ligAv] = ligatureSymbols;
         }
+
+        tuningConfig.ligatures.push({ // Ligature
+            regarding: regarding,
+            ligAvToSymbols: ligAvToSymbols,
+        });
     }
+
+    // SETTLE XenNote LOOKUP TABLES
+    // 
+    
+    /**
+     * Permute all combinations of accidental chains
+     */
 }

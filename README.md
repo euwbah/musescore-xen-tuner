@@ -350,9 +350,9 @@ Example `NoteData` of the above `Ebbbb\\4` note with implicit accidentals.
 }
 ```
 
-### Matching of an accidental
+### Cents tuning calculation
 
-Because the `TuningConfig` has a mapping for all `XenNote`s to `AccidentalVector`s, we can simply look that up.
+In order to tune a note
 
 We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
 
@@ -413,9 +413,11 @@ lig(1,2)
 1 -3 28
 ```
 
-`lig(0,1)` signifies that the plugin should perform search-and-replace for exact matches regarding the 1st and 2nd accidental chains only (which are apotomes and 5-commas respectively).
+`lig(1,2)` signifies that the plugin should perform search-and-replace for exact matches regarding the 1st and 2nd accidental chains only (which are apotomes and 5-commas respectively).
 
 `1 3 23` signifies that the ligature `SHARP_THREE_ARROWS_UP` (SymbolCode 23) is to be applied to replace the symbols that compose the degrees 1 and 3 for the 1st and 2nd accidental chains respectively.
+
+> :warning: The ligature degrees must be stated in order of which the accidental chains are declared in the ligature. If you specify `lig(2,1)` in the first line instead, then `1 3 23` denotes degree 1 for the **second chain**, and degree 3 for the **first chain**.
 
 This means that if some note has an accidental vector of `[1,3,2]` (sharp + 3 syntonic commas + 2 7-commas). The plugin will find that there is an exact match in the 1st and 2nd chains of `[1,3,2]` to the `1 3` ligature vector, and thus the `1 3` part gets ligatured as SymbolCode 23 (`SHARP_THREE_ARROWS_UP`).
 
@@ -425,9 +427,7 @@ You can also specify Text Codes in place of SymbolCode numbers (e.g. `#^3` inste
 
 If you require a ligature that consists of more than one symbol, separate `SymbolCode`s with a dot (`.`). E.g., `1 3 #.^3` will ligature `[1,3,2]` into `SHARP` + `NATURAL_THREE_ARROWS_UP` + 2 7-commas up. (Though, this is an impractical example).
 
-:::note
-Note that ligatures are not a replacement for specifying symbols for each degree in accidental chains. You can only apply ligatures to degrees in a chain with symbols assigned to them.
-:::
+> :warning: Note that ligatures are not a replacement for specifying symbols for each degree in accidental chains. You can only apply ligatures to degrees in a chain with symbols assigned to them.
 
 If you require more than one ligature declaration between any number of accidental chains, the user can do so by appending more `lig(x,y,z,...)` declarations below.
 
