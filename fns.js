@@ -378,6 +378,7 @@ function parseTuningConfig(text) {
         var accChainStr = lines[i].split(' ').forEach(x => x.trim());
 
         var increment = null;
+        var symbolsLookup = {}; // contains all unique symbols used.
         var degreesSymbols = [];
         var tunings = [];
         var offsets = [];
@@ -406,6 +407,8 @@ function parseTuningConfig(text) {
                     var code = readSymbolCode(x);
 
                     if (code == null) hasInvalid = true;
+
+                    symbolsLookup[code] = true;
                     return code;
                 });
 
@@ -431,6 +434,7 @@ function parseTuningConfig(text) {
         // Add new acc chain
         tuningConfig.accChains.push({ // AccidentalChain
             degreesSymbols: degreesSymbols,
+            symbolsUsed: Object.keys(symbolsLookup),
             tunings: tunings,
             centralIdx: centralIdx,
         });

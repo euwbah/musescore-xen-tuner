@@ -128,6 +128,7 @@ This produces the following `TuningConfig`:
         [7,7], [8], [7], [6], null, 
         [5], [4], [3], [4,4]
       ],
+      symbolsUsed: [7,8,6,5,4,3],
       tunings: [
         -454.74, -341.055, -227.37, -113.685, 0, 
         113.685, ...
@@ -137,6 +138,7 @@ This produces the following `TuningConfig`:
     {
       // Accidental chain of \.\ \, \, /, /./
       degreesSymbols: [...],
+      symbolsUsed: [...],
       tunings: [...],
       centralIdx: 2
     }
@@ -352,7 +354,15 @@ Example `NoteData` of the above `Ebbbb\\4` note with implicit accidentals.
 
 ### Cents tuning calculation
 
-In order to tune a note
+```js
+// lookup tuning table
+var tuning = tuningConfig.tuningTable[noteData.xen.hash];
+
+```
+
+- Lookup `TuningConfig.nominals[NoteData.xen.nominal]` to obtain the nominal cent offset from the reference note within equave 0.
+- Multiple
+- Lookup `TuningConfig.tuningTable[]`
 
 We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
 
@@ -656,6 +666,7 @@ This structure is computed at the same time as the `StepwiseList`.
 ```js
 {
   degreesSymbols: [[SymbolCode]?], // Central element is null.
+  symbolsUsed: [SymbolCode], // lists all unique symbols used in this chain.
   tunings: [number], // tuning of each accidental in cents. Central elemnent is 0.
   centralIdx: number, // the index of the central element.
 }
@@ -666,6 +677,8 @@ Represents a user declared accidental chain.
 Each element of `degreesSymbols` is a list of `SymbolCode`s containing the symbols composed together to represent one degree in the accidental chain (in the order of which the user declared)
 
 The accidental degree of the chain represented by `degrees[n]` and `tunings[n]` is equal to `n - centralIdx`.
+
+`symbolsUsed` is used to determine what symbols are used in this accidental chain. It's not really necessary in this implementation (yet), but is provided as a lookup just in case.
 
 #### `Ligature`
 
