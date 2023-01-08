@@ -810,11 +810,83 @@ function parseTuningConfig(text) {
     */
 
     xenNotesEquaves.sort((a, b) => {
-        if (a.cents == b.cents) {
+        if (isEnharmonicallyEquivalent(a.cents, b.cents)) {
             return (a.av < b.av) ? -1 : 1;
         }
         return a.cents - b.cents;
     });
+
+    /*
+    Iterate all XenNotes in order
+    */
+    
+    // Contains cents of previous note.
+    // If current note is enharmonically equivalent, don't update this value.
+    var prevEnhEquivCents = null;
+
+    xenNotesEquaves.forEach( x => {
+        var av = x.av;
+        var xenNote = x.xen;
+        var cents = x.cents;
+        var equavesAdjusted = x.equavesAdjusted;
+        var hash = xenNote.hash;
+
+        // Add to NotesTable
+        tuningConfig.notesTable[hash] = xenNote;
+        tuningConfig.avTable[hash] = av;
+        tuningConfig.tuningTable[hash] = [cents, equavesAdjusted];
+
+        if (isEnharmonicallyEquivalent(cents, prevEnhEquivCents)) {
+            // Curr note should belong to the same group as prev note.
+            // Safe to assume tuningConfig.stepsList is not empty.
+
+            // Contains list of enharmonically equivalent XenNote hashes.
+            var enharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
+            // Contains hash of last enharmGroup before current hash is added.
+            var previousEnharmHash = enharmGroup[enharmGroup.length - 1];
+            enharmGroup.push(hash);
+            tuningConfig.stepsLookup[hash] = tuningConfig.stepsList.length - 1;
+
+            // Add vertex in EnharmonicGraph:
+            // connect previous enharmonic with current enharmonic.
+            tuningConfig.enharmonics[previousEnharmHash] = hash;
+        } else {
+            // Curr note is not enharmonically equivalent.
+
+            // Before adding new entry in StepwiseList, check if
+            // most recent entry has enharmonic equivalents.
+            //
+            // If so, complete the cycle in the enharmonic graph.
+
+            var prevEnharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
+            if (prevEnharmGroup.length > 1) {
+                var firstEnharmHash = prevEnharmGroup[0];
+                var lastEnharmHash = prevEnharmGroup[prevEnharmGroup.length - 1];
+                tuningConfig.enharmonics[lastEnharmHash] = firstEnharmHash;
+            }
+
+            // Add new entry in StepwiseList
+
+            tuningConfig.stepsList.push([hash]);
+            tuningConfig.stepsLookup[hash] = tuningConfig.stepsList.length - 1;
+
+            // Update cents of new note.
+            prevEnhEquivCents = cents;
+        }
+    });
+
+    // Finally, check if last entry in StepwiseList has enharmonic equivalents.
+    // If so, complete the cycle in the enharmonic graph.
+    var lastEnharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
+    if (lastEnharmGroup.length > 1) {
+        var firstEnharmHash = lastEnharmGroup[0];
+        var lastEnharmHash = lastEnharmGroup[lastEnharmGroup.length - 1];
+        tuningConfig.enharmonics[lastEnharmHash] = firstEnharmHash;
+    }
+
+    // DONE!
+    
+    return tuningConfig;
 }
 
 /**
