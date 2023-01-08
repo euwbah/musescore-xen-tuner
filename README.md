@@ -68,6 +68,7 @@ This plugin enables xen notation by giving you free-reign over declaring:
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
 - Does not regard the order of appearance of accidentals.
 - Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
+- If an undeclared accidental combination is used, the note will be regarded as without accidental, even if some (but not all) symbols are declared in accidental chains.
 - Could be very laggy...
 
 -----
@@ -91,7 +92,7 @@ This tuning system/staff text specifies a 315-note subset of 2.3.5 JI:
 
 ```txt
 A4: 440
-0 203.91 294.13 498.04 701.96 792.18 996.09 1200
+0 203.910 294.130 498.045 701.955 792.180 996.090 1200
 bb.bb 7 bb b (113.685) # x 2 x.x
 \.\ \ (21.506) / /./
 ```
@@ -144,7 +145,7 @@ This produces the following `TuningConfig`:
     }
   ],
   ligatures: [],
-  nominals: [0, 203.91, 294.13, 498.04, 701.96, 792.18, 996.09],
+  nominals: [0, 203.91, 294.13, 498.045, 701.955, 792.18, 996.09],
   numNominals: 7,
   equaveSize: 1200,
   tuningNote: 69, // A4
@@ -153,10 +154,11 @@ This produces the following `TuningConfig`:
 }
 ```
 
-
 Note that accidentals in one chain are mutually exclusive. That is, you cannot have two different accidentals within the same chain applied to the same note. Following this e.g., you can't have flat and sharp on one note at the same time.
 
-Declaring the chain of accidentals limits the search space of the stepwise 'up/down' action such that only the declared accidentals are regarded. (too many declared accidentals/chains/nominals will cause lag / OOM)
+Declaring the chain of accidentals sets the search space of the stepwise 'up/down' action such that only the declared accidentals are regarded. (too many declared accidentals/chains/nominals will cause lag / OOM)
+
+When declaring cent intervals of nominals & accidentals, state to as many decimal places as possible. At least 3dp, recommended > 4dp. This is to reduce floating point errors.
 
 Multiple symbols can logically represent one accidental. To do this, connect multiple accidental codes with a dot (`.`). **Do not put a space between dots and symbols**.
 
@@ -184,13 +186,16 @@ E.g. if you declare `x.+./` in chain 1, you cannot declare `x.d` in chain 2, bec
 1. Parse tuning text annotation to construct the `TuningConfig`.
 2. The up/down operation should move the current selected note(s) stepwise to the nearest `XenNote` in the `TuningConfig` that is **not** enharmonically equivalent. It should also choose the enharmonic spelling with the minimal number of required explicit accidentals.
 3. Run through a series of checks:
-   - If the newly adjusted note has a side-effect of adjusting the effective accidental of a succeeding note/grace note, apply the effective accidental of the succeeding note as explicit accidental(s), **before** the current note is adjusted.
-   - If the newly adjusted note has a side-effect of making explicit accidentals of a succeeding note/grace redundant, remove the explicit accidental(s) of the succeeding note.
-   - If the newly adjusted note agrees with the prior effective accidental context, then simply remove explicit accidentals of the current note.
-4. Finally, apply/remove explicit accidentals as needed on the adjusted note.
-5.  Apply the same method as `tune.qml` to tune the newly adjusted note.
-
-In some edge cases, the newly adjusted note may cause succeeding notes to sound off-pitch (because of how symbolic accidentals allow standard accidental pitch offsets to pass through). **The user is recommended to always manually run `tune.qml` on the whole score after moving notes around.**
+   - If the new note affects a succeeding note/grace note's accidental implicitly, attach explicit accidentals to the succeeding note **before** the current note is modified.
+   - If the new note agrees with the prior accidental/key signature, flag that no explicit accidentals are needed on the modified note.
+   - If the new note has a side effect of making explicit accidentals of a succeeding note/grace redundant, flag the succeeding note for later accidental removal.
+4. Update the note using to reflected changes to the new note
+   - Calculate new `note.line` by subtracting old nominal from new nominal.
+   - Assign `note.line`
+   - Use `setAccidental` to set the note.
+   - Assign `note.line` AGAIN (to fight against MuseScore's score update)
+5. Remove redundant accidentals on flagged notes.
+6. Apply the same method as `tune.qml` to tune all the notes in selected bars (including the unselected parts of the last bar).
 
 `enharmonic.qml`:
 
@@ -308,6 +313,7 @@ The `readNote()` function 'tokenizes' the MuseScore Note element to output the f
 ```js
 // MSNote
 {
+  midiNote: 62, // playback pitch is D4 (Ebb)
   tpc: 4, // Ebb is 4
   nominalsFromA4: -3, // E4 is 3 nominals below A4.
   accidentals: {
@@ -336,6 +342,7 @@ Example `NoteData` of the above `Ebbbb\\4` note with implicit accidentals.
 ```js
 {
   ms: { // MSNote
+    midiNote: 62, // D4 (Ebb)
     tpc: 4, // Ebb is 4
     nominalsFromA4: -3, // E4 is 3 nominals below A4.
     accidentals: null // no explicit accidentals
@@ -352,17 +359,64 @@ Example `NoteData` of the above `Ebbbb\\4` note with implicit accidentals.
 }
 ```
 
-### Cents tuning calculation
+### Cents offset calculation
+
+To calculate the tuning offset to apply to a note, we calculate the xen interval from the reference note, and the 12edo interval from the reference note, then we subtract the 12edo cents from the xen cents to get the offset.
 
 ```js
-// lookup tuning table
-var tuning = tuningConfig.tuningTable[noteData.xen.hash];
+function calcCentsOffset(noteData, tuningConfig) {
+  // lookup tuning table [cents, equavesAdjusted]
+  var cents_equaves = tuningConfig.tuningTable[noteData.xen.hash];
 
+  // calc cents (from reference note) of XenNote spelt in equave 0
+  // remember to include equave offset (caused by equave modulo wrapping)
+  var xenCentsFromRef = cents_equaves[0] + cents_equaves[1] * tuningConfig.equaveSize;
+
+  // apply NoteData equave offset.
+  xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
+
+  // calculate 12 edo interval from reference
+  var standardCentsFromRef = 
+    (noteData.ms.midiNote - tuningConfig.tuningNote) * 100;
+
+  // the final tuning calculation is the difference between the two
+  return xenCentsFromRef - standardCentsFromRef;
+}
 ```
 
-- Lookup `TuningConfig.nominals[NoteData.xen.nominal]` to obtain the nominal cent offset from the reference note within equave 0.
-- Multiple
-- Lookup `TuningConfig.tuningTable[]`
+Because of all the lookups, tuning a note is O(1) and should be performant.
+
+### Choosing the next note
+
+In `(aux) up/down.qml`, the plugin should be able to choose the next stepwise note up/down from the current given note.
+
+The `chooseNextNote()` function returns a list of `[XenNote, nominalOffset]` tuples of enharmonically-equivalent spelling options for the next stepwise note.
+
+### Choosing how to represent accidentals
+
+As part of `up/down/enharmonic.qml`, the plugin should be able to create, modify and delete accidental symbols and attach them to the note.
+
+The accidentals should appear in the order which the user declared them.
+
+- Sort right-to-left in order of accidental chain declaration. Right-most symbols (closest to the notehead) belong to the first accidental chain.
+- Ligatured symbols take the place of the highest-priority accidental chain included in `regarding` (they should take the place of the right-most symbol it replaces)
+- Multi-symbol accidentals appear left-to-right in the order the user declared them.
+  - E.g. `b./` should appear as flat on the left, up arrow on the right.
+
+If multiple enharmonic equivalents are available, the plugin should choose the enharmonic spelling with the least number of symbols.
+
+### Updating a note
+
+In `(aux) up/down.qml` and `enharmonic.qml`, the plugin should be able to update the note's `line` (nominal) and `accidentalType` properties, and update attached symbols in `note.elements`.
+
+This is a VERY involved process:
+
+Given the `XenNote.hash` of the newly adjusted note:
+
+- Obtain `AccidentalVector` via `AccidentalVectorTable` lookup.
+- Remove all accidentals and symbols on a note.
+- Search through `ligatures` to replace any matching accidental combinations with ligature symbols. Flag ligatured accidental chains. Store the order of appearance of ligatured symbols using `z` stacking order property. Create and attach these symbols to the note.
+- For all non-ligatured accidental chains, look up `accChains` to obtain the list of symbols representing the accidental. Store the order of appearance of symbols
 
 We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
 
@@ -428,6 +482,8 @@ lig(1,2)
 `1 3 23` signifies that the ligature `SHARP_THREE_ARROWS_UP` (SymbolCode 23) is to be applied to replace the symbols that compose the degrees 1 and 3 for the 1st and 2nd accidental chains respectively.
 
 > :warning: The ligature degrees must be stated in order of which the accidental chains are declared in the ligature. If you specify `lig(2,1)` in the first line instead, then `1 3 23` denotes degree 1 for the **second chain**, and degree 3 for the **first chain**.
+>
+> **You cannot reuse Symbol Codes** that are already being used in any accidental chain. Each symbol of a ligature must be unique from symbols in other ligatures and accidentals.
 
 This means that if some note has an accidental vector of `[1,3,2]` (sharp + 3 syntonic commas + 2 7-commas). The plugin will find that there is an exact match in the 1st and 2nd chains of `[1,3,2]` to the `1 3` ligature vector, and thus the `1 3` part gets ligatured as SymbolCode 23 (`SHARP_THREE_ARROWS_UP`).
 
@@ -464,6 +520,8 @@ Finally, if nothing has been matched so far, then ligatures involving all 3 chai
 
 Though, this is a very extreme example and I can't think of any notation system that requires that much complexity.
 
+This will effectively tell the
+
 ### Ligature implementation
 
 If ligatures are defined, these will add additional entries to the `NotesTable` when there is an exact match in the degrees of the `AccidentalVector` regarding `considered` accidental chains.
@@ -490,7 +548,8 @@ A number representing a uniquely identifiable accidental symbol. A single symbol
 
 ```js
 {
-  tpc: number, // tpc of note
+  midiNote: number, // `Note.pitch` property
+  tpc: number, // `Note.tpc`
   nominalsFromA4: number, // number of 12edo nominals from A4.
   accidentals?: {
     // number of each explicit accidental symbol attached to this note
@@ -504,6 +563,8 @@ A number representing a uniquely identifiable accidental symbol. A single symbol
 Represents a tokenized MuseScore note element.
 
 If no explicit accidentals are present, `accidentals` is null.
+
+`midiNote` contains the default playback pitch (MIDI note) that MuseScore will use for this note.
 
 #### `AccidentalVector`
 
@@ -539,13 +600,15 @@ Think of this as the xen version of 'tonal pitch class'.
 
 This is how the plugin represents a 'microtonal' note, containing data pertaining to how the note should be spelt/represented microtonally.
 
+The SymbolCode keys of `accidentals` should be sorted left-to-right in terms of appearance when drawing the accidentals.
+
 If `accidentals` is null, represents a nominal of the tuning system (note without accidental).
 
 The `hash` string is to save performance cost of JSON.stringify and acts as a unique identifier for this `XenNote`.
 
 `"<nominal> SymbolCode <degree> SymbolCode <degree> ..."`
 
-The accidental codes must appear in increasing order.
+The `SymbolCode`s in the hash string must appear in increasing order.
 
 For example, the note `A bb d` (1 double flat, 1 mirrored flat) should have the hash string: `"0 6 1 10 1"`.
 

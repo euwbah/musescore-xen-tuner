@@ -17,6 +17,19 @@
 
     To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
  */
+
+/*
+Any two notes that are less than this many cents apart will be considered
+enharmonically equivalent.
+
+Don't set this too low, it may cause floating point errors to
+make enharmonically equivalent show up as not equivalent.
+
+Don't set this too high, it may cause notes that should not be
+considered enharmonically equivalent to show up as equivalent.
+*/
+ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
+
 CODE_TO_LABELS = [
     ['NONE'],
     ['NATURAL'],
@@ -212,6 +225,18 @@ function test() {
 }
 
 /**
+ * Check if two notes are to be considered enharmonically equivalent
+ * based on cents.
+ * 
+ * @param {number} cents1 
+ * @param {number} cents2 
+ * @returns 
+ */
+function isEnharmonicallyEquivalent(cents1, cents2) {
+    return Math.abs(cents1 - cents2) < ENHARMONIC_EQUIVALENT_THRESHOLD;
+}
+
+/**
  * Convert user-string input SymbolCode or Text Code into SymbolCode ID.
  * 
  * @param {string} codeOrText
@@ -240,8 +265,8 @@ function readNote(note) {
 
     if (note.accidental) {
         // If note has a Full/Half supported accidental,
-
-        accidentals[LABELS_TO_CODE['' + note.accidental]] = 1;
+        var symCode = LABELS_TO_CODE['' + note.accidental];
+        accidentals[symCode] = 1;
     }
 
     for (var i = 0; i < note.elements.length; i++) {
@@ -258,6 +283,7 @@ function readNote(note) {
     }
 
     var msNote = { // MSNote
+        midiNote: note.pitch,
         tpc: note.tpc,
         nominalsFromA4: nominals + (octavesFromA4 * 7),
         accidentals: accidentals
@@ -365,17 +391,17 @@ function parseTuningConfig(text) {
 
     var ligDeclarationStartLine = null;
 
-    for (var i = 2; i < lines.length; i++) {
+    for (var nomIdx = 2; nomIdx < lines.length; nomIdx++) {
         // each new line is a new accidental chain.
 
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
 
-        if (lines[i].match(/lig\([0-9,]+\)/)) {
-            ligDeclarationStartLine = i;
+        if (lines[nomIdx].match(/lig\([0-9,]+\)/)) {
+            ligDeclarationStartLine = nomIdx;
             break;
         }
 
-        var accChainStr = lines[i].split(' ').forEach(x => x.trim());
+        var accChainStr = lines[nomIdx].split(' ').forEach(x => x.trim());
 
         var increment = null;
         var symbolsLookup = {}; // contains all unique symbols used.
@@ -444,7 +470,7 @@ function parseTuningConfig(text) {
     //
     //
 
-    for (var i = ligDeclarationStartLine; i < lines.length; i++) {
+    for (var nomIdx = ligDeclarationStartLine; nomIdx < lines.length; nomIdx++) {
         hasInvalid = false;
 
         // lig(m, n) will be regarding the mth and nth accidental chains only.
@@ -452,7 +478,7 @@ function parseTuningConfig(text) {
         // An exact match of the degrees of the mth and nth chains must be found
         // in order for the ligature regarding m and n to be applied.
 
-        var regarding = lines[i]
+        var regarding = lines[nomIdx]
             .match(/lig\(([0-9,]+)\)/)[1]
             .split(',')
             .map(x => {
@@ -463,7 +489,7 @@ function parseTuningConfig(text) {
         
         var ligAvToSymbols = {};
 
-        for (var j = i + 1; j < lines.length; j++) {
+        for (var j = nomIdx + 1; j < lines.length; j++) {
             // each line represents a mapping in `ligAvToSymbols`
 
             // syntax: <chain 1 degree> <chain 2 degree> ... <dot separated acc symbols>
@@ -491,10 +517,346 @@ function parseTuningConfig(text) {
         });
     }
 
-    // SETTLE XenNote LOOKUP TABLES
+    //
+    //
+    // SETTLE PERMUTATIONS OF XenNotes
     // 
+    //
     
     /**
-     * Permute all combinations of accidental chains
+     * Permute all combinations of accidental chains.
+     * 
+     * The number of accidental chains can vary, so we need a way to
+     * generate a variable number of nested for loops.
      */
+
+    // This will be populated with all possible permutations of
+    // accidental vectors.
+    //
+    // E.g. in the case of 2 accidental chains, this will be:
+    // [0, 0], [0, 1], [0, 2], ...
+    // [1, 0], [1, 1], [1, 2], ...
+    // ...
+    var idxPermutations = [];
+
+    for(var nomIdx = 0; nomIdx < tuningConfig.accChains.length; nomIdx++) {
+        var accChain = tuningConfig.accChains[nomIdx];
+
+        if (idxPermutations.length == 0) {
+            // first iteration: populate with indices of first acc chain.
+            for (var j = 0; j < accChain.degreesSymbols.length; j++) {
+                idxPermutations.push([j]);
+            }
+
+            continue;
+        }
+
+        // subsequent iterations: permute existing indices with indices of
+        // current acc chain
+
+        var newPermutations = [];
+
+        for (var j = 0; j < accChain.degreesSymbols.length; j++) {
+            for (var k = 0; k < idxPermutations.length; k++) {
+                newPermutations.push(idxPermutations[k].concat([j]));
+            }
+        }
+
+        idxPermutations = newPermutations;
+    }
+
+    // Now we have all permutations of accidental vectors by index
+
+    /* 
+    Contains all possible XenNote names within one equave.
+
+    A list of objects, each containing:
+        - av AccidentalVector (with 0 being the centralIdx)
+        - xen XenNote
+        - cents (cents from nominal modulo equave)
+        - equavesAdjusted (non-zero if cents was wrapped around the equave)
+    */
+    var xenNotesEquaves = [];
+
+    // Now we iterate the nominals to populate
+
+    for (var nomIdx = 0; nomIdx < tuningConfig.nominals.length; nomIdx++) {
+        var nominalCents = tuningConfig.nominals[nomIdx];
+
+        // if there are no accidental chains, we can just add the nominal
+
+        if (tuningConfig.accChains.length == 0) {
+            xenNotesEquaves.push({
+                av: [],
+                xen: { // XenNote
+                    nominal: nomIdx,
+                    accidentals: {},
+                    hash: '' + nomIdx
+                },
+                cents: nominalCents,
+                equavesAdjusted: 0,
+            });
+            continue;
+        }
+
+        // otherwise, iterate all permutations of accidental vectors
+        // and create a new entry for each accidental vector
+
+        for (var j = 0; j < idxPermutations.length; j++) {
+            var avIndices = idxPermutations[j];
+            var centOffset = 0;
+            var accidentalVector = [];
+            var accidentalSymbols = {};
+
+            /*
+            Stores the order that the SymbolCode keys should appear in.
+            This determines the order accidentals will be displayed left-to-right.
+
+            According to spec, symbols belonging to the first accidental chain 
+            should be displayed right-most.
+
+            If a single degree of a chain consists of multiple symbols, they are to be
+            displayed left-to-right in the order the user specified.
+            */
+            var symbolsOrder = [];
+
+            for (var accChainIdx = 0; accChainIdx < tuningConfig.accChains.length; accChainIdx++) {
+                // Loop each accidental chain of the current accidental vector.
+
+                var accChain = tuningConfig.accChains[accChainIdx];
+                var avIdx = avIndices[accChainIdx];
+                // Degree of this acc chain.
+                var accDegree = avIdx - accChain.centralIdx;
+
+                accidentalVector.push(accDegree);
+                
+                if (accDegree == 0) {
+                    // The degree on this chain is 0, it doesn't contribute to
+                    // the accidental. Continue.
+                    continue;
+                }
+
+                // Symbols used for this degree.
+                // If there are multiple, they are in left-to-right order which
+                // the user specified them.
+                var accSymbols = accChain.degreesSymbols[avIdx];
+
+                var newSymbols = [];
+
+                accSymbols.forEach(symCode => {
+                    if (accidentalSymbols[symCode]) {
+                        accidentalSymbols[symCode] ++;
+                    } else {
+                        accidentalSymbols[symCode] = 1;
+                        newSymbols.push(symCode);
+                    }
+                });
+
+                symbolsOrder = newSymbols.concat(symbolsOrder);
+
+                centOffset += accChain.tunings[avIdx];
+            }
+
+            // Contains alternating SymbolCode and number of occurences
+            // sorted in increasing SymbolCode.
+            // Used to create hash string.
+            var symCodeNums = [];
+            
+            Object.keys(accidentalSymbols)
+                .map(parseInt)
+                .sort()
+                .forEach(symCode => {
+                    symCodeNums.push(symCode);
+                    symCodeNums.push(accidentalSymbols[symCode]);
+                });
+
+            var cents = nominalCents + centOffset;
+            var equavesAdjusted = 0;
+
+            if (tuningConfig.equaveSize > 0) { // prevent crashes
+                while (cents < 0) {
+                    cents += tuningConfig.equaveSize;
+                    equavesAdjusted ++;
+                }
+                while (cents >= tuningConfig.equaveSize) {
+                    cents -= tuningConfig.equaveSize;
+                    equavesAdjusted --;
+                }
+            }
+
+            var properlyOrdererdAccSymbols = {};
+
+            symbolsOrder.forEach(symCode => {
+                properlyOrdererdAccSymbols[symCode] = accidentalSymbols[symCode];
+            });
+
+            xenNotesEquaves.push({
+                av: accidentalVector,
+                xen: { // XenNote
+                    nominal: nomIdx,
+                    accidentals: properlyOrdererdAccSymbols,
+                    hash: `${nomIdx} ${symCodeNums.join(' ')}`
+                },
+                cents: cents,
+                equavesAdjusted: equavesAdjusted,
+            });
+
+            // SETTLE IMPLEMENTING LIGATURES AS ENHARMONICS
+            //
+            //
+
+            tuningConfig.ligatures.forEach(lig => {
+                var ligAv = [];
+                var ligaturedSymbols = { ...accidentalSymbols }; // shallow copy
+
+                /*
+                As per spec, the ligatured symbols take the place of the right-most
+                symbol it replaces.
+                */
+
+                // Stores the index of the right-most symbol it replaces.
+                var ligSymbolIdx = 0;
+
+                lig.regarding.forEach(idx => {
+                    // idx represents each accidental chain that this ligature checks for
+                    var deg = accidentalVector[idx];
+                    ligAv.push(deg);
+
+                    // Remove symbols from ligaturedSymbols that are
+                    // replaced by the ligature.
+                    tuningConfig.accChains[idx].degreesSymbols[deg].forEach(symCode => {
+                        if (ligaturedSymbols[symCode]) {
+                            // reduce count of symbols
+                            var numSymbols = --ligaturedSymbols[symCode];
+                            if (numSymbols == 0) {
+                                delete ligaturedSymbols[symCode];
+
+                                var orderIdx = symbolsOrder.indexOf(symCode);
+                                if (orderIdx > ligSymbolIdx)
+                                    ligSymbolIdx = orderIdx;
+                            }
+                        }
+                    });
+                });
+
+                // contains symbols from ligature, in user-specified order.
+                var ligSymbols = lig.ligAvToSymbols[ligAv];
+                
+                if (ligSymbols) {
+                    // A ligature match is found.
+
+                    // contains accidentals for ligatured spelling of note.
+                    var finalAccSymbols = {};
+
+                    for (var orderIdx = 0; orderIdx < symbolsOrder.length; orderIdx++) {
+                        var symCode = symbolsOrder[orderIdx];
+                        if (orderIdx == ligSymbolIdx) {
+                            // Insert ligature symbols at designated position.
+
+                            ligSymbols.forEach(symCode => {
+                                if (finalAccSymbols[symCode])
+                                    finalAccSymbols[symCode]++;
+                                else
+                                    finalAccSymbols[symCode] = 1;
+                            });
+
+                            continue;
+                        }
+
+                        // otherwise, copy remaining unaffected symbols from the
+                        // original non-ligatured accidental symbols.
+
+                        if (ligaturedSymbols[symCode]) {
+                            finalAccSymbols[symCode] = ligaturedSymbols[symCode];
+                        }
+                    }
+ 
+                    // calculate ligatured hash string
+                    symCodeNums = [];
+                    Object.keys(finalAccSymbols)
+                        .map(parseInt)
+                        .sort()
+                        .forEach(symCode => {
+                            symCodeNums.push(symCode);
+                            symCodeNums.push(finalAccSymbols[symCode]);
+                        });
+                    
+                    // Add the ligature as if it were an enharmonic equivalent.
+
+                    xenNotesEquaves.push({
+                        av: accidentalVector,
+                        xen: { // XenNote
+                            nominal: nomIdx,
+                            accidentals: finalAccSymbols,
+                            hash: `${nomIdx} ${symCodeNums.join(' ')}`
+                        },
+                        cents: cents,
+                        equavesAdjusted: equavesAdjusted,
+                    });
+                }
+            });
+        }
+    }
+    // end of xenNotesEquaves population
+
+    // SETTLE TABLE LOOKUPS
+    //
+    //
+
+    /*
+        Sort all XenNotes by cents, then by accidentalVector.join()
+
+        (array comparison uses .join implicitly)
+    */
+
+    xenNotesEquaves.sort((a, b) => {
+        if (a.cents == b.cents) {
+            return (a.av < b.av) ? -1 : 1;
+        }
+        return a.cents - b.cents;
+    });
+}
+
+/**
+ * Given current `NoteData` and a `TuningConfig`, calculate the
+ * required note's tuning offset in cents.
+ * 
+ * @param {NoteData} noteData The note to be tuned
+ * @param {TuningConfig} tuningConfig The tuning configuration
+ * @returns {number} cents offset to apply to `Note.tuning` property
+ */
+function calcCentsOffset(noteData, tuningConfig) {
+    // lookup tuning table [cents, equavesAdjusted]
+    var cents_equaves = tuningConfig.tuningTable[noteData.xen.hash];
+  
+    // calc cents (from reference note) of XenNote spelt in equave 0
+    // remember to include equave offset (caused by equave modulo wrapping)
+    var xenCentsFromRef = cents_equaves[0] + cents_equaves[1] * tuningConfig.equaveSize;
+  
+    // apply NoteData equave offset.
+    xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
+  
+    // calculate 12 edo interval from reference
+    var standardCentsFromRef = 
+      (noteData.ms.midiNote - tuningConfig.tuningNote) * 100;
+  
+    // the final tuning calculation is the difference between the two
+    return xenCentsFromRef - standardCentsFromRef;
+}
+
+/**
+ * Get the next XenNote and nominal offset of the stepwise note 
+ * above/below the current `noteData`.
+ * 
+ * 
+ * 
+ * @param {NoteData} noteData The current unmodified note
+ * @param {boolean} upwards `true` if upwards, `false` if downwards
+ * @param {[boolean]} regarding A list of boolean values indicating whether or not to
+ * consider the nth accidental chain when choosing the next note.
+ * @param {*} tuningConfig
+ * @returns {[NextNote]} Array XenNote and nominal offset of next note from the current note.
+ */
+function chooseNextNote(noteData, upwards, disregard, tuningConfig) {
+
 }
