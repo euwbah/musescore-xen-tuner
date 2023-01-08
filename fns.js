@@ -30,57 +30,64 @@ considered enharmonically equivalent to show up as equivalent.
 */
 ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
 
+SIMULATED_TUNING_CONFIG = `
+A4: 440
+0 203.910 294.130 498.045 701.955 792.180 996.090 1200
+b (113.685) #
+\ (21.506) /
+`;
+
 CODE_TO_LABELS = [
-    ['NONE'],
-    ['NATURAL'],
-    ['SHARP_SLASH4', 'accidentalWyschnegradsky9TwelfthsSharp'],
-    ['SHARP_SLASH'],
-    ['MIRRORED_FLAT'],
-    ['MIRRORED_FLAT2'],
-    ['DOUBLE_SHARP_THREE_ARROWS_UP'],
-    ['DOUBLE_SHARP_TWO_ARROWS_UP'],
-    ['SHARP2_ARROW_UP'],
-    ['DOUBLE_SHARP_ONE_ARROW_UP'],
-    ['SHARP2'],
-    ['SHARP2_ARROW_DOWN'],
-    ['DOUBLE_SHARP_ONE_ARROW_DOWN'],
-    ['DOUBLE_SHARP_TWO_ARROWS_DOWN'],
-    ['DOUBLE_SHARP_THREE_ARROWS_DOWN'],
-    ['SHARP_THREE_ARROWS_UP'],
-    ['SHARP_TWO_ARROWS_UP'],
-    ['SHARP_ARROW_UP'],
-    ['SHARP_ONE_ARROW_UP'],
-    ['SHARP'],
-    ['SHARP_ARROW_DOWN'],
-    ['SHARP_ONE_ARROW_DOWN'],
-    ['SHARP_TWO_ARROWS_DOWN'],
-    ['SHARP_THREE_ARROWS_DOWN'],
-    ['NATURAL_THREE_ARROWS_UP'],
-    ['NATURAL_TWO_ARROWS_UP'],
-    ['NATURAL_ARROW_UP'],
-    ['NATURAL_ONE_ARROW_UP'],
-    ['NATURAL_ARROW_DOWN'],
-    ['NATURAL_ONE_ARROW_DOWN'],
-    ['NATURAL_TWO_ARROWS_DOWN'],
-    ['NATURAL_THREE_ARROWS_DOWN'],
-    ['FLAT_THREE_ARROWS_UP'],
-    ['FLAT_TWO_ARROWS_UP'],
-    ['FLAT_ARROW_UP'],
-    ['FLAT_ONE_ARROW_UP'],
-    ['FLAT'],
-    ['FLAT_ARROW_DOWN'],
-    ['FLAT_ONE_ARROW_DOWN'],
-    ['FLAT_TWO_ARROWS_DOWN'],
-    ['FLAT_THREE_ARROWS_DOWN'],
-    ['DOUBLE_FLAT_THREE_ARROWS_UP'],
-    ['DOUBLE_FLAT_TWO_ARROWS_UP'],
-    ['FLAT2_ARROW_UP'],
-    ['DOUBLE_FLAT_ONE_ARROW_UP'],
-    ['FLAT2'],
-    ['FLAT2_ARROW_DOWN'],
-    ['DOUBLE_FLAT_ONE_ARROW_DOWN'],
-    ['DOUBLE_FLAT_TWO_ARROWS_DOWN'],
-    ['DOUBLE_FLAT_THREE_ARROWS_DOWN']
+    null,
+    ['NONE','noSym']
+    ['NATURAL','accidentalNatural','medRenNatural']
+    ['SHARP3','accidentalTripleSharp']
+    ['SHARP2','SHARP_SHARP','accidentalDoubleSharp','accidentalSharpSharp']
+    ['SHARP','NATURAL_SHARP','accidentalBakiyeSharp','accidentalSharp']
+    ['FLAT','NATURAL_FLAT','accidentalKucukMucennebFlat','accidentalFlat']
+    ['FLAT2','accidentalDoubleFlat']
+    ['FLAT3','accidentalTripleFlat']
+    ['SHARP_SLASH4','NINE_TWELFTH_SHARP','accidentalWyschnegradsky9TwelfthsSharp','accidentalThreeQuarterTonesSharpStein']
+    ['SHARP_SLASH','THREE_TWELFTH_SHARP','accidentalWyschnegradsky3TwelfthsSharp','accidentalKomaSharp','accidentalQuarterToneSharpStein']
+    ['MIRRORED_FLAT','accidentalKomaFlat','accidentalNarrowReversedFlat','accidentalQuarterToneFlatStein']     
+    ['MIRRORED_FLAT2','accidentalNarrowReversedFlatAndFlat','accidentalThreeQuarterTonesFlatZimmermann']       
+    ['FLAT_SLASH2','accidentalBuyukMucennebFlat']
+    ['FLAT_SLASH','accidentalBakiyeFlat','accidentalQuarterToneFlatArabic']
+    ['SHARP_SLASH3','accidentalKucukMucennebSharp']
+    ['SHARP_SLASH2','accidentalBuyukMucennebSharp']
+    ['accidentalThreeQuarterTonesFlatArabic']
+    ['DOUBLE_SHARP_THREE_ARROWS_UP','accidentalDoubleSharpThreeArrowsUp']
+    ['DOUBLE_SHARP_TWO_ARROWS_UP','accidentalDoubleSharpTwoArrowsUp']
+    ['SHARP2_ARROW_UP','DOUBLE_SHARP_ONE_ARROW_UP','accidentalDoubleSharpOneArrowUp']
+    ['SHARP2_ARROW_DOWN','DOUBLE_SHARP_ONE_ARROW_DOWN','accidentalDoubleSharpOneArrowDown']
+    ['DOUBLE_SHARP_TWO_ARROWS_DOWN','accidentalDoubleSharpTwoArrowsDown']
+    ['DOUBLE_SHARP_THREE_ARROWS_DOWN','accidentalDoubleSharpThreeArrowsDown']
+    ['SHARP_THREE_ARROWS_UP','accidentalSharpThreeArrowsUp']
+    ['SHARP_TWO_ARROWS_UP','accidentalSharpTwoArrowsUp']
+    ['SHARP_ARROW_UP','SHARP_ONE_ARROW_UP','accidentalSharpOneArrowUp']
+    ['SHARP_ARROW_DOWN','SHARP_ONE_ARROW_DOWN','accidentalSharpOneArrowDown']
+    ['SHARP_TWO_ARROWS_DOWN','accidentalSharpTwoArrowsDown']
+    ['SHARP_THREE_ARROWS_DOWN','accidentalSharpThreeArrowsDown']
+    ['NATURAL_THREE_ARROWS_UP','accidentalNaturalThreeArrowsUp']
+    ['NATURAL_TWO_ARROWS_UP','accidentalNaturalTwoArrowsUp']
+    ['NATURAL_ARROW_UP','NATURAL_ONE_ARROW_UP','accidentalNaturalOneArrowUp']
+    ['ARROW_UP','accidentalArrowUp']
+    ['NATURAL_ARROW_DOWN','NATURAL_ONE_ARROW_DOWN','accidentalNaturalOneArrowDown']
+    ['ARROW_DOWN','accidentalArrowDown']
+    ['NATURAL_TWO_ARROWS_DOWN','accidentalNaturalTwoArrowsDown']
+    ['NATURAL_THREE_ARROWS_DOWN','accidentalNaturalThreeArrowsDown']
+    ['FLAT_THREE_ARROWS_UP','accidentalFlatThreeArrowsUp']
+    ['FLAT_TWO_ARROWS_UP','accidentalFlatTwoArrowsUp']
+    ['FLAT_ARROW_UP','FLAT_ONE_ARROW_UP','accidentalFlatOneArrowUp']
+    ['FLAT_ARROW_DOWN','FLAT_ONE_ARROW_DOWN','accidentalFlatOneArrowDown']
+    ['FLAT_TWO_ARROWS_DOWN','accidentalFlatTwoArrowsDown']
+    ['FLAT_THREE_ARROWS_DOWN','accidentalFlatThreeArrowsDown']
+    ['DOUBLE_FLAT_THREE_ARROWS_UP','accidentalDoubleFlatThreeArrowsUp']
+    ['DOUBLE_FLAT_TWO_ARROWS_UP','accidentalDoubleFlatTwoArrowsUp']
+    ['FLAT2_ARROW_UP','DOUBLE_FLAT_ONE_ARROW_UP','accidentalDoubleFlatOneArrowUp']
+    ['FLAT2_ARROW_DOWN','DOUBLE_FLAT_ONE_ARROW_DOWN','accidentalDoubleFlatOneArrowDown']
+    ['DOUBLE_FLAT_TWO_ARROWS_DOWN','accidentalDoubleFlatTwoArrowsDown']
+    ['DOUBLE_FLAT_THREE_ARROWS_DOWN','accidentalDoubleFlatThreeArrowsDown']
 ];
 
 /**
@@ -113,8 +120,43 @@ TEXT_TO_CODE = {
     'b': 6,
     'bb': 7,
     'bbb': 8,
-    // TODO: etc...
-}
+    '#+': 9,
+    '+': 10,
+    'd': 11,
+    'db': 12,
+    'x^3': 18,
+    'x^2': 19,
+    'x^': 20,
+    'xv': 21,
+    'xv2': 22,
+    'xv3': 23,
+    '#^3': 24,
+    '#^2': 25,
+    '#^': 26,
+    '#v': 27,
+    '#v2': 28,
+    '#v3': 29,
+    '^3': 30,
+    '^2': 31,
+    '^': 32,
+    '/': 33,
+    'v': 34,
+    '\\': 35,
+    'v2': 36,
+    'v3': 37,
+    'b^3': 38,
+    'b^2': 39,
+    'b^': 40,
+    'bv': 41,
+    'bv2': 42,
+    'bv3': 43,
+    'bb^3': 44,
+    'bb^2': 45,
+    'bb^': 46,
+    'bbv': 47,
+    'bbv2': 48,
+    'bbv3': 49,
+};
 
 /**
  * Mapping of 12EDO note letters to nominals from A.
@@ -885,7 +927,7 @@ function parseTuningConfig(text) {
     }
 
     // DONE!
-    
+
     return tuningConfig;
 }
 

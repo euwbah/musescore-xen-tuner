@@ -1,3 +1,7 @@
+"""
+For testing calculations & ideas
+"""
+
 from typing import Dict
 
 

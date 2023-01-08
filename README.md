@@ -4,7 +4,7 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 ## Goals
 
-- [x] (70% complete) The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
+- [x] (50% complete) The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
 
 - [ ] The user should not need to open up the symbols palette and manually search for the accidental the user needs. Every unique accidental and note in the equave should be accessible with just up/down arrows and 'J' to cycle through enharmonics.
 
