@@ -2,12 +2,6 @@
 
 A rewrite of the n-edo plugin to support as many notation & xen tuning systems as possible.
 
-## HELP NEEDED
-
-This project is still a **work in progress.** (See [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/))
-
-I need help with the [data entry of accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing) to complete this plugin.
-
 ## Goals
 
 - [ ] The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
@@ -22,11 +16,51 @@ I need help with the [data entry of accidentals](https://docs.google.com/spreads
 
 - [ ] MIDI/MPE export with channel pitch bend support.
 
-## List of Supported Accidentals
+## [List of Supported Accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
-https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
 
-This is still a work in progress. Free for all to edit, and in need of community contribution! (Read [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/))
+## HELP NEEDED!
+
+This project is still a **work in progress.**
+
+One of the main features of this project is to allow the user to define their own
+accidentals by combining any number of accidentals and symbols to represent one logical accidental.
+
+However, in MuseScore, most accidental symbols have multiple internal IDs of accidentals that represent the same, or a similar-looking symbol.
+
+I need help with tabulating the [list of all accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing) available in MuseScore, such that Symbol IDs & Accidental IDs that point to the same/similar-looking symbol are grouped together.
+
+<br>
+<br>
+
+There are two categories of accidentals & IDs I will need help to tabulate together.
+
+First, accidentals symbols marked as "Accidentals" in MuseScore's palette. These are identified internally using the `UPPER_SNAKE_CASE` naming convention.
+
+Unfortunately, there's no way of extracting their IDs from MuseScore UI, and you'll need to refer to [libmscore/types.h](https://github.com/musescore/MuseScore/blob/master/src/engraving/libmscore/types.h#L146) to find all the accidental IDs that `LOOK_LIKE_THIS` (E.g. `FLAT`, `FLAT2`, `SHARP_SLASH`, etc...) and make a guess for which accidental is being represented by that ID.
+
+If you want to double-check your guess, the symbolic accidentals file [libmscore/accidental.cpp](https://github.com/musescore/MuseScore/blob/master/src/engraving/libmscore/accidental.cpp#L54) correlates some SMuFL IDs and related Accidental IDs.
+
+```cpp
+// accidental.cpp - Line 74
+Acc(AccidentalVal::NATURAL,  250,   SymId::accidentalFiveQuarterTonesSharpArrowUp),    // SHARP2_ARROW_UP
+```
+
+As in the above example, the `SHARP2_ARROW_UP` accidental is represented by the `accidentalFiveQuarterTonesSharpArrowUp` SMuFL ID.
+
+Then, you can do a [google search for `accidentalFiveQuarterTonesSharpArrowUp`](https://www.google.com/search?q=accidentalFiveQuarterTonesSharpArrowUp), and you should be able to find how the symbol looks like [on the SMuFL website](https://www.smufl.org/version/1/glyph/accidentalFiveQuarterTonesSharpArrowUp/), so you can double check that you correlated the correct `ACCIDENTAL_ID` for the correct symbol.
+
+<br>
+<br>
+
+The other type of accidental symbols are the ones in the "Symbols" category, identified internally using the `lowerCamelCase` naming convention. These are accidentals used when you need more than one accidental per note (or when MuseScore only supports this accidental 'symbolically').
+
+Thankfully the process for identifying these are easier. You go into the "Symbols" category in the symbols palette and look for all subcategories containing accidentals (e.g. _"Arabic accidentals"_, _"Athenian Sagittal Extension..."_, etc...), then you hover your cursor over an accidental to find it's SMuFL ID.
+
+A tooltip should appear saying something like `<symId>accSagittalSharp25SDown</symId>` and you just need to take note of what's in between the `<symId>` tags. If you're lazy to type it out, you can refer to [W3C/SMuFL](https://w3c.github.io/smufl/latest/tables/athenian-sagittal-extension-medium-precision-accidentals.html?), or even [accidental.cpp](https://github.com/musescore/MuseScore/blob/master/src/engraving/libmscore/accidental.cpp#L54) and copy how the symbols are spelt. It should be easy to find as the accidentals are grouped by the same sub-category names.
+
+For more info on this project, see [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/).
 
 ## What???
 
