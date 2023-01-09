@@ -1,7 +1,7 @@
 import QtQuick 2.1
+import "fns.ms.js" as Fns
 import QtQuick.Controls 1.3
 import QtQuick.Controls.Styles 1.3
-import "fns.js" as Fns
 import MuseScore 3.0
 
 MuseScore {
@@ -858,7 +858,7 @@ MuseScore {
 
       onRun: {
         console.log("Xen Tune v0.1");
-        Fns.test();
+        Fns.init(Accidental);
         console.log(Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')

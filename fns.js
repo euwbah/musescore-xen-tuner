@@ -1,3 +1,6 @@
+// MUST USE ES5 SYNTAX FOR MSCORE COMPAT.
+var Lookup = ImportLookup();
+
 /*
 Any two notes that are less than this many cents apart will be considered
 enharmonically equivalent.
@@ -8,264 +11,28 @@ make enharmonically equivalent show up as not equivalent.
 Don't set this too high, it may cause notes that should not be
 considered enharmonically equivalent to show up as equivalent.
 */
-ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
+var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
 
-SIMULATED_TUNING_CONFIG = `
-A4: 440
-0 200 300 500 700 800 1000 1200
-(100) #
-(20) /
-lig(1,2)
-1 1 #^
-`;
+SIMULATED_TUNING_CONFIG = "     \n\
+A4: 440                         \n\
+0 200 300 500 700 800 1000 1200 \n\
+(100) #                         \n\
+(20) /                          \n\
+lig(1,2)                        \n\
+1 1 #^                          \n\
+";
 
-/**
-    Lookup table for mapping SymbolCode number to 
-    musescore's internal accidental names and accidental symbol names.
-
-    Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
-    that look alike but have different internal representations. This plugin
-    should treat identical looking accidentals all the same.
-
-    All caps are accidental names (the string value of Note.accidentalType)
-    Non caps are symbol names (string value of Element.symbol)
-
-    E.g. CODE_TO_LABELS[2] contains all the possible accidental names/symbol names
-    that represent the sesquisharp (#+) accidental.
-
-    Whenever 'accidentalID' is used in code, it refers to the index of the
-    accidental in this array.
-
-    To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
- */
-CODE_TO_LABELS = [
-    null,
-    ['NONE','noSym'],
-    ['NATURAL','accidentalNatural','medRenNatural'],
-    ['SHARP3','accidentalTripleSharp'],
-    ['SHARP2','SHARP_SHARP','accidentalDoubleSharp','accidentalSharpSharp'],
-    ['SHARP','NATURAL_SHARP','accidentalBakiyeSharp','accidentalSharp'],
-    ['FLAT','NATURAL_FLAT','accidentalKucukMucennebFlat','accidentalFlat'],
-    ['FLAT2','accidentalDoubleFlat'],
-    ['FLAT3','accidentalTripleFlat'],
-    ['SHARP_SLASH4','NINE_TWELFTH_SHARP','accidentalWyschnegradsky9TwelfthsSharp','accidentalThreeQuarterTonesSharpStein'],
-    ['SHARP_SLASH','THREE_TWELFTH_SHARP','accidentalWyschnegradsky3TwelfthsSharp','accidentalKomaSharp','accidentalQuarterToneSharpStein'],
-    ['MIRRORED_FLAT','accidentalKomaFlat','accidentalNarrowReversedFlat','accidentalQuarterToneFlatStein'],    
-    ['MIRRORED_FLAT2','accidentalNarrowReversedFlatAndFlat','accidentalThreeQuarterTonesFlatZimmermann'],      
-    ['FLAT_SLASH2','accidentalBuyukMucennebFlat'],
-    ['FLAT_SLASH','accidentalBakiyeFlat','accidentalQuarterToneFlatArabic'],
-    ['SHARP_SLASH3','accidentalKucukMucennebSharp'],
-    ['SHARP_SLASH2','accidentalBuyukMucennebSharp'],
-    ['accidentalThreeQuarterTonesFlatArabic'],
-    ['DOUBLE_SHARP_THREE_ARROWS_UP','accidentalDoubleSharpThreeArrowsUp'],
-    ['DOUBLE_SHARP_TWO_ARROWS_UP','accidentalDoubleSharpTwoArrowsUp'],
-    ['SHARP2_ARROW_UP','DOUBLE_SHARP_ONE_ARROW_UP','accidentalDoubleSharpOneArrowUp'],
-    ['SHARP2_ARROW_DOWN','DOUBLE_SHARP_ONE_ARROW_DOWN','accidentalDoubleSharpOneArrowDown'],
-    ['DOUBLE_SHARP_TWO_ARROWS_DOWN','accidentalDoubleSharpTwoArrowsDown'],
-    ['DOUBLE_SHARP_THREE_ARROWS_DOWN','accidentalDoubleSharpThreeArrowsDown'],
-    ['SHARP_THREE_ARROWS_UP','accidentalSharpThreeArrowsUp'],
-    ['SHARP_TWO_ARROWS_UP','accidentalSharpTwoArrowsUp'],
-    ['SHARP_ARROW_UP','SHARP_ONE_ARROW_UP','accidentalSharpOneArrowUp'],
-    ['SHARP_ARROW_DOWN','SHARP_ONE_ARROW_DOWN','accidentalSharpOneArrowDown'],
-    ['SHARP_TWO_ARROWS_DOWN','accidentalSharpTwoArrowsDown'],
-    ['SHARP_THREE_ARROWS_DOWN','accidentalSharpThreeArrowsDown'],
-    ['NATURAL_THREE_ARROWS_UP','accidentalNaturalThreeArrowsUp'],
-    ['NATURAL_TWO_ARROWS_UP','accidentalNaturalTwoArrowsUp'],
-    ['NATURAL_ARROW_UP','NATURAL_ONE_ARROW_UP','accidentalNaturalOneArrowUp'],
-    ['ARROW_UP','accidentalArrowUp'],
-    ['NATURAL_ARROW_DOWN','NATURAL_ONE_ARROW_DOWN','accidentalNaturalOneArrowDown'],
-    ['ARROW_DOWN','accidentalArrowDown'],
-    ['NATURAL_TWO_ARROWS_DOWN','accidentalNaturalTwoArrowsDown'],
-    ['NATURAL_THREE_ARROWS_DOWN','accidentalNaturalThreeArrowsDown'],
-    ['FLAT_THREE_ARROWS_UP','accidentalFlatThreeArrowsUp'],
-    ['FLAT_TWO_ARROWS_UP','accidentalFlatTwoArrowsUp'],
-    ['FLAT_ARROW_UP','FLAT_ONE_ARROW_UP','accidentalFlatOneArrowUp'],
-    ['FLAT_ARROW_DOWN','FLAT_ONE_ARROW_DOWN','accidentalFlatOneArrowDown'],
-    ['FLAT_TWO_ARROWS_DOWN','accidentalFlatTwoArrowsDown'],
-    ['FLAT_THREE_ARROWS_DOWN','accidentalFlatThreeArrowsDown'],
-    ['DOUBLE_FLAT_THREE_ARROWS_UP','accidentalDoubleFlatThreeArrowsUp'],
-    ['DOUBLE_FLAT_TWO_ARROWS_UP','accidentalDoubleFlatTwoArrowsUp'],
-    ['FLAT2_ARROW_UP','DOUBLE_FLAT_ONE_ARROW_UP','accidentalDoubleFlatOneArrowUp'],
-    ['FLAT2_ARROW_DOWN','DOUBLE_FLAT_ONE_ARROW_DOWN','accidentalDoubleFlatOneArrowDown'],
-    ['DOUBLE_FLAT_TWO_ARROWS_DOWN','accidentalDoubleFlatTwoArrowsDown'],
-    ['DOUBLE_FLAT_THREE_ARROWS_DOWN','accidentalDoubleFlatThreeArrowsDown'],
-];
-
-/**
- * The inverse many-to-one mapping of the above CODE_TO_LABELS array.
- * 
- * Maps internal labels/IDs to SymbolCode number.
- */
-LABELS_TO_CODE = (function() {
-    var mapping = {};
-    // start from 1. 0 is null.
-    for (var i = 1; i < CODE_TO_LABELS.length; i++) {
-        for (var j = 0; j < CODE_TO_LABELS[i].length; j++)
-            mapping[CODE_TO_LABELS[i][j]] = i;
+function init(MSAccidental) {
+    Lookup = ImportLookup();
+    console.log("Hello world! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
+    
+    // This is to test that imports are working properly...
+    
+    console.log(Lookup);
+    for(var i = 1; i < 10; i++) {
+        var acc = MSAccidental[Lookup.CODE_TO_LABELS[i][0]];
+        console.log(acc);
     }
-    Object.freeze(mapping);
-    return mapping;
-})();
-
-/**
- * Mapping of Text Codes to SymbolCode.
- * 
- * To be kept updated with https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
- * 
- * (For inputting symbols via text representation)
- */
-
-TEXT_TO_CODE = {
-    '#x': 3,
-    'x': 4,
-    '#': 5,
-    'b': 6,
-    'bb': 7,
-    'bbb': 8,
-    '#+': 9,
-    '+': 10,
-    'd': 11,
-    'db': 12,
-    'x^3': 18,
-    'x^2': 19,
-    'x^': 20,
-    'xv': 21,
-    'xv2': 22,
-    'xv3': 23,
-    '#^3': 24,
-    '#^2': 25,
-    '#^': 26,
-    '#v': 27,
-    '#v2': 28,
-    '#v3': 29,
-    '^3': 30,
-    '^2': 31,
-    '^': 32,
-    '/': 33,
-    'v': 34,
-    '\\': 35,
-    'v2': 36,
-    'v3': 37,
-    'b^3': 38,
-    'b^2': 39,
-    'b^': 40,
-    'bv': 41,
-    'bv2': 42,
-    'bv3': 43,
-    'bb^3': 44,
-    'bb^2': 45,
-    'bb^': 46,
-    'bbv': 47,
-    'bbv2': 48,
-    'bbv3': 49,
-};
-
-/**
- * Mapping of 12EDO note letters to nominals from A.
- */
-LETTERS_TO_NOMINAL = {
-    'a': 0,
-    'b': 1,
-    'c': 2,
-    'd': 3,
-    'e': 4,
-    'f': 5,
-    'g': 6
-};
-
-/**
- * Mapping of 12EDO note letters to semitones from A.
- * (A is the reference note which the octave is based on).
- */
-LETTERS_TO_SEMITONES = {
-    'a': 0,
-    'b': 2,
-    'c': -9,
-    'd': -7,
-    'e': -5,
-    'f': -4,
-    'g': -2
-};
-
-/**
- * Mapping from 12edo TPCs to a [nominals, midiOctaveOffset] tuple.
- * 
- * Used in conjuction with Note.pitch to calculate `nominalsFromA4` 
- * property of MSNote.
- * 
- * nominals: 
- *      0-6, representing A, B, C, ...
- * 
- * midiOctaveOffset: 
- *      represents the number of octaves to add/sub when calculating octaves
- *      using its MIDI note because the MIDI pitch of this TPC will appear
- *      to be in a different octave if it has accidentals.
- *      
- *      In these calculations, the 12edo octave is considered to reset
- *      on the note A. (A4 = 0th octave, G4 = -1st octave)
- */
-TPC_TO_NOMINAL = (function() {
-    var x = {};
-    x[-8] = [5, 0]; // Fbbb
-    x[-7] = [2, 0]; // Cbbb
-    x[-6] = [6, 0]; // Gbbb
-    x[-5] = [3, 0]; // Dbbb
-    x[-4] = [0, 1]; // Abbb
-    x[-3] = [4, 0]; // Ebbb
-    x[-2] = [1, 1]; // Bbbb
-
-    x[-1] = [5, 0]; // Fbb
-    x[0] = [2, 0]; // Cbb
-    x[1] = [6, 0]; // Gbb
-    x[2] = [3, 0]; // Dbb
-    x[3] = [0, 1]; // Abb
-    x[4] = [4, 0]; // Ebb
-    x[5] = [1, 0]; // Bbb
-
-    x[6] = [5, 0]; // Fb
-    x[7] = [2, 0]; // Cb
-    x[8] = [6, 0]; // Gb
-    x[9] = [3, 0]; // Db
-    x[10] = [0, 1]; // Ab
-    x[11] = [4, 0]; // Eb
-    x[12] = [1, 0]; // Bb
-
-    x[13] = [5, 0]; // F
-    x[14] = [2, 0]; // C
-    x[15] = [6, 0]; // G
-    x[16] = [3, 0]; // D
-    x[17] = [0, 0]; // A
-    x[18] = [4, 0]; // E
-    x[19] = [1, 0]; // B
-
-    x[20] = [5, 0]; // F#
-    x[21] = [2, 0]; // C#
-    x[22] = [6, 0]; // G#
-    x[23] = [3, 0]; // D#
-    x[24] = [0, 0]; // A#
-    x[25] = [4, 0]; // E#
-    x[26] = [1, 0]; // B#
-
-    x[27] = [5, 0]; // Fx
-    x[28] = [2, 0]; // Cx
-    x[29] = [6, -1]; // Gx
-    x[30] = [3, 0]; // Dx
-    x[31] = [0, 0]; // Ax
-    x[32] = [4, 0]; // Ex
-    x[33] = [1, 0]; // Bx
-
-    x[34] = [5, 0]; // Fx#
-    x[35] = [2, 0]; // Cx#
-    x[36] = [6, -1]; // Gx#
-    x[37] = [3, 0]; // Dx#
-    x[38] = [0, 0]; // Ax#
-    x[39] = [4, 0]; // Ex#
-    x[40] = [1, 0]; // Bx#
-    return x;
-})();
-
-function test() {
-    (() => console.log("Hello world! Helper function."))();
 }
 
 /**
@@ -288,7 +55,7 @@ function isEnharmonicallyEquivalent(cents1, cents2) {
  */
 function readSymbolCode(codeOrText) {
     var codeOrText = codeOrText.trim();
-    var code = TEXT_TO_CODE[codeOrText];
+    var code = Lookup.TEXT_TO_CODE[codeOrText];
     if (!code)
         code = parseInt(codeOrText) || null;
     
@@ -302,21 +69,21 @@ function readSymbolCode(codeOrText) {
 function readNote(note) {
     // 69 = MIDI A4
     var octavesFromA4 = Math.floor((note.pitch - 69) / 12);
-    var nominals = TPC_TO_NOMINAL[note.tpc][0];
-    octavesFromA4 += TPC_TO_NOMINAL[note.tpc][1];
+    var nominals = Lookup.TPC_TO_NOMINAL[note.tpc][0];
+    octavesFromA4 += Lookup.TPC_TO_NOMINAL[note.tpc][1];
     
     var accidentals = {};
 
     if (note.accidental) {
         // If note has a Full/Half supported accidental,
-        var symCode = LABELS_TO_CODE['' + note.accidental];
+        var symCode = Lookup.LABELS_TO_CODE['' + note.accidental];
         accidentals[symCode] = 1;
     }
 
     for (var i = 0; i < note.elements.length; i++) {
         // If note has a Full/Half supported accidental,
 
-        var acc = LABELS_TO_CODE['' + note.elements[i].symbol];
+        var acc = Lookup.LABELS_TO_CODE['' + note.elements[i].symbol];
 
         if (acc) {
             if (accidentals[acc])
@@ -377,7 +144,7 @@ function parseTuningConfig(text) {
         tuningFreq: null,
     };
 
-    var lines = text.split('\n');
+    var lines = text.split('\n').map(function(x) { return x.trim() });
 
     // Need at least reference note and nominal declarations.
     if (lines.length < 2)
@@ -387,7 +154,7 @@ function parseTuningConfig(text) {
     //
     //
 
-    var referenceTuning = lines[0].split(':').map(x => x.trim());
+    var referenceTuning = lines[0].split(':').map(function(x) { return x.trim() });
 
     if (referenceTuning.length != 2) {
         // console.log(lines[0] + ' is not a reference tuning');
@@ -398,10 +165,10 @@ function parseTuningConfig(text) {
     var referenceOctave = parseInt(referenceTuning[0].slice(1));
 
     var nominalsFromA4 = (referenceOctave - 4) * 7;
-    var lettersNominal = LETTERS_TO_NOMINAL[referenceLetter];
+    var lettersNominal = Lookup.LETTERS_TO_NOMINAL[referenceLetter];
 
     if (lettersNominal == undefined) {
-        // console.log(`${referenceLetter} Invalid reference note specified`);
+        // console.log("Invalid reference note specified: " + referenceLetter);
         return null;
     }
     
@@ -414,7 +181,7 @@ function parseTuningConfig(text) {
         nominalsFromA4 -= 7;
     
     tuningConfig.tuningNominal = nominalsFromA4;
-    tuningConfig.tuningNote = LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
+    tuningConfig.tuningNote = Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
     tuningConfig.tuningFreq = parseFloat(referenceTuning[1]);
 
     // PARSE NOMINALS
@@ -422,7 +189,7 @@ function parseTuningConfig(text) {
     //
 
     var hasInvalid = false;
-    var nominals = lines[1].split(' ').map(x => {
+    var nominals = lines[1].split(' ').map(function(x) {
         var f = parseFloat(x);
         if (f == NaN) hasInvalid = true;
         return f
@@ -457,7 +224,7 @@ function parseTuningConfig(text) {
             break;
         }
 
-        var accChainStr = line.split(' ').map(x => x.trim());
+        var accChainStr = line.split(' ').map(function(x) { return x.trim(); });
 
         var increment = null;
         var symbolsLookup = {}; // contains all unique symbols used.
@@ -485,7 +252,7 @@ function parseTuningConfig(text) {
                 hasInvalid = false;
 
                 // each symbol is either a text code or symbol code number
-                var symbolCodes = symbols_offset[0].split('.').map(x => {
+                var symbolCodes = symbols_offset[0].split('.').map(function(x) {
                     var code = readSymbolCode(x);
 
                     if (code == null) hasInvalid = true;
@@ -560,8 +327,8 @@ function parseTuningConfig(text) {
 
         var regarding = match[1]
             .split(',')
-            .map(x => {
-                let n = parseInt(x);
+            .map(function(x) {
+                var n = parseInt(x);
                 if (n == NaN || n < 1) hasInvalid = true;
                 return n - 1;
             });
@@ -578,13 +345,13 @@ function parseTuningConfig(text) {
 
             // syntax: <chain 1 degree> <chain 2 degree> ... <dot separated acc symbols>
 
-            var words = lines[j].split(' ').map(x => x.trim());
-            var ligAv = words.slice(0, words.length - 1).map(x => parseInt(x));
+            var words = lines[j].split(' ').map(function(x) { return x.trim() });
+            var ligAv = words.slice(0, words.length - 1).map(function(x) { return parseInt(x) });
 
             hasInvalid = false;
             var ligatureSymbols = words[words.length - 1]
                 .split('.')
-                .map(x => {
+                .map(function(x) {
                     var code = readSymbolCode(x);
                     if (code == null) hasInvalid = true;
                     return code;
@@ -751,7 +518,7 @@ function parseTuningConfig(text) {
 
                 var newSymbols = [];
 
-                accSymbols.forEach(symCode => {
+                accSymbols.forEach(function(symCode) {
                     if (accidentalSymbols[symCode]) {
                         accidentalSymbols[symCode] ++;
                     } else {
@@ -771,9 +538,9 @@ function parseTuningConfig(text) {
             var symCodeNums = [];
             
             Object.keys(accidentalSymbols)
-                .map(x => parseInt(x))
+                .map(function(x) { return parseInt(x); })
                 .sort()
-                .forEach(symCode => {
+                .forEach(function(symCode) {
                     symCodeNums.push(symCode);
                     symCodeNums.push(accidentalSymbols[symCode]);
                 });
@@ -794,7 +561,7 @@ function parseTuningConfig(text) {
 
             var properlyOrdererdAccSymbols = {};
 
-            symbolsOrder.forEach(symCode => {
+            symbolsOrder.forEach(function(symCode) {
                 properlyOrdererdAccSymbols[symCode] = accidentalSymbols[symCode];
             });
 
@@ -803,7 +570,7 @@ function parseTuningConfig(text) {
                 xen: { // XenNote
                     nominal: nomIdx,
                     accidentals: properlyOrdererdAccSymbols,
-                    hash: `${nomIdx} ${symCodeNums.join(' ')}`.trim()
+                    hash: nomIdx + " " + symCodeNums.join(' ')
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
@@ -813,9 +580,9 @@ function parseTuningConfig(text) {
             //
             //
 
-            tuningConfig.ligatures.forEach(lig => {
+            tuningConfig.ligatures.forEach(function(lig) {
                 var ligAv = [];
-                var ligaturedSymbols = { ...accidentalSymbols }; // shallow copy
+                var ligaturedSymbols = Object.assign({}, accidentalSymbols ); // shallow copy
 
                 /*
                 As per spec, the ligatured symbols take the place of the right-most
@@ -825,7 +592,7 @@ function parseTuningConfig(text) {
                 // Stores the index of the right-most symbol it replaces.
                 var ligSymbolIdx = 0;
 
-                lig.regarding.forEach(idx => {
+                lig.regarding.forEach(function(idx) {
                     // idx represents each accidental chain that this ligature checks for
                     var deg = accidentalVector[idx];
                     ligAv.push(deg);
@@ -841,7 +608,7 @@ function parseTuningConfig(text) {
                         return;
                     }
                     
-                    symbolsCausedByDegree.forEach(symCode => {
+                    symbolsCausedByDegree.forEach(function(symCode) {
                         if (ligaturedSymbols[symCode]) {
                             // reduce count of symbols
                             var numSymbols = --ligaturedSymbols[symCode];
@@ -870,7 +637,7 @@ function parseTuningConfig(text) {
                         if (orderIdx == ligSymbolIdx) {
                             // Insert ligature symbols at designated position.
 
-                            ligSymbols.forEach(symCode => {
+                            ligSymbols.forEach(function(symCode) {
                                 if (finalAccSymbols[symCode])
                                     finalAccSymbols[symCode]++;
                                 else
@@ -891,9 +658,9 @@ function parseTuningConfig(text) {
                     // calculate ligatured hash string
                     symCodeNums = [];
                     Object.keys(finalAccSymbols)
-                        .map(x => parseInt(x))
+                        .map(function(x) { return parseInt(x) })
                         .sort()
-                        .forEach(symCode => {
+                        .forEach(function(symCode) {
                             symCodeNums.push(symCode);
                             symCodeNums.push(finalAccSymbols[symCode]);
                         });
@@ -905,7 +672,7 @@ function parseTuningConfig(text) {
                         xen: { // XenNote
                             nominal: nomIdx,
                             accidentals: finalAccSymbols,
-                            hash: `${nomIdx} ${symCodeNums.join(' ')}`
+                            hash: nomIdx + ' ' + symCodeNums.join(' ')
                         },
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
@@ -926,7 +693,7 @@ function parseTuningConfig(text) {
         (array comparison uses .join implicitly)
     */
 
-    xenNotesEquaves.sort((a, b) => {
+    xenNotesEquaves.sort(function (a, b) {
         if (isEnharmonicallyEquivalent(a.cents, b.cents)) {
             return (a.av < b.av) ? -1 : 1;
         }
@@ -941,7 +708,7 @@ function parseTuningConfig(text) {
     // If current note is enharmonically equivalent, don't update this value.
     var prevEnhEquivCents = null;
 
-    xenNotesEquaves.forEach( x => {
+    xenNotesEquaves.forEach( function(x) {
         var av = x.av;
         var xenNote = x.xen;
         var cents = x.cents;
@@ -1006,16 +773,6 @@ function parseTuningConfig(text) {
     // DONE!
 
     return tuningConfig;
-}
-
-/**
- * Read a MuseScore note element and tokenizes it into MSNote
- * 
- * @param {*} note MuseScore's Note QObject 
- * @returns {MSNote}
- */
-function tokenizeMSNote(note) {
-    
 }
 
 /**
