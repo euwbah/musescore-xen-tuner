@@ -1009,6 +1009,25 @@ function parseTuningConfig(text) {
 }
 
 /**
+ * Read a MuseScore note element and tokenizes it into MSNote
+ * 
+ * @param {*} note MuseScore's Note QObject 
+ * @returns {MSNote}
+ */
+function tokenizeMSNote(note) {
+    
+}
+
+/**
+ * 
+ * @param {MSNote} msNote Representation of tokenized musescore note
+ * @param {TuningConfig} tuningConfig 
+ */
+function readNoteData(msNote, tuningConfig) {
+
+}
+
+/**
  * Given current `NoteData` and a `TuningConfig`, calculate the
  * required note's tuning offset in cents.
  * 
