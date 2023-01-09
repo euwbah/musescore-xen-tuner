@@ -1,23 +1,3 @@
-/**
-    Lookup table for mapping SymbolCode number to 
-    musescore's internal accidental names and accidental symbol names.
-
-    Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
-    that look alike but have different internal representations. This plugin
-    should treat identical looking accidentals all the same.
-
-    All caps are accidental names (the string value of Note.accidentalType)
-    Non caps are symbol names (string value of Element.symbol)
-
-    E.g. codeToLabels[2] contains all the possible accidental names/symbol names
-    that represent the sesquisharp (#+) accidental.
-
-    Whenever 'accidentalID' is used in code, it refers to the index of the
-    accidental in this array.
-
-    To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
- */
-
 /*
 Any two notes that are less than this many cents apart will be considered
 enharmonically equivalent.
@@ -33,66 +13,82 @@ ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
 SIMULATED_TUNING_CONFIG = `
 A4: 440
 0 200 300 500 700 800 1000 1200
-b (100) #
-\ (20) /
+(100) #
+(20) /
 lig(1,2)
 1 1 #^
-1 -1 #v
--1 1 b^
--1 -1 bv
 `;
 
+/**
+    Lookup table for mapping SymbolCode number to 
+    musescore's internal accidental names and accidental symbol names.
+
+    Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
+    that look alike but have different internal representations. This plugin
+    should treat identical looking accidentals all the same.
+
+    All caps are accidental names (the string value of Note.accidentalType)
+    Non caps are symbol names (string value of Element.symbol)
+
+    E.g. CODE_TO_LABELS[2] contains all the possible accidental names/symbol names
+    that represent the sesquisharp (#+) accidental.
+
+    Whenever 'accidentalID' is used in code, it refers to the index of the
+    accidental in this array.
+
+    To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+ */
 CODE_TO_LABELS = [
     null,
-    ['NONE','noSym']
-    ['NATURAL','accidentalNatural','medRenNatural']
-    ['SHARP3','accidentalTripleSharp']
-    ['SHARP2','SHARP_SHARP','accidentalDoubleSharp','accidentalSharpSharp']
-    ['SHARP','NATURAL_SHARP','accidentalBakiyeSharp','accidentalSharp']
-    ['FLAT','NATURAL_FLAT','accidentalKucukMucennebFlat','accidentalFlat']
-    ['FLAT2','accidentalDoubleFlat']
-    ['FLAT3','accidentalTripleFlat']
-    ['SHARP_SLASH4','NINE_TWELFTH_SHARP','accidentalWyschnegradsky9TwelfthsSharp','accidentalThreeQuarterTonesSharpStein']
-    ['SHARP_SLASH','THREE_TWELFTH_SHARP','accidentalWyschnegradsky3TwelfthsSharp','accidentalKomaSharp','accidentalQuarterToneSharpStein']
-    ['MIRRORED_FLAT','accidentalKomaFlat','accidentalNarrowReversedFlat','accidentalQuarterToneFlatStein']     
-    ['MIRRORED_FLAT2','accidentalNarrowReversedFlatAndFlat','accidentalThreeQuarterTonesFlatZimmermann']       
-    ['FLAT_SLASH2','accidentalBuyukMucennebFlat']
-    ['FLAT_SLASH','accidentalBakiyeFlat','accidentalQuarterToneFlatArabic']
-    ['SHARP_SLASH3','accidentalKucukMucennebSharp']
-    ['SHARP_SLASH2','accidentalBuyukMucennebSharp']
-    ['accidentalThreeQuarterTonesFlatArabic']
-    ['DOUBLE_SHARP_THREE_ARROWS_UP','accidentalDoubleSharpThreeArrowsUp']
-    ['DOUBLE_SHARP_TWO_ARROWS_UP','accidentalDoubleSharpTwoArrowsUp']
-    ['SHARP2_ARROW_UP','DOUBLE_SHARP_ONE_ARROW_UP','accidentalDoubleSharpOneArrowUp']
-    ['SHARP2_ARROW_DOWN','DOUBLE_SHARP_ONE_ARROW_DOWN','accidentalDoubleSharpOneArrowDown']
-    ['DOUBLE_SHARP_TWO_ARROWS_DOWN','accidentalDoubleSharpTwoArrowsDown']
-    ['DOUBLE_SHARP_THREE_ARROWS_DOWN','accidentalDoubleSharpThreeArrowsDown']
-    ['SHARP_THREE_ARROWS_UP','accidentalSharpThreeArrowsUp']
-    ['SHARP_TWO_ARROWS_UP','accidentalSharpTwoArrowsUp']
-    ['SHARP_ARROW_UP','SHARP_ONE_ARROW_UP','accidentalSharpOneArrowUp']
-    ['SHARP_ARROW_DOWN','SHARP_ONE_ARROW_DOWN','accidentalSharpOneArrowDown']
-    ['SHARP_TWO_ARROWS_DOWN','accidentalSharpTwoArrowsDown']
-    ['SHARP_THREE_ARROWS_DOWN','accidentalSharpThreeArrowsDown']
-    ['NATURAL_THREE_ARROWS_UP','accidentalNaturalThreeArrowsUp']
-    ['NATURAL_TWO_ARROWS_UP','accidentalNaturalTwoArrowsUp']
-    ['NATURAL_ARROW_UP','NATURAL_ONE_ARROW_UP','accidentalNaturalOneArrowUp']
-    ['ARROW_UP','accidentalArrowUp']
-    ['NATURAL_ARROW_DOWN','NATURAL_ONE_ARROW_DOWN','accidentalNaturalOneArrowDown']
-    ['ARROW_DOWN','accidentalArrowDown']
-    ['NATURAL_TWO_ARROWS_DOWN','accidentalNaturalTwoArrowsDown']
-    ['NATURAL_THREE_ARROWS_DOWN','accidentalNaturalThreeArrowsDown']
-    ['FLAT_THREE_ARROWS_UP','accidentalFlatThreeArrowsUp']
-    ['FLAT_TWO_ARROWS_UP','accidentalFlatTwoArrowsUp']
-    ['FLAT_ARROW_UP','FLAT_ONE_ARROW_UP','accidentalFlatOneArrowUp']
-    ['FLAT_ARROW_DOWN','FLAT_ONE_ARROW_DOWN','accidentalFlatOneArrowDown']
-    ['FLAT_TWO_ARROWS_DOWN','accidentalFlatTwoArrowsDown']
-    ['FLAT_THREE_ARROWS_DOWN','accidentalFlatThreeArrowsDown']
-    ['DOUBLE_FLAT_THREE_ARROWS_UP','accidentalDoubleFlatThreeArrowsUp']
-    ['DOUBLE_FLAT_TWO_ARROWS_UP','accidentalDoubleFlatTwoArrowsUp']
-    ['FLAT2_ARROW_UP','DOUBLE_FLAT_ONE_ARROW_UP','accidentalDoubleFlatOneArrowUp']
-    ['FLAT2_ARROW_DOWN','DOUBLE_FLAT_ONE_ARROW_DOWN','accidentalDoubleFlatOneArrowDown']
-    ['DOUBLE_FLAT_TWO_ARROWS_DOWN','accidentalDoubleFlatTwoArrowsDown']
-    ['DOUBLE_FLAT_THREE_ARROWS_DOWN','accidentalDoubleFlatThreeArrowsDown']
+    ['NONE','noSym'],
+    ['NATURAL','accidentalNatural','medRenNatural'],
+    ['SHARP3','accidentalTripleSharp'],
+    ['SHARP2','SHARP_SHARP','accidentalDoubleSharp','accidentalSharpSharp'],
+    ['SHARP','NATURAL_SHARP','accidentalBakiyeSharp','accidentalSharp'],
+    ['FLAT','NATURAL_FLAT','accidentalKucukMucennebFlat','accidentalFlat'],
+    ['FLAT2','accidentalDoubleFlat'],
+    ['FLAT3','accidentalTripleFlat'],
+    ['SHARP_SLASH4','NINE_TWELFTH_SHARP','accidentalWyschnegradsky9TwelfthsSharp','accidentalThreeQuarterTonesSharpStein'],
+    ['SHARP_SLASH','THREE_TWELFTH_SHARP','accidentalWyschnegradsky3TwelfthsSharp','accidentalKomaSharp','accidentalQuarterToneSharpStein'],
+    ['MIRRORED_FLAT','accidentalKomaFlat','accidentalNarrowReversedFlat','accidentalQuarterToneFlatStein'],    
+    ['MIRRORED_FLAT2','accidentalNarrowReversedFlatAndFlat','accidentalThreeQuarterTonesFlatZimmermann'],      
+    ['FLAT_SLASH2','accidentalBuyukMucennebFlat'],
+    ['FLAT_SLASH','accidentalBakiyeFlat','accidentalQuarterToneFlatArabic'],
+    ['SHARP_SLASH3','accidentalKucukMucennebSharp'],
+    ['SHARP_SLASH2','accidentalBuyukMucennebSharp'],
+    ['accidentalThreeQuarterTonesFlatArabic'],
+    ['DOUBLE_SHARP_THREE_ARROWS_UP','accidentalDoubleSharpThreeArrowsUp'],
+    ['DOUBLE_SHARP_TWO_ARROWS_UP','accidentalDoubleSharpTwoArrowsUp'],
+    ['SHARP2_ARROW_UP','DOUBLE_SHARP_ONE_ARROW_UP','accidentalDoubleSharpOneArrowUp'],
+    ['SHARP2_ARROW_DOWN','DOUBLE_SHARP_ONE_ARROW_DOWN','accidentalDoubleSharpOneArrowDown'],
+    ['DOUBLE_SHARP_TWO_ARROWS_DOWN','accidentalDoubleSharpTwoArrowsDown'],
+    ['DOUBLE_SHARP_THREE_ARROWS_DOWN','accidentalDoubleSharpThreeArrowsDown'],
+    ['SHARP_THREE_ARROWS_UP','accidentalSharpThreeArrowsUp'],
+    ['SHARP_TWO_ARROWS_UP','accidentalSharpTwoArrowsUp'],
+    ['SHARP_ARROW_UP','SHARP_ONE_ARROW_UP','accidentalSharpOneArrowUp'],
+    ['SHARP_ARROW_DOWN','SHARP_ONE_ARROW_DOWN','accidentalSharpOneArrowDown'],
+    ['SHARP_TWO_ARROWS_DOWN','accidentalSharpTwoArrowsDown'],
+    ['SHARP_THREE_ARROWS_DOWN','accidentalSharpThreeArrowsDown'],
+    ['NATURAL_THREE_ARROWS_UP','accidentalNaturalThreeArrowsUp'],
+    ['NATURAL_TWO_ARROWS_UP','accidentalNaturalTwoArrowsUp'],
+    ['NATURAL_ARROW_UP','NATURAL_ONE_ARROW_UP','accidentalNaturalOneArrowUp'],
+    ['ARROW_UP','accidentalArrowUp'],
+    ['NATURAL_ARROW_DOWN','NATURAL_ONE_ARROW_DOWN','accidentalNaturalOneArrowDown'],
+    ['ARROW_DOWN','accidentalArrowDown'],
+    ['NATURAL_TWO_ARROWS_DOWN','accidentalNaturalTwoArrowsDown'],
+    ['NATURAL_THREE_ARROWS_DOWN','accidentalNaturalThreeArrowsDown'],
+    ['FLAT_THREE_ARROWS_UP','accidentalFlatThreeArrowsUp'],
+    ['FLAT_TWO_ARROWS_UP','accidentalFlatTwoArrowsUp'],
+    ['FLAT_ARROW_UP','FLAT_ONE_ARROW_UP','accidentalFlatOneArrowUp'],
+    ['FLAT_ARROW_DOWN','FLAT_ONE_ARROW_DOWN','accidentalFlatOneArrowDown'],
+    ['FLAT_TWO_ARROWS_DOWN','accidentalFlatTwoArrowsDown'],
+    ['FLAT_THREE_ARROWS_DOWN','accidentalFlatThreeArrowsDown'],
+    ['DOUBLE_FLAT_THREE_ARROWS_UP','accidentalDoubleFlatThreeArrowsUp'],
+    ['DOUBLE_FLAT_TWO_ARROWS_UP','accidentalDoubleFlatTwoArrowsUp'],
+    ['FLAT2_ARROW_UP','DOUBLE_FLAT_ONE_ARROW_UP','accidentalDoubleFlatOneArrowUp'],
+    ['FLAT2_ARROW_DOWN','DOUBLE_FLAT_ONE_ARROW_DOWN','accidentalDoubleFlatOneArrowDown'],
+    ['DOUBLE_FLAT_TWO_ARROWS_DOWN','accidentalDoubleFlatTwoArrowsDown'],
+    ['DOUBLE_FLAT_THREE_ARROWS_DOWN','accidentalDoubleFlatThreeArrowsDown'],
 ];
 
 /**
@@ -102,9 +98,10 @@ CODE_TO_LABELS = [
  */
 LABELS_TO_CODE = (function() {
     var mapping = {};
-    for (var i = 0; i < codeToLabels.length; i++) {
-      for (var j = 0; j < codeToLabels[i].length; j++)
-        mapping[codeToLabels[i][j]] = i;
+    // start from 1. 0 is null.
+    for (var i = 1; i < CODE_TO_LABELS.length; i++) {
+        for (var j = 0; j < CODE_TO_LABELS[i].length; j++)
+            mapping[CODE_TO_LABELS[i][j]] = i;
     }
     Object.freeze(mapping);
     return mapping;
@@ -358,8 +355,10 @@ function readNote(note) {
 function parseTuningConfig(text) {
     var text = text.trim();
 
-    if (text.length == 0)
+    if (text.length == 0) {
+        // console.log('not tuning config: empty text');
         return null;
+    }
     
     var tuningConfig = { // TuningConfig
         notesTable: {},
@@ -384,14 +383,16 @@ function parseTuningConfig(text) {
     if (lines.length < 2)
         return null;
     
-    // SETTLE TUNING NOTE.
+    // PARSE TUNING NOTE.
     //
     //
 
-    var referenceTuning = lines[0].split(':').forEach(x => x.trim());
+    var referenceTuning = lines[0].split(':').map(x => x.trim());
 
-    if (referenceTuning.length != 2)
+    if (referenceTuning.length != 2) {
+        // console.log(lines[0] + ' is not a reference tuning');
         return null;
+    }
 
     var referenceLetter = referenceTuning[0][0].toLowerCase();
     var referenceOctave = parseInt(referenceTuning[0].slice(1));
@@ -399,8 +400,10 @@ function parseTuningConfig(text) {
     var nominalsFromA4 = (referenceOctave - 4) * 7;
     var lettersNominal = LETTERS_TO_NOMINAL[referenceLetter];
 
-    if (!lettersNominal)
+    if (lettersNominal == undefined) {
+        // console.log(`${referenceLetter} Invalid reference note specified`);
         return null;
+    }
     
     nominalsFromA4 += lettersNominal;
 
@@ -414,41 +417,47 @@ function parseTuningConfig(text) {
     tuningConfig.tuningNote = LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
     tuningConfig.tuningFreq = parseFloat(referenceTuning[1]);
 
-    // SETTLE NOMINALS
+    // PARSE NOMINALS
     //
     //
 
     var hasInvalid = false;
-    var nominals = lines[1].split(' ').forEach(x => {
+    var nominals = lines[1].split(' ').map(x => {
         var f = parseFloat(x);
         if (f == NaN) hasInvalid = true;
         return f
     });
 
-    if (hasInvalid)
+    if (hasInvalid) {
+        console.log('Invalid nominal decl: ' + lines[1]);
         return null;
+    }
     
     tuningConfig.nominals = nominals.slice(0, nominals.length - 1);
     tuningConfig.equaveSize = nominals[nominals.length - 1];
     tuningConfig.numNominals = tuningConfig.nominals.length;
 
-    // SETTLE ACCIDENTAL CHAINS
+    // PARSE ACCIDENTAL CHAINS
     //
     //
 
-    var ligDeclarationStartLine = null;
+    var nextDeclStartLine = null;
 
-    for (var nomIdx = 2; nomIdx < lines.length; nomIdx++) {
+    for (var i = 2; i < lines.length; i++) {
+        var line = lines[i].trim();
+
         // each new line is a new accidental chain.
 
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
+        // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        if (lines[nomIdx].match(/lig\([0-9,]+\)/)) {
-            ligDeclarationStartLine = nomIdx;
+        var matches = line.match(/(lig|aux)\([0-9,]+\)/);
+        if (matches) {
+            nextDeclStartLine = i;
             break;
         }
 
-        var accChainStr = lines[nomIdx].split(' ').forEach(x => x.trim());
+        var accChainStr = line.split(' ').map(x => x.trim());
 
         var increment = null;
         var symbolsLookup = {}; // contains all unique symbols used.
@@ -485,7 +494,10 @@ function parseTuningConfig(text) {
                     return code;
                 });
 
-                if (hasInvalid) return null;
+                if (hasInvalid) {
+                    console.log('invalid symbol: ' + symbols_offset[0]);
+                    return null;
+                }
 
                 var offset = symbols_offset.length > 1 ? parseFloat(symbols_offset[1].slice(0, symbols_offset[1].length - 1)) : 0;
 
@@ -494,8 +506,10 @@ function parseTuningConfig(text) {
             }
         }
 
-        if (!increment || !centralIdx)
+        if (!increment || centralIdx == null) {
+            console.log('Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
             return null;
+        }
         
         for (var j = 0; j < offsets.length; j++) {
             if (j == centralIdx)
@@ -513,11 +527,23 @@ function parseTuningConfig(text) {
         });
     }
 
-    // SETTLE LIGATURES
+    // PARSE LIGATURES
     //
     //
 
-    for (var nomIdx = ligDeclarationStartLine; nomIdx < lines.length; nomIdx++) {
+    for (var i = nextDeclStartLine; i < lines.length; i++) {
+
+        if (nextDeclStartLine == null)
+            break;
+
+        var line = lines[i].trim();
+
+        // Check for `aux(x,y,..)` declaration
+        if (line.match(/aux\([0-9,]+\)/)) {
+            nextDeclStartLine = i;
+            break;
+        }
+
         hasInvalid = false;
 
         // lig(m, n) will be regarding the mth and nth accidental chains only.
@@ -525,35 +551,49 @@ function parseTuningConfig(text) {
         // An exact match of the degrees of the mth and nth chains must be found
         // in order for the ligature regarding m and n to be applied.
 
-        var regarding = lines[nomIdx]
-            .match(/lig\(([0-9,]+)\)/)[1]
+        var match = line.match(/lig\(([0-9,]+)\)/);
+
+        if (!match) {
+            console.log('Expecting lig(...) or aux(...), got "' + line + '" instead.');
+            return null;
+        }
+
+        var regarding = match[1]
             .split(',')
             .map(x => {
                 let n = parseInt(x);
                 if (n == NaN || n < 1) hasInvalid = true;
-                return n;
+                return n - 1;
             });
+
+        if (hasInvalid) {
+            console.log('Invalid ligature declaration: ' + line);
+            return null;
+        }
         
         var ligAvToSymbols = {};
 
-        for (var j = nomIdx + 1; j < lines.length; j++) {
+        for (var j = i + 1; j < lines.length; j++) {
             // each line represents a mapping in `ligAvToSymbols`
 
             // syntax: <chain 1 degree> <chain 2 degree> ... <dot separated acc symbols>
 
-            var words = lines[j].split(' ').forEach(x => x.trim());
+            var words = lines[j].split(' ').map(x => x.trim());
             var ligAv = words.slice(0, words.length - 1).map(x => parseInt(x));
 
             hasInvalid = false;
             var ligatureSymbols = words[words.length - 1]
                 .split('.')
-                .forEach(x => {
+                .map(x => {
                     var code = readSymbolCode(x);
                     if (code == null) hasInvalid = true;
                     return code;
                 });
             
-            if (hasInvalid) return null;
+            if (hasInvalid) {
+                console.log('invalid ligature symbol: ' + words[words.length - 1]);
+                return null;
+            }
 
             ligAvToSymbols[ligAv] = ligatureSymbols;
         }
@@ -562,7 +602,28 @@ function parseTuningConfig(text) {
             regarding: regarding,
             ligAvToSymbols: ligAvToSymbols,
         });
+
+        // jump to new line
+        i = j + 1;
     }
+    
+    // PARSE AUX
+    //
+    //
+
+    // TODO.
+
+    for (var i = nextDeclStartLine; i < lines.length; i++) {
+        if (nextDeclStartLine == null) break;
+    }
+
+
+
+    //
+    //
+    // END OF PARSING
+    //
+    //
 
     //
     //
@@ -586,8 +647,8 @@ function parseTuningConfig(text) {
     // ...
     var idxPermutations = [];
 
-    for(var nomIdx = 0; nomIdx < tuningConfig.accChains.length; nomIdx++) {
-        var accChain = tuningConfig.accChains[nomIdx];
+    for(var i = 0; i < tuningConfig.accChains.length; i++) {
+        var accChain = tuningConfig.accChains[i];
 
         if (idxPermutations.length == 0) {
             // first iteration: populate with indices of first acc chain.
@@ -710,7 +771,7 @@ function parseTuningConfig(text) {
             var symCodeNums = [];
             
             Object.keys(accidentalSymbols)
-                .map(parseInt)
+                .map(x => parseInt(x))
                 .sort()
                 .forEach(symCode => {
                     symCodeNums.push(symCode);
@@ -742,7 +803,7 @@ function parseTuningConfig(text) {
                 xen: { // XenNote
                     nominal: nomIdx,
                     accidentals: properlyOrdererdAccSymbols,
-                    hash: `${nomIdx} ${symCodeNums.join(' ')}`
+                    hash: `${nomIdx} ${symCodeNums.join(' ')}`.trim()
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
@@ -771,7 +832,16 @@ function parseTuningConfig(text) {
 
                     // Remove symbols from ligaturedSymbols that are
                     // replaced by the ligature.
-                    tuningConfig.accChains[idx].degreesSymbols[deg].forEach(symCode => {
+
+                    var accChain = tuningConfig.accChains[idx];
+                    var symbolsCausedByDegree = accChain.degreesSymbols[avIndices[idx]];
+                    
+                    if (symbolsCausedByDegree == null) {
+                        // continue. the current degree of this accidental vector doesn't need any symbols
+                        return;
+                    }
+                    
+                    symbolsCausedByDegree.forEach(symCode => {
                         if (ligaturedSymbols[symCode]) {
                             // reduce count of symbols
                             var numSymbols = --ligaturedSymbols[symCode];
@@ -821,7 +891,7 @@ function parseTuningConfig(text) {
                     // calculate ligatured hash string
                     symCodeNums = [];
                     Object.keys(finalAccSymbols)
-                        .map(parseInt)
+                        .map(x => parseInt(x))
                         .sort()
                         .forEach(symCode => {
                             symCodeNums.push(symCode);
@@ -883,7 +953,7 @@ function parseTuningConfig(text) {
         tuningConfig.avTable[hash] = av;
         tuningConfig.tuningTable[hash] = [cents, equavesAdjusted];
 
-        if (isEnharmonicallyEquivalent(cents, prevEnhEquivCents)) {
+        if (prevEnhEquivCents != null && isEnharmonicallyEquivalent(cents, prevEnhEquivCents)) {
             // Curr note should belong to the same group as prev note.
             // Safe to assume tuningConfig.stepsList is not empty.
 
@@ -905,11 +975,13 @@ function parseTuningConfig(text) {
             //
             // If so, complete the cycle in the enharmonic graph.
 
-            var prevEnharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
-            if (prevEnharmGroup.length > 1) {
-                var firstEnharmHash = prevEnharmGroup[0];
-                var lastEnharmHash = prevEnharmGroup[prevEnharmGroup.length - 1];
-                tuningConfig.enharmonics[lastEnharmHash] = firstEnharmHash;
+            if (tuningConfig.stepsList.length > 0) {
+                var prevEnharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
+                if (prevEnharmGroup.length > 1) {
+                    var firstEnharmHash = prevEnharmGroup[0];
+                    var lastEnharmHash = prevEnharmGroup[prevEnharmGroup.length - 1];
+                    tuningConfig.enharmonics[lastEnharmHash] = firstEnharmHash;
+                }
             }
 
             // Add new entry in StepwiseList

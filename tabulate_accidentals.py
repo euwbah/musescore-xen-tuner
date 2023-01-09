@@ -25,7 +25,7 @@ with open('./accidentals.csv') as f:
         if len(text_code) != 0:
             text_code_map[text_code] = sym_code
         
-        print(f'    [{",".join(ids)}]')
+        print(f'    [{",".join(ids)}],')
         
     print('];\n\n')
     
