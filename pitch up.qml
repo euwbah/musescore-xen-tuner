@@ -1204,7 +1204,7 @@ MuseScore {
                         var text = removeFormattingCode(annotation.text);
                         if (text.toLowerCase().trim().endsWith('edo')) {
                           var edo = parseInt(text.substring(0, text.length - 3));
-                          if (edo !== NaN || edo !== undefined || edo !== null) {
+                          if (!isNaN(edo) || edo !== undefined || edo !== null) {
                             clog('found EDO annotation: ' + text)
                             staffEDOHistory.push({
                               tick: cursor.tick,
@@ -1216,7 +1216,7 @@ MuseScore {
                           if (txt.endsWith('hz'))
                             txt = txt.substring(0, txt.length - 2);
                           var center = {note: txt.substring(0, 2), freq: parseFloat(txt.substring(3))};
-                          if (center.freq !== NaN || center.freq !== undefined || center.freq !== null) {
+                          if (!isNaN(center.freq) || center.freq !== undefined || center.freq !== null) {
                             clog('found tuning center annotation: ' + text)
                             staffCenterHistory.push({
                               tick: cursor.tick,
@@ -1497,7 +1497,7 @@ MuseScore {
                       var text = removeFormattingCode(annotation.text);
                       if (text.toLowerCase().trim().endsWith('edo')) {
                         var edo = parseInt(text.substring(0, text.length - 3));
-                        if (edo !== NaN || edo !== undefined || edo !== null) {
+                        if (!isNaN(edo) || edo !== undefined || edo !== null) {
                           clog('found EDO annotation: ' + text)
                           staffEDOHistory.push({
                             tick: cursor.tick,
@@ -1509,7 +1509,7 @@ MuseScore {
                         if (txt.endsWith('hz'))
                           txt = txt.substring(0, txt.length - 2);
                         var center = {note: txt.substring(0, 2), freq: parseFloat(txt.substring(3))};
-                        if (center.freq !== NaN || center.freq !== undefined || center.freq !== null) {
+                        if (!isNaN(center.freq) || center.freq !== undefined || center.freq !== null) {
                           clog('found tuning center annotation: ' + text)
                           staffCenterHistory.push({
                             tick: cursor.tick,
