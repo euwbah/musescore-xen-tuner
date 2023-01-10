@@ -6,9 +6,10 @@ var Lookup = ImportLookup();
  * @param {string} noteName A to G
  * @param {number} octave (octave resets at C)
  * @param {string|number} accidental SymCode or Text Code
- * @param {string} symbols SymCodes or Text Codes separated by .
+ * @param {string} symbols SymCodes or Text Codes separated by dot .
+ * @param {number} tick tick position of Segment that note is attached to.
  */
-function testNewNote(noteName, octave, accidental, symbols) {
+function testNewNote(noteName, octave, accidental, symbols, tick=0) {
     var noteName = noteName.toLowerCase();
     var accidental = accidental;
 
@@ -73,6 +74,11 @@ function testNewNote(noteName, octave, accidental, symbols) {
         pitch: pitch,
         tpc: tpc,
         accidental: Lookup.CODE_TO_LABELS[accidental][0] || 'NONE',
-        elements: elements
+        elements: elements,
+        parent: {
+            parent: {
+                tick: tick
+            }
+        }
     }
 }

@@ -411,7 +411,7 @@ In `(aux) up/down.qml`, the plugin should be able to choose the next stepwise no
 
 The `chooseNextNote()` function returns a list of `[XenNote, nominalOffset]` tuples of enharmonically-equivalent spelling options for the next stepwise note.
 
-### Choosing how to represent accidentals
+### Accidental display order
 
 As part of `up/down/enharmonic.qml`, the plugin should be able to create, modify and delete accidental symbols and attach them to the note.
 
@@ -563,6 +563,23 @@ A number representing a uniquely identifiable accidental symbol. A single symbol
 
 [See list of symbol codes](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
+
+#### `AccidentalSymbols`
+
+```js
+{
+  SymbolCode: number,
+  SymbolCode: number,
+  ...
+}
+```
+
+Represents accidental symbols attached to a note. Each entry is the SymbolCode of the symbol and the number of times this symbol occurs.
+
+The keys are in left-to-right display order as per [accidental display order](#accidental-display-order) determined by Tuning Config.
+
+This data structure abstracts away how MuseScore has two different classes of 'accidentals'.
+
 #### `MSNote`
 
 ```js
@@ -570,12 +587,13 @@ A number representing a uniquely identifiable accidental symbol. A single symbol
   midiNote: number, // `Note.pitch` property
   tpc: number, // `Note.tpc`
   nominalsFromA4: number, // number of 12edo nominals from A4.
-  accidentals?: {
-    // number of each explicit accidental symbol attached to this note
+  accidentals?: { // AccidentalSymbols
+    // Explicit accidental symbols attached to this note.
     SymbolCode: number,
     SymbolCode: number,
     ...
-  }
+  },
+  tick: number // tick position of Segment that this note is attached to.
 }
 ```
 
@@ -584,6 +602,8 @@ Represents a tokenized MuseScore note element.
 If no explicit accidentals are present, `accidentals` is null.
 
 `midiNote` contains the default playback pitch (MIDI note) that MuseScore will use for this note.
+
+Use `getTick(note)` to get value of `tick`.
 
 #### `AccidentalVector`
 
@@ -602,8 +622,9 @@ The n-th number represents the degree of the n-th accidental chain. The order of
 ```js
 {
   nominal: number, // no. of nominals away from tuning note (mod equave)
-  accidentals?: {
-    // map of the accidentals required to spell this note.
+  accidentals?: { // AccidentalSymbols
+    // The spelling of this note according to symbols present.
+    // Both Implicit & Explicit accidentals must be represented.
     SymbolCode: number
     SymbolCode: number,
     // if a tuning-declared accidental is not present in this note,
@@ -818,6 +839,16 @@ This is the resulting data structure to be generated after parsing a tuning conf
 A lookup for memoized parsed `TuningConfig`s. Because of how the plugin cursor API requires each voice to be tuned separately one at a time, it will cause many unnecessary re-parsings of the same System/Staff Text element.
 
 To prevent unneeded parsings, this lookup maps verbatim system/staff texts to the `TuningConfig` it results in when parsed. Hopefully this would reduce plugin lag.
+
+#### `parms`
+
+```js
+{
+  bars: [number], // tick of each new bar
+}
+```
+
+`parms` represents the global state object of the plugin.
 
 ## Functions
 

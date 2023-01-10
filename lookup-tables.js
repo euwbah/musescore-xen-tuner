@@ -250,6 +250,7 @@ var TPC_TO_NOMINAL = (function() {
 function ImportLookup() {
     return {
         CODE_TO_LABELS: CODE_TO_LABELS,
+        LABELS_TO_CODE: LABELS_TO_CODE,
         TEXT_TO_CODE: TEXT_TO_CODE,
         LETTERS_TO_NOMINAL: LETTERS_TO_NOMINAL,
         LETTERS_TO_SEMITONES: LETTERS_TO_SEMITONES,
