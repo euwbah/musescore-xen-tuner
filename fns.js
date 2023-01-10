@@ -103,11 +103,16 @@ function readNote(note) {
 
     var accidentals = {};
 
-    if (note.accidental) {
-        // If note has a Full/Half supported accidental,
-        var symCode = Lookup.LABELS_TO_CODE['' + note.accidental];
-        accidentals[symCode] = 1;
-    }
+    // Removed. This plugin no longer attempts to deal with musescore's accidentals.
+    // 
+    // This plugin relies on SMuFL symbols attached from symbols in the "Symbols"
+    // category of the Master Palette only.
+    //
+    // if (note.accidental) {
+    //     // If note has a Full/Half supported accidental,
+    //     var symCode = Lookup.LABELS_TO_CODE['' + note.accidental];
+    //     accidentals[symCode] = 1;
+    // }
 
     for (var i = 0; i < note.elements.length; i++) {
         // If note has a Full/Half supported accidental,
@@ -127,17 +132,23 @@ function readNote(note) {
         tpc: note.tpc,
         nominalsFromA4: nominals + (octavesFromA4 * 7),
         accidentals: accidentals,
-        tick: getTick(note)
+        tick: getTick(note),
+        internalNote: note
     };
 
     return msNote;
 }
 
 /**
- * Calculate a XenNote.hash string from its nominal and accidental object.
+ * 
+ * Hashes the accidental symbols attached to a note.
+ * 
+ * The result is appended to the nominal of a note to construct a XenNote.
+ * 
+ * @param {AccidentalSymbols} accidentals The AccidentalSymbols object
+ * @returns {string} AccidentalSymbols hash string.
  */
-function xenHash(nominal, accidentals) {
-
+function accidentalsHash(accidentals) {
     var symCodeNums = [];
 
     Object.keys(accidentals)
@@ -147,8 +158,15 @@ function xenHash(nominal, accidentals) {
             symCodeNums.push(symCode);
             symCodeNums.push(accidentalSymbols[symCode]);
         });
+    
+    return symCodeNums.join(' ');
+}
 
-    return nominal + ' ' + symCodeNums.join(' ');
+/**
+ * Calculate a XenNote.hash string from its nominal and accidental object.
+ */
+function xenHash(nominal, accidentals) {
+    return nominal + ' ' + accidentalsHash(accidentals);
 }
 
 /**
@@ -811,17 +829,17 @@ function parseTuningConfig(text) {
  * @param {*} MuseScore Cursor object
  * @returns {NoteData} The parsed note data
  */
-function readNoteData(msNote, tuningConfig, cursor) {
+function readNoteData(msNote, tuningConfig, cursor, parms) {
     /*
+    Example repr. of the note Ebbbb\\4 with implicit accidentals:
     {
         ms: { // MSNote
-            midiNote: 62, // D4 (Ebb)
-            tpc: 4, // Ebb is 4
+            midiNote: 64, // E4
+            tpc: 18, // E
             nominalsFromA4: -3, // E4 is 3 nominals below A4.
-            accidentals: {
-                6: 2, // two double flats
-                34: 2, // two comma downs
-            }
+            accidentals: null,
+            tick: 1337,
+            internalNote: MScore::Note // copy of internal musescore note object
         },
         xen: { // XenNote
             nominal: 4, // E
@@ -844,6 +862,19 @@ function readNoteData(msNote, tuningConfig, cursor) {
     var nominalsFromTuningNote = ms.nominalsFromA4 - tuningConfig.tuningNominal;
     equaves = Math.floor(nominalsFromTuningNote / tuningConfig.numNominals);
     xen.nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
+
+    // graceChord will contain the chord this note belongs to if the current note
+    // is a grace note.
+    var graceChord = undefined;
+    if (note.noteType == NoteType.ACCIACCATURA || note.noteType == NoteType.APPOGGIATURA ||
+        note.noteType == NoteType.GRACE4 || note.noteType == NoteType.GRACE16 ||
+        note.noteType == NoteType.GRACE32) {
+        graceChord = note.parent;
+    }
+
+    var accidentalsHash = getAccidental(
+        cursor, msNote.internalNote, msNote.internalNote.line, 
+        false, parms, false, msNote, graceChord);
     xen.accidentals = ms.accidentals;
     xen.hash = getHash(xen);
 }
@@ -981,8 +1012,6 @@ function _getMostRecentAccidentalInBar(
     // if 2 notes ticks are the same, the voice index matters as well.
     // higher voice idx = accidental takes precedence!
     var mostRecentExplicitAccVoice = -1;
-    var mostRecentPossiblyBotchedAccTick = -1;
-    var mostRecentPossiblyBotchedAccVoice = -1;
     var mostRecentDoubleLineTick = -1;
     var mostRecentDoubleLineVoice = -1;
 
@@ -1005,19 +1034,16 @@ function _getMostRecentAccidentalInBar(
         while (cursor.tick < noteTick && cursor.next());
 
 
-        // used to ensure that an updated note with an explicit natural accidental
-        // (that doesn't show up as explicit) doesn't go unnoticed when
-        // another regular accidental comes before it.
-        var firstAccidentalPropertyUndefinedNaturalTPC = undefined;
-
         while (tickOfThisBar !== -1 && cursor.segment && cursor.tick >= tickOfThisBar) {
             if (cursor.element && cursor.element.type == Ms.CHORD) {
                 // because this is backwards-traversing, it should look at the main chord first before grace chords.
                 var notes = cursor.element.notes;
                 var nNotesInSameLine = 0;
+                /**
+                 * Contains the string hash of AccidentalSymbols object.
+                 * @type {string}
+                 */
                 var explicitAccidental = undefined;
-                var explicitPossiblyBotchedAccidental = undefined;
-                var implicitExplicitNote = undefined; // the note that has `explicitPossiblyBotchedAccidental`
 
                 // Processing main chord.
 
@@ -1035,6 +1061,8 @@ function _getMostRecentAccidentalInBar(
                     // Start search for accidentals on current chord (non-grace)
 
                     for (var i = 0; i < notes.length; i++) {
+                        // Loops through all notes in this chord
+
                         if ((!before || (
                             getTick(notes[i]) < noteTick ||
                             ((notes[i].is(currentOperatingNote) === false &&
@@ -1046,92 +1074,37 @@ function _getMostRecentAccidentalInBar(
                             notes[i].line === line && getTick(notes[i]) <= noteTick) {
                             nNotesInSameLine++;
 
-                            // Note: this behemoth is necessary due to this issue: https://musescore.org/en/node/305977
-                            //
-                            // If a note was updated to a regular accidental, it's note.accidental and note.accidentalType
-                            // values would be undefined, except if it is updated to a natural accidental which naturalises
-                            // a NON-regular accidental that came before.
-                            //
-                            // Additional steps have to be taken when it comes to an updated note with an explicit natural accidental.
-                            // The natural accidental doesn't get registered as an explicit accidental due to the bug as listed above,
-                            // and neither does it get recognized as an 'explicitPossiblyBotchedAccidental' as its TPC is natural.
-                            // One can not simply use TPC to check for regular explicit natural accidentals as
-                            // notes with/inheriting non-regular accidentals will also be assigned the 'natural' TPC.
-                            //
-                            // In order to check if an updated note has an explicit natural accidental that has
-                            // to be taken into consideration one shall need to evaluate at every regular
-                            // ('possibly botched') accidental if there exists a note of which tpc is natural,
-                            // of which .accidental property is undefined, that comes after the regular accidental,
-                            // that comes before the noteTick.
-                            // This note is represented in the code as firstAccidentalPropertyUndefinedNaturalTPC.
-                            //
-                            // If such a note exists, the current regular accidental is void, and in its place,
-                            // the first (leftmost/earliest) natural TPC with note.accidental undefined shall
-                            // be assigned to the implicitExplicitNote for consideration as a regular NATURAL accidental.
+                            // This current note fulfils the accidental search condition.
 
-                            // Note that this is a hacky workaround, using the note's tpc to assume the presence of an explicit accidental
-                            // when its accidental properties gets erased due to a pitch update.
-                            // (If no pitch update was done performed on the note, any explicit accidental will still be registered as such)
-                            //
-                            // However, using this hack, there is no way to ascertain that the note indeed has an explicit accidental or not,
-                            // but for solely the purposes of retrieving accidental state, this is a perfectly fine solution.
-                            if (notes[i].accidental) {
-                                explicitAccidental = notes[i].accidentalType;
-                                console.log('getMostRecentAcc: found explicitAccidental: ' +
-                                    convertAccidentalTypeToName(0 + explicitAccidental) + ' at: ' + getTick(notes[i]));
-                            }
-                            else if (notes[i].tpc <= 5 && notes[i].tpc >= -1) {
-                                explicitPossiblyBotchedAccidental = Accidental.FLAT2;
-                                console.log('getMostRecentAcc: found possibly botched double flat' + ' at: ' + getTick(notes[i]));
-                            }
-                            else if (notes[i].tpc <= 12 && notes[i].tpc >= 6) {
-                                explicitPossiblyBotchedAccidental = Accidental.FLAT;
-                                console.log('getMostRecentAcc: found possibly botched flat' + ' at: ' + getTick(notes[i]));
-                            }
-                            else if (notes[i].tpc <= 26 && notes[i].tpc >= 20) {
-                                explicitPossiblyBotchedAccidental = Accidental.SHARP;
-                                console.log('getMostRecentAcc: found possibly botched sharp' + ' at: ' + getTick(notes[i]));
-                            }
-                            else if (notes[i].tpc <= 33 && notes[i].tpc >= 27) {
-                                explicitPossiblyBotchedAccidental = Accidental.SHARP2;
-                                console.log('getMostRecentAcc: found possibly botched double sharp' + ' at: ' + getTick(notes[i]));
-                            }
-                            else if (notes[i].tpc <= 19 && notes[i].tpc >= 13) {
-                                // These ones could either have an explicit natural accidental which is erroneously
-                                // not stated by the .accidental property,
-                                // or they could be notes with non-regular accidentals
-                                // or they could be notes that inherit accidentals from non-regular accidentals.
+                            // Only check for symbol elements.
+                            
+                            if (notes[i].elements) {
+                                var accidentals = {}; // AccidentalSymbols object
+                                for (var j = 0; j < notes[i].elements.length; j++) {
+                                    var smuflId = notes[i].elements[j].symbol;
+                                    if (smuflId && Lookup.LABELS_TO_CODE[smuflId]) {
+                                        var symCode = Lookup.LABELS_TO_CODE[smuflId];
+                                        if (accidentals[symCode]) {
+                                            accidentals[symCode] ++;
+                                        } else {
+                                            accidentals[symCode] = 1;
+                                        }
+                                    }
+                                }
 
-                                firstAccidentalPropertyUndefinedNaturalTPC = notes[i];
-                                console.log('getMostRecentAcc: found first natural tpc with undefined accidental property at: ' + getTick(notes[i]));
-                            }
-
-                            if (notes[i].tpc <= 12 || notes[i].tpc >= 20) {
-                                implicitExplicitNote = notes[i];
-
-                                if (firstAccidentalPropertyUndefinedNaturalTPC) {
-                                    console.log('getMostRecentAcc: overriding regular possibly botched accidental with explicit natural accidental');
-                                    // If this note has a regular accidental, but there is a note with
-                                    // a natural TPC that follows it that has an undefined note.accidental value,
-                                    // that note should take precedence over this one as it came first and it can
-                                    // be proven that the natural accidental is explicit even though it is not reflected
-                                    // by the note.accidentalType!
-                                    implicitExplicitNote = firstAccidentalPropertyUndefinedNaturalTPC;
-                                    explicitPossiblyBotchedAccidental = Accidental.NATURAL;
-                                    firstAccidentalPropertyUndefinedNaturalTPC = undefined;
+                                if (Object.keys(accidentals).length > 0) {
+                                    explicitAccidental = accidentalsHash(accidentals);
                                 }
                             }
                         }
                     }
 
                     if ((nNotesInSameLine === 1 || !botchedCheck) && explicitAccidental &&
-                        (cursor.tick > mostRecentPossiblyBotchedAccTick ||
-                            (cursor.tick === mostRecentPossiblyBotchedAccTick && cursor.voice > mostRecentPossiblyBotchedAccVoice))) {
+                        (cursor.tick > mostRecentExplicitAccTick ||
+                            (cursor.tick === mostRecentExplicitAccTick && cursor.voice > mostRecentExplicitAccVoice))) {
                         mostRecentExplicitAcc = explicitAccidental;
                         mostRecentExplicitAccTick = cursor.tick;
                         mostRecentExplicitAccVoice = cursor.voice;
-                        mostRecentPossiblyBotchedAccVoice = cursor.voice;
-                        mostRecentPossiblyBotchedAccTick = cursor.tick;
                         break;
                     } else if (nNotesInSameLine > 1 &&
                         (cursor.tick > mostRecentDoubleLineTick ||
@@ -1139,29 +1112,16 @@ function _getMostRecentAccidentalInBar(
                         mostRecentDoubleLineTick = cursor.tick;
                         mostRecentDoubleLineVoice = cursor.voice;
                         break;
-                    } else if (nNotesInSameLine === 1 && explicitPossiblyBotchedAccidental &&
-                        (getTick(implicitExplicitNote.firstTiedNote) > mostRecentPossiblyBotchedAccTick ||
-                            (getTick(implicitExplicitNote.firstTiedNote) === mostRecentPossiblyBotchedAccTick &&
-                                implicitExplicitNote.firstTiedNote.voice > mostRecentPossiblyBotchedAccVoice))) {
-                        // NOTE: the 'explicit' implicit accidental must not have a tie that goes back to a previous bar.
-                        //       otherwise, the accidental it represents is void and is of the previous bar, and not
-                        //       the current.
-                        if (getTick(implicitExplicitNote.firstTiedNote) >= tickOfThisBar) {
-                            mostRecentExplicitAcc = explicitPossiblyBotchedAccidental;
-                            mostRecentExplicitAccVoice = implicitExplicitNote.firstTiedNote.voice;
-                            mostRecentPossiblyBotchedAccVoice = mostRecentExplicitAccVoice;
-                            mostRecentPossiblyBotchedAccTick = getTick(implicitExplicitNote.firstTiedNote);
-                        }
                     }
                 }
 
                 var graceChords = cursor.element.graceNotes;
                 var beforeCurrent = !searchGraces;
-                for (var i = graceChords.length - 1; i >= 0; i--) {
+                for (var gchdIdx = graceChords.length - 1; gchdIdx >= 0; gchdIdx--) {
                     // Move cursor to either the current selected grace chord
                     var isCurrentOperating = false;
                     if (!beforeCurrent) {
-                        if (graceChords[i].is(graceChord)) {
+                        if (graceChords[gchdIdx].is(graceChord)) {
                             beforeCurrent = true;
                             isCurrentOperating = true;
                         } else {
@@ -1169,54 +1129,50 @@ function _getMostRecentAccidentalInBar(
                         }
                     }
                     // iterate through all grace chords
-                    var notes = graceChords[i].notes;
+                    var notes = graceChords[gchdIdx].notes;
                     var nNotesInSameLine = 0;
                     var explicitAccidental = undefined;
-                    var explicitPossiblyBotchedAccidental = undefined;
-                    var implicitExplicitNote = undefined;
-                    for (var j = 0; j < notes.length; j++) {
+                    for (var i = 0; i < notes.length; i++) {
                         if ((!before || (!isCurrentOperating ||
-                            (notes[j].is(currentOperatingNote) === false &&
+                            (notes[i].is(currentOperatingNote) === false &&
                                 line == currentOperatingNote.line &&
                                 currentOperatingNote.voice == voice &&
                                 !excludeBeforeInSameChord)
                         )) &&
-                            notes[j].line === line) {
+                            notes[i].line === line) {
                             nNotesInSameLine++;
 
-                            if (notes[j].accidental)
-                                explicitAccidental = notes[j].accidentalType;
-                            else if (notes[j].tpc <= 5 && notes[j].tpc >= -1)
-                                explicitPossiblyBotchedAccidental = Accidental.FLAT2;
-                            else if (notes[j].tpc <= 12 && notes[j].tpc >= 6)
-                                explicitPossiblyBotchedAccidental = Accidental.FLAT;
-                            else if (notes[j].tpc <= 26 && notes[j].tpc >= 20)
-                                explicitPossiblyBotchedAccidental = Accidental.SHARP;
-                            else if (notes[j].tpc <= 33 && notes[j].tpc >= 27)
-                                explicitPossiblyBotchedAccidental = Accidental.SHARP2;
-                            else if (notes[j].tpc <= 19 && notes[j].tpc >= 13)
-                                firstAccidentalPropertyUndefinedNaturalTPC = notes[j];
+                            // This current note fulfils the accidental search condition.
 
-                            if (notes[j].tpc <= 12 || notes[j].tpc >= 20) {
-                                implicitExplicitNote = notes[j];
+                            // Only check for symbol elements.
+                            
+                            if (notes[i].elements) {
+                                var accidentals = {}; // AccidentalSymbols object
+                                for (var j = 0; j < notes[i].elements.length; j++) {
+                                    var smuflId = notes[i].elements[j].symbol;
+                                    if (smuflId && Lookup.LABELS_TO_CODE[smuflId]) {
+                                        var symCode = Lookup.LABELS_TO_CODE[smuflId];
+                                        if (accidentals[symCode]) {
+                                            accidentals[symCode] ++;
+                                        } else {
+                                            accidentals[symCode] = 1;
+                                        }
+                                    }
+                                }
 
-                                if (firstAccidentalPropertyUndefinedNaturalTPC !== undefined) {
-                                    implicitExplicitNote = firstAccidentalPropertyUndefinedNaturalTPC;
-                                    explicitPossiblyBotchedAccidental = Accidental.NATURAL;
-                                    firstAccidentalPropertyUndefinedNaturalTPC = undefined;
+                                if (Object.keys(accidentals).length > 0) {
+                                    explicitAccidental = accidentalsHash(accidentals);
                                 }
                             }
                         }
                     }
 
                     if ((nNotesInSameLine === 1 || botchedCheck) && explicitAccidental &&
-                        (cursor.tick > mostRecentPossiblyBotchedAccTick ||
-                            (cursor.tick === mostRecentPossiblyBotchedAccTick && cursor.voice > mostRecentPossiblyBotchedAccVoice))) {
+                        (cursor.tick > mostRecentExplicitAccTick ||
+                            (cursor.tick === mostRecentExplicitAccTick && cursor.voice > mostRecentExplicitAccVoice))) {
                         mostRecentExplicitAcc = explicitAccidental;
                         mostRecentExplicitAccTick = cursor.tick;
                         mostRecentExplicitAccVoice = cursor.voice;
-                        mostRecentPossiblyBotchedAccVoice = cursor.voice;
-                        mostRecentPossiblyBotchedAccTick = cursor.tick;
                         break;
                     } else if (nNotesInSameLine > 1 &&
                         (cursor.tick > mostRecentDoubleLineTick ||
@@ -1224,19 +1180,6 @@ function _getMostRecentAccidentalInBar(
                         mostRecentDoubleLineTick = cursor.tick;
                         mostRecentDoubleLineVoice = cursor.voice;
                         break;
-                    } else if (nNotesInSameLine === 1 && explicitPossiblyBotchedAccidental &&
-                        (getTick(implicitExplicitNote.firstTiedNote) > mostRecentPossiblyBotchedAccTick ||
-                            (getTick(implicitExplicitNote.firstTiedNote) === mostRecentPossiblyBotchedAccTick &&
-                                implicitExplicitNote.firstTiedNote.voice > mostRecentPossiblyBotchedAccVoice))) {
-                        // NOTE: the 'explicit' implicit accidental must not have a tie that goes back to a previous bar.
-                        //       otherwise, the accidental it represents is void and is of the previous bar, and not
-                        //       the current.
-                        if (getTick(implicitExplicitNote.firstTiedNote) >= tickOfThisBar) {
-                            mostRecentExplicitAcc = explicitPossiblyBotchedAccidental;
-                            mostRecentExplicitAccVoice = implicitExplicitNote.firstTiedNote.voice;
-                            mostRecentPossiblyBotchedAccVoice = mostRecentExplicitAccVoice;
-                            mostRecentPossiblyBotchedAccTick = getTick(implicitExplicitNote.firstTiedNote);
-                        }
                     }
                 }
             }
@@ -1256,76 +1199,20 @@ function _getMostRecentAccidentalInBar(
     }
 }
 
-// returns the accidental in effect at the given tick and noteLine, of the
-// cursor track index. All 4 voices in the track are accounted for.
-//
-// cursor: the cursor object. Doesn't matter where the cursor currently is.
-// tick: all accidentals found at this tick and prior to this tick up to the
-//       start of the bar will be accounted for.
-// noteLine: which note.line value the accidental should correspond to. (e.g. F5 in the treble clef is 0)
-// botchedCheck: whether or not to check for botched lines
-//
-//               Botched lines occur where the presence of 2 or more notes in the
-//               same chord sharing the same line makes the accidental at that
-//               line indeterminate as it is not possible to determine which one of the notes
-//               come last in the event that the prior note was transposed enharmonically to
-//               take the place of that line.
-//
-//               It is safe to leave this as false and not check for botched notes
-//               whilst getting initial pitchData on the note as before a note
-//               is transposed, the order of which the notes are indexed in the same line
-//               within the same chord is determinate. (left to right then bottom to top)
-//
-//               However, when using the accidental state of the current position
-//               to determine whether subsequent notes would have been affected
-//               by changes to the current note due to transposition,
-//               it is VERY IMPORTANT to check if the accidental could have been botched,
-//               in order to prevent making wild guesses that would cause unwanted side effects.
-//
-// before: set to true if only accidentals BEFORE the currentOperatingNote should take effect.
-//         This includes any note that shares the same tick, chord, line, and voice that is not
-//         the currentOperatingNote;
-//         any note that appears in a prior voice at the same tick
-//         any prior grace note.
-//
-//         The same tick, chord, line, voice scenario is included as aesthetically if
-//         two notes were to share a single line within a chord, an accidental would appear
-//         to affect both of them, and it is necessary to make it the accidentals explicit
-//         should either of them have a different accidental from each other.
-//
-//         This scenario can be disabled by setting the `excludeBeforeInSameChord` flag to true.
-//
-// currentOperatingNote: the current note that is being tuned. Only used when
-//                       'before' is true.
-//
-// graceChord: if the plugin is currently processing a grace note, set this value to be the note's parent.
-//             This ensures that only accidentals on/before this grace chord are accounted for, and not those
-//             after, as all grace chords have the same tick value as its parent chord segment.
-//
-// excludeBeforeInSameChord:
-//         Disregard accidentals that share the same tick, line, voice, and chord
-//         when `before` flag is true.
-//
-// If no accidental, returns null.
-// If accidental is botched and botchedCheck is enabled, returns the string 'botched'.
-// If accidental is found, returns the following accidental object:
-// {
-//    offset: number of diesis offset,
-//    type: accidental type as Accidental enum value
-// }
-//
-// This function is completely STATELESS now!!! hooray!!
-//
-// NOTE: If an accidental was botched before but an explicit accidental
-//       is found MORE RECENT than the time of botching, the final result is NOT
-//       botched.
-
 /**
  * 
  * Retrieves the effective accidental applied at the current cursor position & stave line.
  * 
  * If `before` is true, does not include accidentals attached to the current note 
  * in the search.
+ * 
+ * This function DOES NOT read MuseScore accidentals. Due to how
+ * score data is exposed to the plugins API, it is not possible to
+ * reliably determine accidentals when MS accidentals and SMuFL-only symbols
+ * are used interchangeably.
+ * 
+ * Thus, only SMuFL symbols ("Symbols" category in the Master Palette)
+ * are supported.
  * 
  * @param {*} cursor MuseScore Cursor object
  * @param {number} tick Tick of the current note to check the accidental of

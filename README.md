@@ -37,17 +37,23 @@ There are two categories of accidentals & IDs I will need help to tabulate toget
 
 First, accidentals symbols marked as "Accidentals" in MuseScore's palette. These are the `AccidentalType`s identified internally using the `UPPER_SNAKE_CASE` naming convention.
 
+**These are of low priority**, as the plugin does not intend to use these, at least for the foreseeable future. However, it would be good to get a full tabulation done as this would serve as a useful dataset for the community to do other projects in the future.
+
 Unfortunately, there's no way of extracting their IDs from MuseScore UI, but _msfp_ has kindly provided [this tool for looking up symbols and their IDs](https://musescore.org/en/node/341701#comment-1164436). Download the .zip from the link and open the .html file to access the lookup/symbol search tool.
 
 <br>
 
 The other type of accidental symbols are the ones in the "Symbols" category, identified internally under `SymId` using the `lowerCamelCase` naming convention. These are accidentals used when you need more than one accidental per note (or when MuseScore only supports this accidental 'symbolically').
 
-The task is to simply ensure all `SymId`s and `AccidentalType`s are represented in the document, and that all `SymId`s/`AccidentalType`s that point to a similar-looking accidental are grouped together on the same row.
+**High priority: all SymId/SMuFL IDs must be accounted for.**
+
+<br>
+
+The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalType`s) are represented in the document, and that all `SymId`s/`AccidentalType`s that point to a similar-looking accidental are grouped together on the same row.
 
 For more info on this project, see [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/).
 
-## What???
+## What? How?
 
 To use this plugin, we first need to know how this plugin conceptualizes accidentals. Let's fix some terminology first.
 
@@ -84,6 +90,12 @@ This plugin enables xen notation by giving you free-reign over declaring:
 
 ## Caveats
 
+- Does not intend to use the standard Accidentals at all (e.g. auto-formatted, auto-layout accidentals). All accidentals this plugin uses will be cosmetic symbols from the "Symbols" category of the Master Palette. This means:
+  - You cannot drag standard-support accidentals from the "Accidentals" palette. All accidentals used must be from the "Symbols" category in the Master Palette.
+  \
+  Though, you do not need to manually enter accidentals as the point of this plugin is for all accidentals used in a notation system to be accessible just via up/down arrow keys and the enharmonic respell ('J') key.
+  - Existing scores not made by this plugin will not work with this plugin.
+  - Layout may look weird as this plugin has to reconstruct & re-invent how accidentals are to be laid out and formatted.
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
 - Does not regard the order of appearance of accidentals.
 - Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
@@ -292,28 +304,35 @@ During the parsing of tuning, the `TuningConfig` needs to index the `TuningTable
 
 We also need to store the accidental chains in the order which they are declared.
 
-### Behavior of accidentals
+### Accidental Support
 
-Before we can do anything, we need to address how MuseScore handles accidentals.
+This plugin only intends to support/use accidentals that are regarded as 'Symbols'
 
-There are 3 categories of accidentals, and for the sake of this plugin, let's call them:
+This means, the usual accidentals from the "Accidentals" palette will not be used and ignored.
 
-1. **Fully supported** aka 'full accidentals'
-2. **Half supported** aka 'half accidentals'
-3. **Symbolic** accidentals
+Accidentals used by this plugin are to be from the "Symbols" category in the Master Palette, and these symbols are the complete list of SMuFL symbols available, which is more exhaustive than MuseScore's "officially supported" accidentals.
 
-Full accidentals are the result an internal property of the Note element called `tpc` (tonal pitch class), which is a number that ranges from -8 to 40. This represents a cycle of 49 fifths ranging from Fbbb (3ple flat) to B#x (3ple sharp). Any of these standard accidentals will affect playback in steps of 100 cents as it registers a different MIDI note.
+The reason for this decision can be explained with the following case study:
 
-Half accidentals are accidentals that exist in the `accidental` property of the Note element, but they do not affect the `tpc` nor playback, and they are treated like the 'natural' accidental (cancelling all prior accidentals). Only a fraction of SMuFL accidental symbols are available as half-supported accidentals. These accidentals are identifiable with UPPER_CAMEL_CASE IDs.
+On beat 1: enter a Db with an official flat symbol
 
-Symbolic accidentals are accidentals that are from of the `elements` array property of the Note element. This property includes **all** elements attached to the Note head (including articulations & fingering), but accidental symbols will have the `symbol` property set to the SMuFL ID of the symbol. These accidentals are identifiable with lowerCamelCase IDs. E.g. if a note only has one symbol element attached to it, then you can access it with `note.elements[0].symbol`.
+Beat 2: enter a D sagittal 7 comma up via the "symbols" palette
 
+Beat 3: enter the same D 7 comma up but using the "officially supported" accidental symbol from the Accidentals palette.
 
-Because of this mess, we need to take caution of notes which have non-natural `tpc`s, because we need to account for the fact that fully supported accidentals affect playback.
+To the plugin, the second note will appear as Db with a 7 comma up symbol. This is because MuseScore does not naturalize a note if the symbol attached to it isn't regarded as an accidental.
 
-A half accidental naturalizes any prior accidentals, but a symbolic accidental does not. This means that any prior full accidental will cause a succeeding note with only a symbolic accidental to appear with the same offset applied to the prior full accidental, and we need to account for that.
+The third note will appear as a D natural internally, with a 7 up accidental attached to it as a legitimate accidental.
 
-Thankfully all we need to do is check the `tpc` of each note, and take into account the semitone offsets of the `tpc`. There is no need for handling all edge cases.
+However, logically speaking, by default, an accidental present should override any prior accidentals. Let's say we account for this and tune the second note 100 cents sharper to account for the 'phantom' flat accidental.
+
+Now, if the second note were to actually instead be a Db with both the flat and sagittal symbols attached to it, the internal representation of the note would be exactly the same as a D without the flat, because internally, the prior Db on beat 1 affects the TPC of the second note.
+
+This means that in this scenario, the two different notes would be indistinguishable and impossible to tell apart.
+
+And there is simply no way for this plugin to tell apart whether that note should have been a Db or a D.
+
+For this reason, this plugin will not aim to support standard MuseScore accidentals and will always use SMuFL symbols from the "Symbols" category of the Master Palette.
 
 ### Tokenizing of explicit accidentals
 
@@ -578,7 +597,7 @@ Represents accidental symbols attached to a note. Each entry is the SymbolCode o
 
 The keys are in left-to-right display order as per [accidental display order](#accidental-display-order) determined by Tuning Config.
 
-This data structure abstracts away how MuseScore has two different classes of 'accidentals'.
+This object can be hashed into the `AccidentalSymbols.hash`, which can be appended to a nominal number to produce the `XenNote.hash`. The hashed symbols list is sorted by increasing `SymbolCode`.
 
 #### `MSNote`
 
@@ -593,7 +612,8 @@ This data structure abstracts away how MuseScore has two different classes of 'a
     SymbolCode: number,
     ...
   },
-  tick: number // tick position of Segment that this note is attached to.
+  tick: number, // tick position of Segment that this note is attached to.
+  internalNote: MScore::Note // official MuseScore note object
 }
 ```
 

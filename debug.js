@@ -79,6 +79,11 @@ function testNewNote(noteName, octave, accidental, symbols, tick=0) {
             parent: {
                 tick: tick
             }
-        }
+        },
+        // supposed to represent stave line this note appears on
+        // just put some fluff number, doesn't really matter.
+        // as long as the same nominals are consistently on the
+        // same lines, its fine.
+        line: - (noteNameTpcLookup[noteName] + 6 + 7 * octave),
     }
 }
