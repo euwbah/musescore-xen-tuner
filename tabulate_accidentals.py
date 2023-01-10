@@ -8,11 +8,11 @@ import csv
 
 with open('./accidentals.csv') as f:
     reader = csv.reader(f, delimiter=',')
-    headers = next(reader)
+    # headers = next(reader)
     
     text_code_map = {}
     
-    print('CODE_TO_LABELS = [')
+    print('var CODE_TO_LABELS = [')
     # SymCode 0 should be null.
     # to premptively prevent dumb js falsey errors.
     print('    null,')
@@ -29,7 +29,7 @@ with open('./accidentals.csv') as f:
         
     print('];\n\n')
     
-    print('TEXT_TO_CODE = {')
+    print('var TEXT_TO_CODE = {')
     
     for k, v in text_code_map.items():
         print(f'    {repr(k)}: {v},')

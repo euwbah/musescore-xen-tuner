@@ -97,9 +97,13 @@ This plugin enables xen notation by giving you free-reign over declaring:
   - Existing scores not made by this plugin will not work with this plugin.
   - Layout may look weird as this plugin has to reconstruct & re-invent how accidentals are to be laid out and formatted.
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
-- Does not regard the order of appearance of accidentals.
+- Does not differentiate between the order of appearance of accidentals within one note.
 - Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
+- Does not fully support cross-staff notation. Accidentals don't carry over between two different staves if cross-staff notation is used. However, you can specify all accidentals explicitly.
+- Does not support grace notes occuring **after** a note. Grace notes occuring **before** a note are supported.
+- Octave 8va/15ma/etc... lines are not supported when non-standard number of nominals are used (e.g. bohlen pierce). You can simulate an octave line by setting the reference frequency higher/lower as needed.
 - If an undeclared accidental combination is used, the note will be regarded as without accidental, even if some (but not all) symbols are declared in accidental chains.
+- Ornaments can only be tuned within +/- 100 cents resolution.
 - Could be very laggy...
 
 -----
@@ -346,7 +350,7 @@ Hence, this note's `tpc` is 3 (E double flat), and it has three Symbolic Acciden
 
 Note that this plugin does not factor the order of appearance of accidentals. That is, `Ebbbb\\` is the same as `E\bb\bb`.
 
-The `readNote()` function 'tokenizes' the MuseScore Note element to output the following `MSNote` object:
+The `tokenizeNote()` function 'tokenizes' the MuseScore Note element to output the following `MSNote` object:
 
 ```js
 // MSNote
@@ -383,7 +387,10 @@ Example `NoteData` of the above `Ebbbb\\4` note with implicit accidentals.
     midiNote: 62, // D4 (Ebb)
     tpc: 4, // Ebb is 4
     nominalsFromA4: -3, // E4 is 3 nominals below A4.
-    accidentals: null // no explicit accidentals
+    accidentals: null, // no explicit accidentals
+    tick: 480, // tick position of note
+    line: 3, // Note.line property (not actual value, just an example)
+    internalNote: Ms::PluginAPI::Note // internal MuseScore Note object
   },
   xen: { // XenNote
     nominal: 4, // E
@@ -613,7 +620,8 @@ This object can be hashed into the `AccidentalSymbols.hash`, which can be append
     ...
   },
   tick: number, // tick position of Segment that this note is attached to.
-  internalNote: MScore::Note // official MuseScore note object
+  line: number, // `PluginAPI::Note.line` property.
+  internalNote: PluginAPI::Note // official MuseScore note object
 }
 ```
 
@@ -907,7 +915,9 @@ E.g.: If a new key signature is to be applied at tick 1760 in the current staff:
 ```js
 {
   tick: 1760,
-  currKeySig: KeySig // key sig obj to be applied
+  config: {
+    currKeySig: KeySig // key sig obj to be applied
+  }
 }
 ```
 
@@ -916,19 +926,26 @@ E.g.: If a new key signature is to be applied at tick 1760 in the current staff:
 ```js
 {
   bars: [number], // tick of each new bar
-  configs: [ConfigUpdateEvent], // sorted by inc. tick
-  currKeySig: KeySig, // current key signature being applied
+  staffConfigs: {
+    // Contains list of ConfigUpdateEvents for each cursor.staffIdx number
+    staffIdx: [ConfigUpdateEvent],
+    staffIdx: [ConfigUpdateEvent],
+    ...
+  },
+  currKeySig: KeySig?, // current key signature being applied
   currTuning: TuningConfig, 
 }
 ```
 
 `parms` represents the global state object of the plugin.
 
-This contains a list of timed configs, and properties that the configs will modify to reflect the current configurations applied to the current staff (`cursor.staffIdx`) to apply at current cursor position.
+This contains a list of timed configs for each staff, sorted by increasing tick. 
+
+The `ConfigUpdateEvent`s will modify properties of `parms` over time to reflect the current configurations applied to the current staff (`cursor.staffIdx`) to apply at current cursor position.
 
 ## Functions
 
-#### `readNote`
+#### `tokenizeNote`
 
 Takes in a MuseScore Note element and returns a `MSNote` object.
 

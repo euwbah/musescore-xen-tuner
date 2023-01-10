@@ -5,6 +5,14 @@ var Lookup = ImportLookup();
  * During init, this will be assigned to the MuseScore plugin API `Accidental` enum.
  */
 var Accidental = null;
+var NoteType = null;
+
+// Just 12 EDO.
+var DEFAULT_TUNING_CONFIG = "   \n\
+A4: 440                         \n\
+0 200 300 500 700 800 1000 1200 \n\
+bbb bb b (100) # x #x           \n\
+";
 
 /*
 Any two notes that are less than this many cents apart will be considered
@@ -18,18 +26,15 @@ considered enharmonically equivalent to show up as equivalent.
 */
 var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
 
-SIMULATED_TUNING_CONFIG = "     \n\
-A4: 440                         \n\
-0 200 300 500 700 800 1000 1200 \n\
-(100) #                         \n\
-(20) /                          \n\
-lig(1,2)                        \n\
-1 1 #^                          \n\
-";
-
-function init(MSAccidental) {
+/**
+ * 
+ * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
+ * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
+ */
+function init(MSAccidental, MSNoteType) {
     Lookup = ImportLookup();
     Accidental = MSAccidental;
+    NoteType = MSNoteType;
     console.log("Hello world! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
 
     // This is to test that imports are working properly...
@@ -95,7 +100,7 @@ function getTick(note) {
 /**
  * Reads the Ms::PluginAPI::Note and creates a `MSNote` data structure.
  */
-function readNote(note) {
+function tokenizeNote(note) {
     // 69 = MIDI A4
     var octavesFromA4 = Math.floor((note.pitch - 69) / 12);
     var nominals = Lookup.TPC_TO_NOMINAL[note.tpc][0];
@@ -110,14 +115,14 @@ function readNote(note) {
     //
     // if (note.accidental) {
     //     // If note has a Full/Half supported accidental,
-    //     var symCode = Lookup.LABELS_TO_CODE['' + note.accidental];
+    //     var symCode = Lookup.LABELS_TO_CODE[note.accidental.toString()];
     //     accidentals[symCode] = 1;
     // }
 
     for (var i = 0; i < note.elements.length; i++) {
         // If note has a Full/Half supported accidental,
 
-        var acc = Lookup.LABELS_TO_CODE['' + note.elements[i].symbol];
+        var acc = Lookup.LABELS_TO_CODE[note.elements[i].symbol.toString()];
 
         if (acc) {
             if (accidentals[acc])
@@ -133,6 +138,7 @@ function readNote(note) {
         nominalsFromA4: nominals + (octavesFromA4 * 7),
         accidentals: accidentals,
         tick: getTick(note),
+        line: note.line,
         internalNote: note
     };
 
@@ -193,6 +199,8 @@ function accidentalsHash(accidentals) {
         return symCodeNums.join(' ');
     }
 
+    // otherwise, `accidentals` param is an `AccidentalSymbols` object.
+
     var symCodeNums = [];
 
     Object.keys(accidentals)
@@ -200,7 +208,7 @@ function accidentalsHash(accidentals) {
         .sort()
         .forEach(function (symCode) {
             symCodeNums.push(symCode);
-            symCodeNums.push(accidentalSymbols[symCode]);
+            symCodeNums.push(accidentals[symCode]);
         });
     
     return symCodeNums.join(' ');
@@ -210,7 +218,7 @@ function accidentalsHash(accidentals) {
  * Calculate a XenNote.hash string from its nominal and accidental object.
  */
 function createXenHash(nominal, accidentals) {
-    return nominal + ' ' + accidentalsHash(accidentals);
+    return (nominal + ' ' + accidentalsHash(accidentals)).trim();
 }
 
 /**
@@ -936,19 +944,27 @@ function parseKeySig(text) {
  * 
  * Uses cursor & getAccidental() to find accidentals on prior notes.
  * 
+ * **IMPORTANT: Cursor must be positioned where the msNote is before 
+ * calling this function!**
+ * 
+ * `cursor.element` must point to the Chord of msNote, or if msNote is
+ * a grace note, `cursor.element` must point to the Chord the grace note is
+ * attached to.
+ * 
  * If no prior explicit accidentals found, looks for accidentals on key signature.
  * 
  * Otherwise, just returns the nominal XenNote object.
  * 
  * @param {MSNote} msNote Representation of tokenized musescore note
  * @param {TuningConfig} tuningConfig The current tuning config applied.
- * @param {Object} keySig The current key signature applied.
+ * @param {KeySig?} keySig The current key signature applied, or null if none.
+ * @param {[number]} bars Tick values of barlines as per `parms.bars`
  * @param {*} MuseScore Cursor object
  * @returns {NoteData?} 
  *      The parsed note data. If the note's accidentals are not valid within the
  *      declared TuningConfig, returns `null`.
  */
-function readNoteData(msNote, tuningConfig, keySig, cursor) {
+function readNoteData(msNote, tuningConfig, keySig, bars, cursor) {
     /*
     Example repr. of the note Ebbbb\\4 with implicit accidentals:
     {
@@ -958,7 +974,7 @@ function readNoteData(msNote, tuningConfig, keySig, cursor) {
             nominalsFromA4: -3, // E4 is 3 nominals below A4.
             accidentals: null,
             tick: 1337,
-            internalNote: MScore::Note // copy of internal musescore note object
+            internalNote: PluginAPI::Note // copy of internal musescore note object
         },
         xen: { // XenNote
             nominal: 4, // E
@@ -975,30 +991,37 @@ function readNoteData(msNote, tuningConfig, keySig, cursor) {
     // Convert nominalsFromA4 to nominals from tuning note.
     
     var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
-    equaves = Math.floor(nominalsFromTuningNote / tuningConfig.numNominals);
+    var equaves = Math.floor(nominalsFromTuningNote / tuningConfig.numNominals);
 
-    var equaves = 0;
     var nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
 
     // graceChord will contain the chord this note belongs to if the current note
     // is a grace note.
     var graceChord = undefined;
-    if (note.noteType == NoteType.ACCIACCATURA || note.noteType == NoteType.APPOGGIATURA ||
-        note.noteType == NoteType.GRACE4 || note.noteType == NoteType.GRACE16 ||
-        note.noteType == NoteType.GRACE32) {
-        graceChord = note.parent;
+    var noteType = msNote.internalNote.noteType;
+    if (noteType == NoteType.ACCIACCATURA || noteType == NoteType.APPOGGIATURA ||
+        noteType == NoteType.GRACE4 || noteType == NoteType.GRACE16 ||
+        noteType == NoteType.GRACE32) {
+        graceChord = msNote.internalNote.parent;
     }
 
     var accidentalsHash = getAccidental(
-        cursor, msNote.internalNote, msNote.internalNote.line, 
-        false, parms, false, msNote, graceChord);
+        cursor, msNote.tick, msNote.line,
+        false, bars, false, msNote, graceChord);
     
-    if (accidentalsHash == null && keySig[nominal] != null
+    console.log("Found effective accidental: " + accidentalsHash);
+    
+    if (accidentalsHash == null && keySig && keySig[nominal] != null
         // Check if KeySig has a valid number of nominals.
         && keySign[nominal].length == tuningConfig.numNominals) {
         // If no prior accidentals found within the bar,
         // look to key signature.
         accidentalsHash = keySig;
+    }
+
+    if (accidentalsHash == '2 1') {
+        // treat natural symbol = no accidental
+        accidentalsHash = null;
     }
 
     // Create hash manually.
@@ -1025,6 +1048,29 @@ function readNoteData(msNote, tuningConfig, keySig, cursor) {
 }
 
 /**
+ * Parse a MuseScore Note into `NoteData`.
+ * 
+ * **IMPORTANT: Cursor must be positioned where the msNote is before 
+ * calling this function!**
+ * 
+ * `cursor.element` must point to the Chord of msNote, or if msNote is
+ * a grace note, `cursor.element` must point to the Chord the grace note is
+ * attached to.
+ * 
+ * @param {*} note MuseScore Note object
+ * @param {TuningConfig} tuningConfig Current tuning config applied.
+ * @param {KeySig} keySig Current key signature applied.
+ * @param {*} cursor MuseScore Cursor object
+ * @returns {NoteData} NoteData object
+ */
+function parseNote(note, tuningConfig, keySig, bars, cursor) {
+    var msNote = tokenizeNote(note);
+    var noteData = readNoteData(msNote, tuningConfig, keySig, bars, cursor);
+
+    return noteData;
+}
+
+/**
  * Given current `NoteData` and a `TuningConfig`, calculate the
  * required note's tuning offset in cents.
  * 
@@ -1038,7 +1084,7 @@ function calcCentsOffset(noteData, tuningConfig) {
 
     // calc cents (from reference note) of XenNote spelt in equave 0
     // remember to include equave offset (caused by equave modulo wrapping)
-    var xenCentsFromRef = cents_equaves[0] + cents_equaves[1] * tuningConfig.equaveSize;
+    var xenCentsFromRef = cents_equaves[0] - cents_equaves[1] * tuningConfig.equaveSize;
 
     // apply NoteData equave offset.
     xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
@@ -1049,6 +1095,57 @@ function calcCentsOffset(noteData, tuningConfig) {
 
     // the final tuning calculation is the difference between the two
     return xenCentsFromRef - standardCentsFromRef;
+}
+
+/**
+ * Literally just tunes the note. It's that simple!
+ * 
+ * Ok it's not. If a note's cent offset is too great (especially in
+ * systems with weird nominals/non-octave) we will have to use a different MIDI pitch
+ * than the original `Note.pitch`, otherwise, the playback will have a very
+ * weird timbre.
+ * 
+ * This function tunes a note by adjusting both its `.tuning` and `.playEvents`
+ * properties. Make sure to always re-run the tune function when notes are
+ * changed, (especially when using Shift+Alt+Up/Down diatonic transpose)
+ * because it's not obvious when the `.playEvents` property is
+ * tempered with, and a note may seemingly play back with the wrong pitch if
+ * the tune function isn't run again.
+ * 
+ * **Make sure curScore.createPlayEvents() is called** so that play events
+ * are populated & modifiable from the plugin API!
+ * 
+ * **IMPORTANT: Cursor must be positioned where the msNote is before 
+ * calling this function!**
+ * 
+ * `cursor.element` must point to the Chord of msNote, or if msNote is
+ * a grace note, `cursor.element` must point to the Chord the grace note is
+ * attached to.
+ * 
+ * @param {*} note MuseScore note object
+ * @param {KeySig} keySig 
+ * @param {TuningConfig} tuningConfig 
+ * @param {*} cursor MuseScore note object
+ */
+function tuneNote(note, keySig, tuningConfig, bars, cursor) {
+    var noteData = parseNote(note, tuningConfig, keySig, bars, cursor);
+    var centsOffset = calcCentsOffset(noteData, tuningConfig);
+
+    console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
+
+    var midiOffset = Math.round(centsOffset / 100);
+    centsOffset -= midiOffset * 100;
+
+    note.tuning = centsOffset;
+    // If there are ornaments on this note, the ornaments
+    // will result in multiple play events. Though,
+    // it's not possible to microtune the ornaments, you can still at least
+    // tune them within +/- 100 cents.
+    for (var i = 0; i < note.playEvents.length; i++) {
+        // the PlayEvent.pitch property is relative
+        // to the original note's pitch.
+        note.playEvents[i].pitch = midiOffset;
+    }
 }
 
 /**
@@ -1152,7 +1249,7 @@ function _getMostRecentAccidentalInBar(
     var originalCursorTick = cursor.tick;
     var thisCursorVoice = cursor.voice;
     var thisStaffIdx = cursor.staffIdx;
-    var mostRecentExplicitAcc;
+    var mostRecentExplicitAcc = null;
     var mostRecentExplicitAccTick = -1;
     // if 2 notes ticks are the same, the voice index matters as well.
     // higher voice idx = accidental takes precedence!
@@ -1163,9 +1260,9 @@ function _getMostRecentAccidentalInBar(
     if (tickOfNextBar == -1)
         tickOfNextBar = cursor.score.lastSegment.tick;
 
-    console.log('getMostRecentAcc: called with parms: tick: ' + noteTick + ', line: ' + line + ', thisBar: ' + tickOfThisBar +
-        ', nextBar: ' + tickOfNextBar + ', botchedCheck: ' + botchedCheck + ', before: ' + before +
-        ', excludeBeforeInSameChord: ' + excludeBeforeInSameChord);
+    // console.log('getMostRecentAcc: called with tick: ' + noteTick + ', line: ' + line + ', thisBar: ' + tickOfThisBar +
+    //     ', nextBar: ' + tickOfNextBar + ', botchedCheck: ' + botchedCheck + ', before: ' + before +
+    //     ', excludeBeforeInSameChord: ' + excludeBeforeInSameChord);
 
     for (var voice = 0; voice < 4; voice++) {
 
@@ -1212,6 +1309,8 @@ function _getMostRecentAccidentalInBar(
                     for (var i = 0; i < notes.length; i++) {
                         // Loops through all notes in this chord
 
+                        console.log("HELLO: line: " + line + ", note.line: " + notes[i].line);
+
                         if ((!before || (
                             getTick(notes[i]) < noteTick ||
                             ((notes[i].is(currentOperatingNote) === false &&
@@ -1223,26 +1322,30 @@ function _getMostRecentAccidentalInBar(
                             notes[i].line === line && getTick(notes[i]) <= noteTick) {
                             nNotesInSameLine++;
 
+                            console.log("HELLO");
+
                             // This current note fulfils the accidental search condition.
 
                             // Only check for symbol elements.
                             
                             if (notes[i].elements) {
-                                var accidentals = {}; // AccidentalSymbols object
+                                var symbolCodes = [];
+
                                 for (var j = 0; j < notes[i].elements.length; j++) {
-                                    var smuflId = notes[i].elements[j].symbol;
-                                    if (smuflId && Lookup.LABELS_TO_CODE[smuflId]) {
-                                        var symCode = Lookup.LABELS_TO_CODE[smuflId];
-                                        if (accidentals[symCode]) {
-                                            accidentals[symCode] ++;
-                                        } else {
-                                            accidentals[symCode] = 1;
+                                    var smuflId = notes[i].elements[j].symbol.toString();
+                                    console.log(smuflId);
+                                    if (smuflId) {
+                                        if (Lookup.LABELS_TO_CODE[smuflId])
+                                            symbolCodes.push(Lookup.LABELS_TO_CODE[smuflId]);
+                                        else {
+                                            console.log("WARN: Non-registered symbol found. If '" + smuflId + "' is supposed to be a supported accidental, add it to the spreadsheet");
                                         }
                                     }
                                 }
 
-                                if (Object.keys(accidentals).length > 0) {
-                                    explicitAccidental = accidentalsHash(accidentals);
+                                if (symbolCodes.length > 0) {
+                                    explicitAccidental = accidentalsHash(symbolCodes);
+                                    console.log("Found symbols: " + explicitAccidental);
                                 }
                             }
                         }
@@ -1296,21 +1399,25 @@ function _getMostRecentAccidentalInBar(
                             // Only check for symbol elements.
                             
                             if (notes[i].elements) {
-                                var accidentals = {}; // AccidentalSymbols object
+                                // List of symbol codes that make up the accidental.
+
+                                var symbolCodes = [];
+
                                 for (var j = 0; j < notes[i].elements.length; j++) {
-                                    var smuflId = notes[i].elements[j].symbol;
-                                    if (smuflId && Lookup.LABELS_TO_CODE[smuflId]) {
-                                        var symCode = Lookup.LABELS_TO_CODE[smuflId];
-                                        if (accidentals[symCode]) {
-                                            accidentals[symCode] ++;
-                                        } else {
-                                            accidentals[symCode] = 1;
+                                    var smuflId = notes[i].elements[j].symbol.toString();
+                                    console.log(smuflId);
+                                    if (smuflId) {
+                                        if (Lookup.LABELS_TO_CODE[smuflId])
+                                            symbolCodes.push(Lookup.LABELS_TO_CODE[smuflId]);
+                                        else {
+                                            console.log("WARN: Non-registered symbol found. If '" + smuflId + "' is supposed to be a supported accidental, add it to the spreadsheet");
                                         }
                                     }
                                 }
 
-                                if (Object.keys(accidentals).length > 0) {
-                                    explicitAccidental = accidentalsHash(accidentals);
+                                if (symbolCodes.length > 0) {
+                                    explicitAccidental = accidentalsHash(symbolCodes);
+                                    console.log("Found symbols: " + explicitAccidental);
                                 }
                             }
                         }
@@ -1341,7 +1448,7 @@ function _getMostRecentAccidentalInBar(
 
     if (botchedCheck && mostRecentDoubleLineTick !== -1 && mostRecentDoubleLineTick >= mostRecentExplicitAccTick) {
         return 'botched';
-    } else if (mostRecentExplicitAcc && mostRecentExplicitAcc != Accidental.NONE) {
+    } else if (mostRecentExplicitAcc) {
         return mostRecentExplicitAcc;
     } else {
         return null;
@@ -1351,6 +1458,10 @@ function _getMostRecentAccidentalInBar(
 /**
  * 
  * Retrieves the effective accidental applied at the current cursor position & stave line.
+ * 
+ * If natural or no accidental to be applied, will return `null`.
+ * 
+ * IMPORTANT: Cursor must be positioned at the note to check the accidental of.
  * 
  * If `before` is true, does not include accidentals attached to the current note 
  * in the search.
@@ -1367,7 +1478,7 @@ function _getMostRecentAccidentalInBar(
  * @param {number} tick Tick of the current note to check the accidental of
  * @param {number} noteLine Note.line property (Y position on musical stave)
  * @param {boolean} botchedCheck If true, check for botched accidentals.
- * @param {*} parms The universal `parms` object.
+ * @param {*} bars List of bar ticks as per `parms.bars`
  * @param {boolean} before 
  *      If true, ignore accidentals attached to the current note head
  *      and only look for accidentals occuring before.
@@ -1394,23 +1505,26 @@ function _getMostRecentAccidentalInBar(
  *      
  *      If no accidentals found, returns null.
  */
-function getAccidental(cursor, tick, noteLine, botchedCheck, parms, before,
+function getAccidental(cursor, tick, noteLine, botchedCheck, bars, before,
     currentOperatingNote, graceChord, excludeBeforeInSameChord) {
+    
+    console.log("getAccidental() tick: " + tick + ", line: " + noteLine);
 
     var tickOfNextBar = -1; // if -1, the cursor at the last bar
+    var tickOfThisBar = -1; // if -1, something's wrong.
 
-    for (var i = 0; i < parms.bars.length; i++) {
-        if (parms.bars[i] > tick) {
-            tickOfNextBar = parms.bars[i];
+    for (var i = 0; i < bars.length; i++) {
+        if (bars[i] > tick) {
+            tickOfNextBar = bars[i];
             break;
         }
     }
 
     var tickOfThisBar = -1; // this should never be -1
 
-    for (var i = 0; i < parms.bars.length; i++) {
-        if (parms.bars[i] <= tick) {
-            tickOfThisBar = parms.bars[i];
+    for (var i = 0; i < bars.length; i++) {
+        if (bars[i] <= tick) {
+            tickOfThisBar = bars[i];
         }
     }
 
@@ -1422,4 +1536,14 @@ function getAccidental(cursor, tick, noteLine, botchedCheck, parms, before,
         currentOperatingNote, graceChord, excludeBeforeInSameChord);
 
     return result;
+}
+
+/**
+ * Returns the default tuning config to apply when none is specified
+ */
+function generateDefaultTuningConfig() {
+    console.log("Generating default tuning config...");
+    console.log(DEFAULT_TUNING_CONFIG);
+    var tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
+    return tuningConfig;
 }

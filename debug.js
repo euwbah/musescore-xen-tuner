@@ -1,5 +1,15 @@
 var Lookup = ImportLookup();
 
+
+window.testTuning = `
+A4: 440
+0 200 300 500 700 800 1000 1200
+(100) #
+(20) /
+lig(1,2
+1 1 #^
+`;
+
 /**
  * Create a fake MuseScore Note QObject for testing purposes.
  * 
