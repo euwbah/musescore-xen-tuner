@@ -877,9 +877,9 @@ The Xth hash represents the accidental symbol(s) to be applied by the key signat
 
 If no accidental is to be applied on the nominal, the entry should be null.
 
-The list is to contain N hash/null entries at all times.
+**The list is to contain N hash/null entries at all times.** However, because it is impossible to validate whether a `KeySig` declaration has the right number of nominals, validation checks have to be done before attempts to look up the `KeySig`.
 
-#### `ConfigElement`
+#### `ConfigUpdateEvent`
 
 ```js
 {
@@ -896,15 +896,35 @@ The list is to contain N hash/null entries at all times.
 
 This object represents a single `parms` configuration update event that is to be executed when (or after) the cursor reaches `tick` position.
 
+The purpose of the config update event is to update `TuningConfig`, `KeySig`, and other settings on a staff-by-staff basis. System Text config annotations will be visible on all staves and Staff Text annotations will be visible on the staff that it is on.
+
+This allows the plugin to support multiple simultaneous & changing tuning systems and changing key signatures etc... since every config is applied according to when it is placed in the score.
+
+A list of `ConfigUpdateEvent`s sorted by increasing `tick` will be created at the start of running the plugin.
+
+E.g.: If a new key signature is to be applied at tick 1760 in the current staff:
+
+```js
+{
+  tick: 1760,
+  currKeySig: KeySig // key sig obj to be applied
+}
+```
+
 #### `parms`
 
 ```js
 {
   bars: [number], // tick of each new bar
+  configs: [ConfigUpdateEvent], // sorted by inc. tick
+  currKeySig: KeySig, // current key signature being applied
+  currTuning: TuningConfig, 
 }
 ```
 
 `parms` represents the global state object of the plugin.
+
+This contains a list of timed configs, and properties that the configs will modify to reflect the current configurations applied to the current staff (`cursor.staffIdx`) to apply at current cursor position.
 
 ## Functions
 

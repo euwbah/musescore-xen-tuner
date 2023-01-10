@@ -64,7 +64,7 @@ function isEnharmonicallyEquivalent(cents1, cents2) {
  * Convert user-string input SymbolCode or Text Code into SymbolCode ID.
  * 
  * @param {string} codeOrText
- * @returns {number?} SymbolCode ID or null if invalid.
+ * @returns {number?} SymbolCode number or null if invalid.
  */
 function readSymbolCode(codeOrText) {
     var codeOrText = codeOrText.trim();
@@ -145,10 +145,54 @@ function readNote(note) {
  * 
  * The result is appended to the nominal of a note to construct a XenNote.
  * 
- * @param {AccidentalSymbols} accidentals The AccidentalSymbols object
+ * You can also specify a list of unsorted `SymbolCode`s that are present.
+ * (useful for hashing accidentals from user-input)
+ * 
+ * @param {AccidentalSymbols|[SymbolCode]} accidentals 
+ *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
  * @returns {string} AccidentalSymbols hash string.
  */
 function accidentalsHash(accidentals) {
+
+    if (accidentals.length != undefined) {
+        // `accidentals` param is a list of individual symbol codes
+
+        if (accidentals.length == 0) {
+            console.log('WARN: accidentalsHash called with 0 SymbolCodes in array');
+            return '';
+        }
+
+        // simply sort and count number of occurences.
+
+        accidentals.sort();
+
+        var occurences = 0;
+        var prevSymCode = -1;
+        var symCodeNums = [];
+
+        accidentals.forEach(function(symCode) {
+            if (prevSymCode == -1) {
+                prevSymCode = symCode;
+                occurences ++;
+                return;
+            }
+
+            if (symCode != prevSymCode) {
+                symCodeNums.push(prevSymCode);
+                symCodeNums.push(occurences);
+                occurences = 0;
+            }
+
+            occurences ++;
+            prevSymCode = symCode;
+        });
+
+        symCodeNums.push(prevSymCode);
+        symCodeNums.push(occurences);
+
+        return symCodeNums.join(' ');
+    }
+
     var symCodeNums = [];
 
     Object.keys(accidentals)
@@ -176,10 +220,12 @@ function createXenHash(nominal, accidentals) {
  * 
  * Example tuning config text:
  * 
+ * ```txt
  * A4: 440
  * 0 203.91 294.13 498.04 701.96 792.18 996.09 1200
  * bb.bb 7 bb b (113.685) # x 2 x.x
  * \.\ \ (21.506) / /./
+ * ```
  * 
  * @param {string} text The system/staff text contents to parse.
  * 
@@ -819,19 +865,90 @@ function parseTuningConfig(text) {
 }
 
 /**
+ * Parse System/Staff Text into `KeySig` object.
+ * 
+ * Key Sig text example format for tuning system with 5 nominals:
+ * 
+ * ```txt
+ * keysig x./ 20 0 +.9 3
+ * ```
+ * 
+ * The above KeySig denotes for the 1st to 5th nominals respectively: 
+ * 
+ * 1. double sharp & up arrow
+ * 2. SymbolCode 20
+ * 3. no accidental
+ * 4. quarter sharp & SymbolCode 9
+ * 5. SymbolCode 3
+ * 
+ * - KeySig declarations must be prepended with 'keysig' (cAsE dOeSn'T mAtTeR)
+ * 
+ * - Every nominal must be separated with one or more spaces
+ * 
+ * - Multiple symbols on one nominal must be separated by a period (.), as per usual.
+ * 
+ * 
+ * WARNING: The returned KeySig may not have the correct number of nominals
+ * for the tuning system. It's important to CHECK if the `KeySig` is valid
+ * w.r.t. the tuning system before trying to apply it in `readNoteData()` or
+ * anywhere else.
+ * 
+ * @param {string} text System/Staff Text content
+ * @returns {KeySig?} KeySig object or null if not a KeySig
+ */
+function parseKeySig(text) {
+    if (!text.toLowerCase().startsWith('keysig')) {
+        return null;
+    }
+
+    var nomSymbols = text.trim().split(' ').slice(1);
+
+    var keySig = [];
+
+    var valid = true;
+
+    nomSymbols.forEach(function(s) {
+        var symbols = s.split('.');
+
+        var symCodes = [];
+
+        symbols.forEach(function(s) {
+            var symbolCode = readSymbolCode(s);
+            if (symbolCode == null) {
+                valid = false;
+            }
+            symCodes.push(symbolCode);
+        });
+
+        keySig.push(accidentalsHash(symCodes));
+    });
+
+    if (!valid) {
+        return null;
+    }
+
+    return keySig;
+}
+
+/**
  * 
  * Uses TuningConfig and cursor to read XenNote data from a tokenized musescore note.
  * 
- * Cursor used for getAccidental() to find accidentals on prior notes.
+ * Uses cursor & getAccidental() to find accidentals on prior notes.
+ * 
+ * If no prior explicit accidentals found, looks for accidentals on key signature.
+ * 
+ * Otherwise, just returns the nominal XenNote object.
  * 
  * @param {MSNote} msNote Representation of tokenized musescore note
- * @param {TuningConfig} tuningConfig 
+ * @param {TuningConfig} tuningConfig The current tuning config applied.
+ * @param {Object} keySig The current key signature applied.
  * @param {*} MuseScore Cursor object
  * @returns {NoteData?} 
  *      The parsed note data. If the note's accidentals are not valid within the
  *      declared TuningConfig, returns `null`.
  */
-function readNoteData(msNote, tuningConfig, cursor, parms) {
+function readNoteData(msNote, tuningConfig, keySig, cursor) {
     /*
     Example repr. of the note Ebbbb\\4 with implicit accidentals:
     {
@@ -855,15 +972,13 @@ function readNoteData(msNote, tuningConfig, cursor, parms) {
     }
     */
 
-    var ms = msNote;
-    var xen = {};
-    var equaves = 0;
-
     // Convert nominalsFromA4 to nominals from tuning note.
-
-    var nominalsFromTuningNote = ms.nominalsFromA4 - tuningConfig.tuningNominal;
+    
+    var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
     equaves = Math.floor(nominalsFromTuningNote / tuningConfig.numNominals);
-    xen.nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
+
+    var equaves = 0;
+    var nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
 
     // graceChord will contain the chord this note belongs to if the current note
     // is a grace note.
@@ -878,11 +993,23 @@ function readNoteData(msNote, tuningConfig, cursor, parms) {
         cursor, msNote.internalNote, msNote.internalNote.line, 
         false, parms, false, msNote, graceChord);
     
+    if (accidentalsHash == null && keySig[nominal] != null
+        // Check if KeySig has a valid number of nominals.
+        && keySign[nominal].length == tuningConfig.numNominals) {
+        // If no prior accidentals found within the bar,
+        // look to key signature.
+        accidentalsHash = keySig;
+    }
+
     // Create hash manually.
     // Don't use the createXenHash function, that works on the AccidentalSymbols object
     // instead of the hash.
-    var xenHash = xen.nominal + ' ' + accidentalsHash;
+    var xenHash = nominal;
 
+    if (accidentalsHash != null) {
+        xenHash += ' ' + accidentalsHash;
+    }
+    
     var xenNote = tuningConfig.notesTable[xenHash];
 
     if (xenNote == undefined) {
