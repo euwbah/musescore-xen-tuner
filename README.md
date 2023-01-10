@@ -860,6 +860,42 @@ A lookup for memoized parsed `TuningConfig`s. Because of how the plugin cursor A
 
 To prevent unneeded parsings, this lookup maps verbatim system/staff texts to the `TuningConfig` it results in when parsed. Hopefully this would reduce plugin lag.
 
+#### `KeySig`
+
+```js
+[
+  AccidentalSymbols.hash?,
+  AccidentalSymbols.hash?,
+  AccidentalSymbols.hash?,
+  ...
+]
+```
+
+Contains a list of N `AccidentalSymbol` hashes, where N is the number of nominals in the tuning system.
+
+The Xth hash represents the accidental symbol(s) to be applied by the key signature for the Xth nominal. The first hash corresponds to the nominal as stated by the reference tuning note. E.g. if `G4: 440` is used, then KeySig[0] will be the accidental that applies to G, KeySig[1] applies to A, etc...
+
+If no accidental is to be applied on the nominal, the entry should be null.
+
+The list is to contain N hash/null entries at all times.
+
+#### `ConfigElement`
+
+```js
+{
+  tick: number, // MScore tick, when the config is to be applied
+  config: {
+    // key-value pairs that will be assigned to the `parms` object
+    // when the cursor passes/reaches the given `tick`
+    "<keyName1>": value1,
+    "<keyName2>": value2,
+    ...
+  }
+}
+```
+
+This object represents a single `parms` configuration update event that is to be executed when (or after) the cursor reaches `tick` position.
+
 #### `parms`
 
 ```js

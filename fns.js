@@ -165,7 +165,7 @@ function accidentalsHash(accidentals) {
 /**
  * Calculate a XenNote.hash string from its nominal and accidental object.
  */
-function xenHash(nominal, accidentals) {
+function createXenHash(nominal, accidentals) {
     return nominal + ' ' + accidentalsHash(accidentals);
 }
 
@@ -532,7 +532,7 @@ function parseTuningConfig(text) {
                 xen: { // XenNote
                     nominal: nomIdx,
                     accidentals: {},
-                    hash: xenHash(nomIdx, {}),
+                    hash: createXenHash(nomIdx, {}),
                 },
                 cents: nominalCents,
                 equavesAdjusted: 0,
@@ -623,7 +623,7 @@ function parseTuningConfig(text) {
                 xen: { // XenNote
                     nominal: nomIdx,
                     accidentals: properlyOrdererdAccSymbols,
-                    hash: xenHash(nomIdx, properlyOrdererdAccSymbols)
+                    hash: createXenHash(nomIdx, properlyOrdererdAccSymbols)
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
@@ -715,7 +715,7 @@ function parseTuningConfig(text) {
                         xen: { // XenNote
                             nominal: nomIdx,
                             accidentals: finalAccSymbols,
-                            hash: xenHash(nomIdx, finalAccSymbols)
+                            hash: createXenHash(nomIdx, finalAccSymbols)
                         },
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
@@ -827,7 +827,9 @@ function parseTuningConfig(text) {
  * @param {MSNote} msNote Representation of tokenized musescore note
  * @param {TuningConfig} tuningConfig 
  * @param {*} MuseScore Cursor object
- * @returns {NoteData} The parsed note data
+ * @returns {NoteData?} 
+ *      The parsed note data. If the note's accidentals are not valid within the
+ *      declared TuningConfig, returns `null`.
  */
 function readNoteData(msNote, tuningConfig, cursor, parms) {
     /*
@@ -875,8 +877,24 @@ function readNoteData(msNote, tuningConfig, cursor, parms) {
     var accidentalsHash = getAccidental(
         cursor, msNote.internalNote, msNote.internalNote.line, 
         false, parms, false, msNote, graceChord);
-    xen.accidentals = ms.accidentals;
-    xen.hash = getHash(xen);
+    
+    // Create hash manually.
+    // Don't use the createXenHash function, that works on the AccidentalSymbols object
+    // instead of the hash.
+    var xenHash = xen.nominal + ' ' + accidentalsHash;
+
+    var xenNote = tuningConfig.notesTable[xenHash];
+
+    if (xenNote == undefined) {
+        console.log("FATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config");
+        return null;
+    }
+
+    return {
+        ms: msNote,
+        xen: xenNote,
+        equaves: equaves
+    };
 }
 
 /**
@@ -1030,11 +1048,15 @@ function _getMostRecentAccidentalInBar(
         cursor.rewind(0);
 
         // move cursor to the segment at noteTick
+
         while (cursor.tick < tickOfThisBar && cursor.nextMeasure());
         while (cursor.tick < noteTick && cursor.next());
 
 
         while (tickOfThisBar !== -1 && cursor.segment && cursor.tick >= tickOfThisBar) {
+            // loop each segment from current cursor position until cursor reaches
+            // the start of this bar.
+
             if (cursor.element && cursor.element.type == Ms.CHORD) {
                 // because this is backwards-traversing, it should look at the main chord first before grace chords.
                 var notes = cursor.element.notes;
