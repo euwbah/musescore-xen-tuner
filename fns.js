@@ -6,6 +6,8 @@ var Lookup = ImportLookup();
  */
 var Accidental = null;
 var NoteType = null;
+var Element = null;
+var SymId = null; // WARNING: SymId has a long loading time.
 
 // Just 12 EDO.
 var DEFAULT_TUNING_CONFIG = "   \n\
@@ -13,6 +15,16 @@ A4: 440                         \n\
 0 200 300 500 700 800 1000 1200 \n\
 bbb bb b (100) # x #x           \n\
 ";
+
+/**
+ * Returns the default tuning config to apply when none is specified
+ */
+function generateDefaultTuningConfig() {
+    console.log("Generating default tuning config...");
+    console.log(DEFAULT_TUNING_CONFIG);
+    var tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
+    return tuningConfig;
+}
 
 /*
 Any two notes that are less than this many cents apart will be considered
@@ -31,11 +43,13 @@ var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
  */
-function init(MSAccidental, MSNoteType) {
+function init(MSAccidental, MSNoteType, MSSymId, MSElement) {
     Lookup = ImportLookup();
     // console.log(JSON.stringify(Lookup));
     Accidental = MSAccidental;
+    SymId = MSSymId;
     NoteType = MSNoteType;
+    Element = MSElement;
     console.log("Hello world! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
 }
 
@@ -44,6 +58,20 @@ function init(MSAccidental, MSNoteType) {
  */
 function mod(x, y) {
     return ((x % y) + y) % y;
+}
+
+/**
+ * Check if two arrays are equal.
+ */
+function arraysEqual(a, b) {
+    if (a === b) return true;
+    if (a == null || b == null) return false;
+    if (a.length !== b.length) return false;
+
+    for (var i = 0; i < a.length; ++i) {
+        if (a[i] !== b[i]) return false;
+    }
+    return true;
 }
 
 /**
@@ -87,6 +115,24 @@ function getTick(note) {
         return note.parent.parent.tick;
     else
         return note.parent.parent.parent.tick;
+}
+
+/**
+ * If note is a grace note, return the Chord it belongs to.
+ * 
+ * @param {*} note `PluginAPI::Note`
+ * @returns {*?} Chord element containing the grace note, or null
+ */
+function findGraceChord(note) {
+    var graceChord = null;
+    var noteType = note.noteType;
+    if (noteType == NoteType.ACCIACCATURA || noteType == NoteType.APPOGGIATURA ||
+        noteType == NoteType.GRACE4 || noteType == NoteType.GRACE16 ||
+        noteType == NoteType.GRACE32) {
+        graceChord = note.parent;
+    }
+
+    return graceChord;
 }
 
 
@@ -1056,13 +1102,7 @@ function readNoteData(msNote, tuningConfig, keySig, bars, cursor) {
 
     // graceChord will contain the chord this note belongs to if the current note
     // is a grace note.
-    var graceChord = undefined;
-    var noteType = msNote.internalNote.noteType;
-    if (noteType == NoteType.ACCIACCATURA || noteType == NoteType.APPOGGIATURA ||
-        noteType == NoteType.GRACE4 || noteType == NoteType.GRACE16 ||
-        noteType == NoteType.GRACE32) {
-        graceChord = msNote.internalNote.parent;
-    }
+    var graceChord = findGraceChord(msNote.internalNote);
 
     var accidentalsHash = getAccidental(
         cursor, msNote.tick, msNote.line,
@@ -1072,7 +1112,7 @@ function readNoteData(msNote, tuningConfig, keySig, bars, cursor) {
 
     if (accidentalsHash == null && keySig && keySig[nominal] != null
         // Check if KeySig has a valid number of nominals.
-        && keySign[nominal].length == tuningConfig.numNominals) {
+        && keySig[nominal].length == tuningConfig.numNominals) {
         // If no prior accidentals found within the bar,
         // look to key signature.
         accidentalsHash = keySig;
@@ -1213,35 +1253,64 @@ function tuneNote(note, keySig, tuningConfig, bars, cursor) {
  * Retrieve the next note up/down/enharmonic from the current `PluginAPI::Note`, and
  * returns `XenNote` and `Note.line` offset to be applied on the note.
  * 
+ * The returned `lineOffset` property represents change in `Note.line`.
+ * This is a negated value of the change in nominal ( +pitch = -line )
+ * 
+ * In up/down mode, the enharmonic spelling is decided with the following rules:
+ * 
+ * - If the new note has an enharmonic spelling that matches prior accidental state/key signature,
+ *   the new note returned will use the enharmonic spelling matching.
+ * 
+ * - Otherwise, the enharmonic spelling with the smallest accidental vector distance
+ *   from the current note's AV (sum of squares) is to be chosen.
+ *   This ensures that accidentals used will stay roughly within the same
+ *   ball park.
+ * 
+ * - Otherwise, if two options have very similar AV distances, choose the one with
+ *   lesser accidental symbols. This ensures that ligatures will always take effect.
+ * 
+ * - And if all else are equal, we should pick the enharmonic spelling that 
+ *   minimizes nominal/line offset amount.
+ * 
+ * 
+ * A `NextNote.matchPriorAcc` flag will be returned `true` if an enharmonic
+ * spelling is found that matches prior accidental state.
+ * 
+ * **IMPORTANT: Cursor must be positioned where the current Note object is before 
+ * calling this function!**
+ * 
  * @param {number} direction `1` for upwards, `0` for enharmonic cycling, `-1` for downwards.
- * @param {[boolean]} regarding
+ * @param {[number]?} accChainsToCheckSame
+ *  An optional list of indices of accidental chains specifying the accidental chains
+ *  that must maintain at the same degree.
+ *  
+ *  This is applied for auxiliary up/down function where certain accidental movements
+ *  are skipped.
+ * 
  *  (Only applicable if direction is `1`/`-1`. Not applicable for enharmonic)
  * 
- *  A list of boolean values signifying which accidental chains to consider.
- * 
- *  This feature is used for the aux up/down plugins.
- * 
- *  E.g. `[true, false, true]` means that this plugin will move to the next note
- *  up/down such that only first and third accidental chains are changed, but
- *  the degree of the second accidental chain is left unchanged.
- * 
- * @param {*} note The `PluginAPI::Note` MuseScore note object
+ * @param {*} note The current `PluginAPI::Note` MuseScore note object to be modified
  * @param {KeySig} keySig Current key signature
  * @param {TuningConfig} tuningConfig Tuning Config object
  * @param {[number]} bars `parms.bars` list of bar ticks
  * @param {*} cursor MuseScore cursor object
- * @returns {NextNote} 
+ * @returns {NextNote?} 
  *  `NextNote` object containing info about how to spell the newly modified note.
+ *  Returns `null` if no next note can be found.
  */
-function chooseNextNote(direction, regarding, note, keySig, tuningConfig, bars, cursor) {
+function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
+    tuningConfig, bars, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, bars, cursor);
-
-    var newXenNote = null;
-    var lineOffset = null;
 
     if (direction === 0) {
         // enharmonic cycling
         var enharmonicNoteHash = tuningConfig.enharmonics[noteData.xen.hash];
+
+        if (enharmonicNoteHash === undefined) {
+            // No enharmonic spelling found. Return null.
+            return null;
+        }
+
         var enhXenNote = tuningConfig.notesTable[enharmonicNoteHash];
 
         // Account for equave offset between enharmonic notes.
@@ -1252,6 +1321,7 @@ function chooseNextNote(direction, regarding, note, keySig, tuningConfig, bars, 
 
         var currNoteEqvsAdj = tuningConfig.tuningTable[noteData.xen.hash][1];
         var enhNoteEqvsAdj = tuningConfig.tuningTable[enharmonicNoteHash][1];
+        var equaveOffset = enhNoteEqvsAdj - currNoteEqvsAdj;
 
         // E.g. if G# and Ab are enharmonics, and G# is the currNote,
         // enhNoteEqvsAdj - currNoteEqvsAdj = 1 - 0 = 1
@@ -1260,24 +1330,229 @@ function chooseNextNote(direction, regarding, note, keySig, tuningConfig, bars, 
         // within the same equave. Otherwise, the Ab would incorrectly be
         // an equave lower than the G#.
 
-        var nominalsOffset = enhXenNote.nominal - noteData.xen.nominal + 
-            (enhNoteEqvsAdj - currNoteEqvsAdj) * tuningConfig.numNominals;
-        
-        newXenNote = enhXenNote;
-        lineOffset = nominalsOffset;
-    } else {
-        // up/down operation.
+        var nominalsOffset = enhXenNote.nominal - noteData.xen.nominal +
+            equaveOffset * tuningConfig.numNominals;
 
-        // The index of the StepwiseList this note is currently at.
-        var stepIdx = tuningConfig.stepsLookup[noteData.xen.hash];
+        // when cycling enharmonics, do not care about matching the prior accidental spelling
+        // (defeats purpose of cycling enharmonics).
 
-        for (var i = 1; i < tuningConfig.stepsList.length; i ++) {
-            // Loop through every step once, until an appropriate step is found
-            // which differs in accidentalVector according to `regarding`.
+        // the only thing to check for is whether or not explicit accidentals should be created
+        // for the new note.
+        // However, that's NOT the goal of this function. Simply return the new note spelling.
+
+        return {
+            xen: enhXenNote,
+            nominal: enhXenNote.nominal,
+            equaves: noteData.equaves + equaveOffset,
+            lineOffset: -nominalsOffset, // negative line = higher pitch.
+            matchPriorAcc: false, // always false, doesn't matter.
+            // The enharmonic plugin should check for the need of explicit accidentals
+            // on its own.
         }
     }
 
-    return nextNote;
+
+    // Otherwise, it's an up/down operation.
+
+    // The index of the StepwiseList this note is currently at.
+    var currStepIdx = tuningConfig.stepsLookup[noteData.xen.hash];
+
+    // If a valid step is found, this will contain list of enharmonically equivalent
+    // XenNote.hashes that matches the accidental vector requirements of `regarding`.
+    var validOptions = null;
+
+    // If the steps reaches 0 when moving upwards, or last step when moving downwards,
+    // this means that an additional equave has to be added/removed.
+    // Keep track of this.
+    var equaveOffset = 0;
+
+    for (var i = 1; i < tuningConfig.stepsList.length; i++) {
+        // Loop through every step within an equave once until an appropriate step is found
+        // which differs in accidentalVector according to `regarding`.
+
+        var offset = i;
+        if (direction == -1) {
+            // reverse search direction if offset negative.
+            offset = -i;
+        }
+
+        var newStepIdx = mod(currStepIdx + offset, tuningConfig.stepsList.length);
+
+        if (newStepIdx == 0 && direction == 1) {
+            // looped back from end of stepsList. Add an equave.
+            equaveOffset++;
+        } else if (newStepIdx == tuningConfig.stepsList.length - 1 && direction == -1) {
+            // looped back from beginning of stepsList. Remove an equave.
+            equaveOffset--;
+        }
+
+        // list of xenHashes that are enharmonic to newStep
+        var enharmonicOptions = tuningConfig.stepsList[newStepIdx];
+
+        // this map will be populated with enharmonic option hashes
+        // that match accidental vector requirements of `regarding`.
+        // If a hash maps to 'false', it is invalidated forever.
+        // If a hash maps to 'true', it is valid (but further checks can invalidate it)
+        var validEnharmonicOptions = {};
+
+        // check for accidental vector requirements according to
+        // accChainsToCheckSame
+
+        var currNoteAccVec = tuningConfig.avTable[noteData.xen.hash];
+
+        if (accChainsToCheckSame != null) {
+            // Loop each accidental chain to check degree matches one at a time.
+            for (var foo = 0; foo < accChainsToCheckSame.length; foo++) {
+                // newNote.accVec[accChainIdx] needs to match currNote.accVec[accChainIdx]
+                var accChainIdx = accChainsToCheckSame[foo];
+
+                // loop enharmonic spellings at newStepIdx
+                for (var j = 0; j < enharmonicOptions.length; j++) {
+                    var option = enharmonicOptions[j];
+                    if (tuningConfig.avTable[option][accChainIdx] != currNoteAccVec[accChainIdx]) {
+                        // this enharmonic spelling does not match the requirements. flag as invalid
+                        validEnharmonicOptions[option] = false;
+                    } else if (validEnharmonicOptions[option] == undefined) {
+                        validEnharmonicOptions[option] = true;
+                    }
+                }
+            }
+        }
+
+        validOptions = enharmonicOptions.filter(function (opt) {
+            return validEnharmonicOptions[opt] == undefined ||
+                validEnharmonicOptions[opt] == true;
+        });
+
+        if (validOptions.length == 0) continue; // Does not meet `regarding` criteria... try next step
+
+        break;
+    }
+
+    if (validOptions == null || validOptions.length == 0) {
+        console.log('WARNING: no valid next note options found for note: ' + noteData.xen.hash +
+            '\nDid you declare an invalid tuning system?');
+        return null;
+    }
+
+    // graceChord will contain the chord this note belongs to if the current note
+    // is a grace note.
+    var graceChord = findGraceChord(note);
+
+    var currAV = tuningConfig.avTable[noteData.xen.hash];
+
+    // Returns the XenNote hash option so far.
+    var bestOption = null;
+
+    // AccidentalVector Distance is measured as sum of squares
+    var bestOptionAccDist = 100000;
+    var bestNumSymbols = 10000;
+    var bestLineOffset = 90000;
+
+    for (var i = 0; i < validOptions.length; i++) {
+        var option = validOptions[i]; // contains XenNote hash of enharmonic option.
+
+        var newXenNote = tuningConfig.notesTable[option];
+
+        var newNoteEqvsAdj = tuningConfig.tuningTable[option][1];
+        var currNoteEqvsAdj = tuningConfig.tuningTable[noteData.xen.hash][1];;
+
+        var nominalOffset = newXenNote.nominal - noteData.xen.nominal +
+            (newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset) * tuningConfig.numNominals;
+
+        // check each option to see if it would match a prior accidental
+        // on the new line. An AccidentalVector match is considered a match,
+        // The `regarding` constriction is not so strict to the point where
+        // enharmonics based on prior existing accidentals are disallowed.
+
+        var priorAcc = getAccidental(
+            cursor, pitchData.tick, note.line - nominalOffset, true,
+            bars, true, note, graceChord, false);
+
+        if (priorAcc == null && keySig) {
+            var keySigAcc = keySig[newXenNote.nominal];
+            if (keySigAcc != null && keySigAcc.length == tuningConfig.numNominals) {
+                priorAcc = keySigAcc;
+            }
+        }
+
+        var optionAV = tuningConfig.avTable[option];
+
+        if (priorAcc != null) {
+            // This is used to look up the accidental's effect on the accidentalVector
+            // it doesn't matter what nominal it uses since all identical accidental
+            // hashes will result in the same accidentalVector.
+            var priorAccHash = '0 ' + priorAcc;
+
+            if (arraysEqual(optionAV, tuningConfig.avTable[priorAccHash])) {
+                // Direct accidental match. Return this.
+                return {
+                    xen: newXenNote,
+                    nominal: newXenNote.nominal,
+                    equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
+                    lineOffset: -nominalOffset,
+                    // This flag means that no explicit accidental needs to be
+                    // placed on this new modified note.
+                    matchPriorAcc: true
+                }
+            }
+        }
+
+        // Compute AV distance, choose option with smallest distance
+
+        var avDist = 0;
+
+        for (var j = 0; j < currAV.length; j++) {
+            avDist += (currAV[j] - optionAV[j]) * (currAV[j] - optionAV[j]);
+        }
+
+        var nextNoteObj = {
+            xen: newXenNote,
+            nominal: newXenNote.nominal,
+            equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
+            lineOffset: -nominalOffset,
+            matchPriorAcc: false
+        };
+
+        if (avDist < bestOptionAccDist) {
+            bestOption = nextNoteObj;
+            bestOptionAccDist = avDist;
+            // reset other lower-tier metrics
+            bestNumSymbols = 90000;
+            bestLineOffset = 90000;
+        } else if (Math.abs(avDist - bestOptionAccDist) < 0.01) {
+            // If distances are very similar, choose the option with
+            // lesser symbols
+            var numSymbols;
+            if (newXenNote.accidentals == null) {
+                numSymbols = 0;
+            } else {
+                numSymbols = Object.keys(newXenNote.accidentals).reduce(
+                    function (acc, key) { return acc + newXenNote.accidentals[key]; },
+                    0
+                );
+            }
+
+            if (numSymbols < bestNumSymbols) {
+                bestOption = nextNoteObj;
+                bestNumSymbols = numSymbols;
+                bestLineOffset = 90000; // reset
+            } else if (numSymbols == bestNumSymbols) {
+                // Last tier: if everything else the same, pick
+                // the one that has the least lineOffset
+
+                if (Math.abs(nominalOffset) < bestLineOffset) {
+                    bestOption = nextNoteObj;
+                    bestLineOffset = Math.abs(nominalOffset);
+                }
+            }
+        }
+    }
+
+    // At the end of all the optimizations, bestOption should contain
+    // the best option...
+
+    return bestOption;
 }
 
 /**
@@ -1374,6 +1649,11 @@ function _getMostRecentAccidentalInBar(
 
     if (tickOfNextBar == -1)
         tickOfNextBar = cursor.score.lastSegment.tick;
+    
+    if (tickOfThisBar == -1) {
+        console.log("FATAL ERROR: getAccidental tickOfThisBar == -1. Returning null.");
+        return null;
+    }
 
     // console.log('getMostRecentAcc: called with tick: ' + noteTick + ', line: ' + line + ', thisBar: ' + tickOfThisBar +
     //     ', nextBar: ' + tickOfNextBar + ', botchedCheck: ' + botchedCheck + ', before: ' + before +
@@ -1392,7 +1672,7 @@ function _getMostRecentAccidentalInBar(
         while (cursor.tick < noteTick && cursor.next());
 
 
-        while (tickOfThisBar !== -1 && cursor.segment && cursor.tick >= tickOfThisBar) {
+        while (cursor.segment && cursor.tick >= tickOfThisBar) {
             // loop each segment from current cursor position until cursor reaches
             // the start of this bar.
 
@@ -1414,7 +1694,7 @@ function _getMostRecentAccidentalInBar(
                 // Search only grace notes if this function is to return accidentals being applied 
                 // to a grace note, and the current cursor position is that of the chord this
                 // grace note is attached to.
-                if (graceChord !== undefined && graceChord.parent.parent.tick == cursor.tick)
+                if (graceChord && graceChord.parent.parent.tick == cursor.tick)
                     searchGraces = true;
 
                 if (!searchGraces) {
@@ -1423,8 +1703,6 @@ function _getMostRecentAccidentalInBar(
 
                     for (var i = 0; i < notes.length; i++) {
                         // Loops through all notes in this chord
-
-                        console.log("HELLO: line: " + line + ", note.line: " + notes[i].line);
 
                         if ((!before || (
                             getTick(notes[i]) < noteTick ||
@@ -1436,8 +1714,6 @@ function _getMostRecentAccidentalInBar(
                         )) &&
                             notes[i].line === line && getTick(notes[i]) <= noteTick) {
                             nNotesInSameLine++;
-
-                            console.log("HELLO");
 
                             // This current note fulfils the accidental search condition.
 
@@ -1464,6 +1740,11 @@ function _getMostRecentAccidentalInBar(
                                 }
                             }
                         }
+
+                        // Any note indexed after the current note should not be regarded.
+                        // as MuseScore sees those as coming 'after' the current operating note.
+                        if (notes[i].is(currentOperatingNote))
+                            break;
                     }
 
                     if ((nNotesInSameLine === 1 || !botchedCheck) && explicitAccidental &&
@@ -1485,7 +1766,9 @@ function _getMostRecentAccidentalInBar(
                 var graceChords = cursor.element.graceNotes;
                 var beforeCurrent = !searchGraces;
                 for (var gchdIdx = graceChords.length - 1; gchdIdx >= 0; gchdIdx--) {
-                    // Move cursor to either the current selected grace chord
+                    // If finding accidental on a grace chord, and current cursor position
+                    // matches current operating note, ignore grace chords that come after
+                    // the operating grace chord as specified by `graceChord`
                     var isCurrentOperating = false;
                     if (!beforeCurrent) {
                         if (graceChords[gchdIdx].is(graceChord)) {
@@ -1576,8 +1859,6 @@ function _getMostRecentAccidentalInBar(
  * 
  * If natural or no accidental to be applied, will return `null`.
  * 
- * IMPORTANT: Cursor must be positioned at the note to check the accidental of.
- * 
  * If `before` is true, does not include accidentals attached to the current note 
  * in the search.
  * 
@@ -1595,30 +1876,30 @@ function _getMostRecentAccidentalInBar(
  * @param {boolean} botchedCheck If true, check for botched accidentals.
  * @param {*} bars List of bar ticks as per `parms.bars`
  * @param {boolean} before 
- *      If true, ignore accidentals attached to the current note head
- *      and only look for accidentals occuring before.
- *      The search will still return accidentals on notes with the same `.tick`,
- *      for prior voices and graceBefore notes.
- *      It will also return accidentals on notes in the same chord and line that
- *      MuseScore considers to appear 'before' the current note.
+ *  If true, ignore accidentals attached to the current note head
+ *  and only look for accidentals occuring before.
+ *  The search will still return accidentals on notes with the same `.tick`,
+ *  for prior voices and graceBefore notes.
+ *  It will also return accidentals on notes in the same chord and line that
+ *  MuseScore considers to appear 'before' the current note.
  * @param {*} currentOperatingNote 
- *      If `before` is specified, should contain the current musescore note object
- *      to exclude from the search.
+ *  If `before` is specified, should contain the current musescore note object
+ *  to exclude from the search.
  * @param {*} graceChord 
- *      If the plugin is currently modifying a grace note, this should contain 
- *      the Chord object this grace note belongs to.
+ *  If the plugin is currently modifying a grace note, this should contain 
+ *  the Chord object this grace note belongs to.
  * @param {*} excludeBeforeInSameChord 
- *      If this is `true` and `before` is specified, the search should not
- *      return accidentals on notes that belong to the same chord as the
- *      currentOperatingNote.
+ *  If this is `true` and `before` is specified, the search should not
+ *  return accidentals on notes that belong to the same chord as the
+ *  currentOperatingNote.
  * @returns {string?} 
- *      If an accidental is found, returns the accidental hash of the
- *      AccidentalSymbols object. 
- *      
- *      If `botchedCheck` is `true` and the
- *      accidental is possibly botched, returns the string `'botched'`.
- *      
- *      If no accidentals found, returns null.
+ *  If an accidental is found, returns the accidental hash of the
+ *  AccidentalSymbols object. 
+ *  
+ *  If `botchedCheck` is `true` and the
+ *  accidental is possibly botched, returns the string `'botched'`.
+ *  
+ *  If no accidentals found, returns null.
  */
 function getAccidental(cursor, tick, noteLine, botchedCheck, bars, before,
     currentOperatingNote, graceChord, excludeBeforeInSameChord) {
@@ -1629,18 +1910,11 @@ function getAccidental(cursor, tick, noteLine, botchedCheck, bars, before,
     var tickOfThisBar = -1; // if -1, something's wrong.
 
     for (var i = 0; i < bars.length; i++) {
-        if (bars[i] > tick) {
+        if (bars[i] > noteTick) {
             tickOfNextBar = bars[i];
             break;
         }
-    }
-
-    var tickOfThisBar = -1; // this should never be -1
-
-    for (var i = 0; i < bars.length; i++) {
-        if (bars[i] <= tick) {
-            tickOfThisBar = bars[i];
-        }
+        tickOfThisBar = bars[i];
     }
 
     if (before === undefined)
@@ -1654,11 +1928,189 @@ function getAccidental(cursor, tick, noteLine, botchedCheck, bars, before,
 }
 
 /**
- * Returns the default tuning config to apply when none is specified
+ * Attach given accidentalSymbols to a note (clears existing accidentals).
+ * 
+ * Assigns z-index (stacking order) from 1000 onwards, acting as
+ * metadata which the layout algorithm will use to maintain the
+ * correct right-to-left order of the accidental symbols if
+ * multiple-symbol accidentals are used.
+ * 
+ * The higher z-index = further to the left (1000 is to the right of 1001)
+ * 
+ * This function does not handle layout of accidentals.
+ * 
+ * Layout is only done after a whole chord is processed,
+ * and is performed for all 4 voices at the same time.
+ * 
+ * @param {*} note `PluginAPI::Note`
+ * @param {AccidentalSymbols} accidentalSymbols `AccidentalSymbols` object
+ * @param {Function} newElement reference to the `PluginAPI.newElement()` function
  */
-function generateDefaultTuningConfig() {
-    console.log("Generating default tuning config...");
-    console.log(DEFAULT_TUNING_CONFIG);
-    var tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
-    return tuningConfig;
+function setAccidental(note, accidentalSymbols, newElement) {
+
+    var elements = note.elements;
+    var elemsToRemove = [];
+
+    // First, remove any accidental symbols from note.
+
+    for (var i = 0; i < elements.length; i++) {
+        if (elements[i].symbol) {
+            var symIdLookup = Lookup.LABELS_TO_CODE[elements[i].symbol.toString()];
+            if (symIdLookup) {
+                // This element is an accidental symbol, remove it.
+                elemsToRemove.push(elements[i]);
+            }
+        }
+    }
+
+    elemsToRemove.forEach(function (elem) {
+        note.remove(elem);
+    });
+
+    // Create new SymId symbols and attach to note.
+
+    var keys = Object.keys(accidentalSymbols);
+    var zIdx = 1000;
+    // go right-to-left.
+    for (var i = keys.length - 1; i >= 0; i--) {
+        var numSymbols = accidentalSymbols[keys[i]];
+        var symId = Lookup.CODE_TO_LABELS[keys[i]][0];
+        for (var n = 0; n < numSymbols; n++) {
+            var elem = newElement(Element.SYMBOL);
+            elem.symbol = SymId[symId];
+            note.add(elem);
+            elem.z = zIdx;
+            // Just put some arbitrary 1.4sp offset
+            // between each symbol for now.
+            elem.offsetX = -1.4 * (zIdx - 999);
+            zIdx++;
+        }
+    }
+}
+
+/**
+ * Modifies accidentals & nominal on a MuseScore note.
+ * 
+ * @param {*} note `PluginAPI::Note` to set pitch, tuning & accidentals of
+ * @param {number} lineOffset Nominals offset from current note's pitch
+ * @param {*} accidental 
+ * @param {*} newElement 
+ */
+function modifyNote(note, lineOffset, accidentalSymbols, newElement) {
+    var newLine = note.line + lineOffset;
+    note.line = newLine;
+    acc = newElement(Element.ACCIDENTAL);
+    acc.accidentalType = Accidental.NONE;
+    note.add(acc);
+    acc.accidentalType = Accidental.NONE;
+    note.line = newLine; // Some hack to really make it register...
+
+    setAccidental(note, accidentalSymbols, newElement);
+}
+
+/**
+ * Executes up/down/enharmonic on a note.
+ * 
+ * **IMPORTANT: The cursor must currently be at the note position.**
+ * 
+ * - Finds next pitch to transpose to
+ * - Apply explicit accidentals on notes that may be affected by the
+ *   modification of the current note.
+ * - Modifies pitch & accidental of note.
+ * - Tunes the note.
+ * 
+ * @param {*} note `PluginAPI::Note` object to modify
+ */
+function executeTranspose(note, direction, parms, newElement, cursor) {
+    var tuningConfig = parms.currTuning;
+    var keySig = parms.currKeySig; // may be null/invalid
+    var regarding = parms.currAux; // may be null/undefined
+    var bars = parms.bars;
+
+    // STEP 1: Choose the next note.
+    var nextNote = chooseNextNote(
+        direction, null, note, keySig, tuningConfig, bars, cursor);
+    
+    // STEP 2: Apply explicit accidentals on notes that may be affected
+    //
+
+    var graceChord = findGraceChord(note);
+
+    var ogCursorTick = cursor.tick;
+    var ogCursorStaff = cursor.staffIdx;
+    var ogCursorVoice = cursor.voice;
+
+    var noteTick = getTick(note);
+    var tickOfNextBar = -1; // if -1, the cursor at the last bar
+    var tickOfThisBar = -1; // if -1, something's wrong.
+
+    for (var i = 0; i < bars.length; i++) {
+        if (bars[i] > noteTick) {
+            tickOfNextBar = bars[i];
+            break;
+        }
+        tickOfThisBar = bars[i];
+    }
+
+    // Search this bar for notes that will be affected by
+    // the modification.
+
+    /*
+    Affected notes are notes the same Note.line as the current (old) note
+    or the new Note.line of the modified note.
+
+    The notes are found in this order:
+
+    1. Within the same chord as the current note 
+       (the chord could either be grace or normal)
+    2. Within a following grace chord attached to the same chord as curr
+    3. Within a grace chord attached to a following chord
+    4. Within following chord.
+
+    2.-4. are mutually exclusive, but 1. can be combined with any of the others.
+
+    Meaning, a modification can affect both a note in its own chord and
+    a note in the next chord.
+    */
+
+    for (var voice = 0; voice < 4; voice++) {
+        cursor.rewind(1);
+        cursor.voice = voice;
+        cursor.staffIdx = thisStaffIdx;
+        cursor.rewind(0);
+
+        // move cursor to the segment at noteTick
+
+        while (cursor.tick < tickOfThisBar && cursor.nextMeasure());
+        while (cursor.tick < noteTick && cursor.next());
+
+        while (cursor.segment && cursor.tick < tickOfNextBar) {
+            if (cursor.element && cursor.element.type == Ms.CHORD) {
+                var notes = cursor.element.notes;
+                var graceChords = cursor.element.graceNotes;
+                
+                if (cursor.tick) {
+                    
+                }
+                for (var gchdIdx = 0; gchdIdx < graceChords.length; gchdIdx++) {
+                    
+                }
+            }
+        }
+    }
+
+    setCursorToPosition(cursor, ogCursorTick, ogCursorVoice, ogCursorStaff);
+
+    //
+    // STEP 3
+    //
+    //
+
+    modifyNote(note, nextNote.lineOffset, nextNote.xen.accidentals, newElement);
+
+    //
+    // STEP 4
+    //
+
+    tuneNote(note, keySig, tuningConfig, bars, cursor);
 }

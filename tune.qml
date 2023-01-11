@@ -12,12 +12,9 @@ MuseScore {
       description: "Retune selection/score to annotated tuning system(s)"
       menuPath: "Plugins.xen.Tune"
 
-      // WARNING! This doesn't validate the accidental code!
-      property variant customKeySigRegex: /\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)/g
-
       onRun: {
-        console.log("Xen Tune v0.1");
-        Fns.init(Accidental, NoteType);
+        console.log("Xen Tune");
+        Fns.init(Accidental, NoteType, SymId, Element);
         console.log(Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')

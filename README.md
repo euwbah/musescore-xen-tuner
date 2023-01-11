@@ -821,7 +821,7 @@ The accidental degree of the chain represented by `degrees[n]` and `tunings[n]` 
 
 ```js
 {
-  regarding: [number], // acc chain indices
+  regarding: [number], // acc chain indices (starting from 0)
   ligAvToSymbols: {
     // Search & replace map AccidentalVector -> SymbolCode
     LigAccVector: [SymbolCode],
@@ -832,9 +832,9 @@ The accidental degree of the chain represented by `degrees[n]` and `tunings[n]` 
 
 Represents a ligature declaration.
 
-`regarding` is an unordered set representing which n-th accidental chains to consider when searching for exact `AccidentalVector` matches.
+`regarding` is an unordered set representing which n-th accidental chains to consider when searching for exact `AccidentalVector` matches. (The indices are 0-based)
 
-`LigAccVector` is a subspace of `AccidentalVector` with only the `n`-th accidental chains included by `regarding`.
+`LigAccVector` is a subspace of `AccidentalVector` which corresponds to the respective accidental chains included by `regarding`.
 
 #### `TuningConfig`
 
@@ -948,6 +948,20 @@ E.g.: If a new key signature is to be applied at tick 1760 in the current staff:
 This contains a list of timed configs for each staff, sorted by increasing tick. 
 
 The `ConfigUpdateEvent`s will modify properties of `parms` over time to reflect the current configurations applied to the current staff (`cursor.staffIdx`) to apply at current cursor position.
+
+#### `NextNote`
+
+```js
+{
+  xen: XenNote, // XenNote object of the new note.
+  nominal: number, // Nominal of the new note.
+  equaves: number, // Equave of the new note (from reference note)
+  lineOffset: number, // Amount to change `Note.line` by
+  matchPriorAcc: boolean, // whether new accidental can be made implicit
+}
+```
+
+Return value of `chooseNextNote()` function. Contains info about what the plugin chooses to provide as the 'next note' during the up/down/enharmonic cycle operations.
 
 ## Functions
 
