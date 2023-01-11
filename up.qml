@@ -1,23 +1,17 @@
-import QtQuick 2.1
-import QtQuick.Controls 1.3
-import QtQuick.Controls.Styles 1.3
-import QtQuick.Dialogs 1.1
+import "fns.ms.js" as Fns
 import MuseScore 3.0
+import QtQuick 2.9
+import QtQuick.Controls 2.2
+import QtQuick.Controls.Styles 2.2
+import QtQuick.Layouts 1.2
+import Qt.labs.settings 1.0
+import FileIO 3.0
 
 MuseScore {
 
-      MessageDialog {
-        id: invalidTuningSystemError
-        title: 'n-TET tuning plugin error:'
-        text: 'Tuning system not supported, it requires an accidental that cannot be represented.\nOnly EDOs ranked up to sharp-8 are supported. See the README for more info.'
-        onAccepted: {
-          Qt.quit();
-        }
-      }
-
-      version: "2.3.2"
-      description: "Raises selection (Shift-click) or individually selected notes (Ctrl-click) by 1 step of n EDO."
-      menuPath: "Plugins.n-EDO.Raise Pitch By 1 Step"
+      version: "0.1.0"
+      description: "Raise selection/selected note(s) to the next highest step"
+      menuPath: "Plugins.xen.up"
 
       // WARNING! This doesn't validate the accidental code!
       property variant customKeySigRegex: /\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)/g

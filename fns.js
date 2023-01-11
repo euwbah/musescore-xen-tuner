@@ -33,17 +33,10 @@ var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
  */
 function init(MSAccidental, MSNoteType) {
     Lookup = ImportLookup();
+    // console.log(JSON.stringify(Lookup));
     Accidental = MSAccidental;
     NoteType = MSNoteType;
     console.log("Hello world! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
-
-    // This is to test that imports are working properly...
-
-    console.log(Lookup);
-    for (var i = 1; i < 10; i++) {
-        var acc = Accidental[Lookup.CODE_TO_LABELS[i][0]];
-        console.log(acc);
-    }
 }
 
 /**
@@ -176,10 +169,10 @@ function accidentalsHash(accidentals) {
         var prevSymCode = -1;
         var symCodeNums = [];
 
-        accidentals.forEach(function(symCode) {
+        accidentals.forEach(function (symCode) {
             if (prevSymCode == -1) {
                 prevSymCode = symCode;
-                occurences ++;
+                occurences++;
                 return;
             }
 
@@ -189,7 +182,7 @@ function accidentalsHash(accidentals) {
                 occurences = 0;
             }
 
-            occurences ++;
+            occurences++;
             prevSymCode = symCode;
         });
 
@@ -210,7 +203,7 @@ function accidentalsHash(accidentals) {
             symCodeNums.push(symCode);
             symCodeNums.push(accidentals[symCode]);
         });
-    
+
     return symCodeNums.join(' ');
 }
 
@@ -915,12 +908,12 @@ function parseKeySig(text) {
 
     var valid = true;
 
-    nomSymbols.forEach(function(s) {
+    nomSymbols.forEach(function (s) {
         var symbols = s.split('.');
 
         var symCodes = [];
 
-        symbols.forEach(function(s) {
+        symbols.forEach(function (s) {
             var symbolCode = readSymbolCode(s);
             if (symbolCode == null) {
                 valid = false;
@@ -936,6 +929,72 @@ function parseKeySig(text) {
     }
 
     return keySig;
+}
+
+/**
+ * Removes formatting code from System/Staff text.
+ * 
+ * Make sure formatting code is removed before parsing System/Staff text!
+ * 
+ * @param {string} str Raw System/Staff text contents
+ * @returns {string} Text with formatting code removed
+ */
+function removeFormattingCode(str) {
+    if (typeof (str) == 'string')
+        return str.replace(/<[^>]*>/g, '');
+    else
+        return null;
+}
+
+/**
+ * Parses a System/Staff Text contents to check if it represents any config.
+ * 
+ * If a config is found, returns a `ConfigUpdateEvent` object to be added to
+ * the `parms.staffConfigs[]` list.
+ * 
+ * @param {string} text System/Staff Text contents
+ * @param {number} tick Current tick position
+ * @returns {ConfigUpdateEvent?} 
+ *  The `ConfigUpdateEvent` to add to `staffConfigs[]`, or `null` if invalid/not a config
+ * 
+ */
+function parsePossibleConfigs(text, tick) {
+    if (tick === undefined || tick === null) {
+        console.log('FATAL ERROR: parsePossibleConfigs() missing tick parameter!');
+        return null;
+    }
+
+    var text = removeFormattingCode(text);
+
+    var maybeConfig = parseTuningConfig(text);
+
+    if (maybeConfig != null) {
+        console.log("Found tuning config:\n" + text);
+        // tuning config found.
+
+        return { // ConfigUpdateEvent
+            tick: tick,
+            config: {
+                currTuning: maybeConfig
+            }
+        };
+    }
+
+    maybeConfig = parseKeySig(text);
+
+    if (maybeConfig != null) {
+        // key sig found
+        console.log("Found key sig:\n" + text);
+
+        return { // ConfigUpdateEvent
+            tick: tick,
+            config: {
+                currKeySig: maybeConfig
+            }
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -989,7 +1048,7 @@ function readNoteData(msNote, tuningConfig, keySig, bars, cursor) {
     */
 
     // Convert nominalsFromA4 to nominals from tuning note.
-    
+
     var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
     var equaves = Math.floor(nominalsFromTuningNote / tuningConfig.numNominals);
 
@@ -1008,9 +1067,9 @@ function readNoteData(msNote, tuningConfig, keySig, bars, cursor) {
     var accidentalsHash = getAccidental(
         cursor, msNote.tick, msNote.line,
         false, bars, false, msNote, graceChord);
-    
+
     console.log("Found effective accidental: " + accidentalsHash);
-    
+
     if (accidentalsHash == null && keySig && keySig[nominal] != null
         // Check if KeySig has a valid number of nominals.
         && keySign[nominal].length == tuningConfig.numNominals) {
@@ -1032,11 +1091,12 @@ function readNoteData(msNote, tuningConfig, keySig, bars, cursor) {
     if (accidentalsHash != null) {
         xenHash += ' ' + accidentalsHash;
     }
-    
+
     var xenNote = tuningConfig.notesTable[xenHash];
 
     if (xenNote == undefined) {
         console.log("FATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config");
+        console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
     }
 
@@ -1060,6 +1120,7 @@ function readNoteData(msNote, tuningConfig, keySig, bars, cursor) {
  * @param {*} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
  * @param {KeySig} keySig Current key signature applied.
+ * @param {[number]} bars List of bar ticks
  * @param {*} cursor MuseScore Cursor object
  * @returns {NoteData} NoteData object
  */
@@ -1149,20 +1210,74 @@ function tuneNote(note, keySig, tuningConfig, bars, cursor) {
 }
 
 /**
- * Get the next XenNote and nominal offset of the stepwise note 
- * above/below the current `noteData`.
+ * Retrieve the next note up/down/enharmonic from the current `PluginAPI::Note`, and
+ * returns `XenNote` and `Note.line` offset to be applied on the note.
  * 
+ * @param {number} direction `1` for upwards, `0` for enharmonic cycling, `-1` for downwards.
+ * @param {[boolean]} regarding
+ *  (Only applicable if direction is `1`/`-1`. Not applicable for enharmonic)
  * 
+ *  A list of boolean values signifying which accidental chains to consider.
  * 
- * @param {NoteData} noteData The current unmodified note
- * @param {boolean} upwards `true` if upwards, `false` if downwards
- * @param {[boolean]} regarding A list of boolean values indicating whether or not to
- * consider the nth accidental chain when choosing the next note.
- * @param {*} tuningConfig
- * @returns {[NextNote]} Array XenNote and nominal offset of next note from the current note.
+ *  This feature is used for the aux up/down plugins.
+ * 
+ *  E.g. `[true, false, true]` means that this plugin will move to the next note
+ *  up/down such that only first and third accidental chains are changed, but
+ *  the degree of the second accidental chain is left unchanged.
+ * 
+ * @param {*} note The `PluginAPI::Note` MuseScore note object
+ * @param {KeySig} keySig Current key signature
+ * @param {TuningConfig} tuningConfig Tuning Config object
+ * @param {[number]} bars `parms.bars` list of bar ticks
+ * @param {*} cursor MuseScore cursor object
+ * @returns {NextNote} 
+ *  `NextNote` object containing info about how to spell the newly modified note.
  */
-function chooseNextNote(noteData, upwards, disregard, tuningConfig) {
+function chooseNextNote(direction, regarding, note, keySig, tuningConfig, bars, cursor) {
+    var noteData = parseNote(note, tuningConfig, keySig, bars, cursor);
 
+    var newXenNote = null;
+    var lineOffset = null;
+
+    if (direction === 0) {
+        // enharmonic cycling
+        var enharmonicNoteHash = tuningConfig.enharmonics[noteData.xen.hash];
+        var enhXenNote = tuningConfig.notesTable[enharmonicNoteHash];
+
+        // Account for equave offset between enharmonic notes.
+
+        // Reminder: equavesAdjusted represents how many equaves has to be added
+        // in order to fit the equave-0 spelling of the note within the equave
+        // e.g. Ab has to be shifted up 1 equave to fit within the A-G equave range.
+
+        var currNoteEqvsAdj = tuningConfig.tuningTable[noteData.xen.hash][1];
+        var enhNoteEqvsAdj = tuningConfig.tuningTable[enharmonicNoteHash][1];
+
+        // E.g. if G# and Ab are enharmonics, and G# is the currNote,
+        // enhNoteEqvsAdj - currNoteEqvsAdj = 1 - 0 = 1
+        // 1 means that, when going from the note G# to Ab, the plugin has to
+        // use the Ab that is 1 equave abovet the G#, instead of the Ab that is
+        // within the same equave. Otherwise, the Ab would incorrectly be
+        // an equave lower than the G#.
+
+        var nominalsOffset = enhXenNote.nominal - noteData.xen.nominal + 
+            (enhNoteEqvsAdj - currNoteEqvsAdj) * tuningConfig.numNominals;
+        
+        newXenNote = enhXenNote;
+        lineOffset = nominalsOffset;
+    } else {
+        // up/down operation.
+
+        // The index of the StepwiseList this note is currently at.
+        var stepIdx = tuningConfig.stepsLookup[noteData.xen.hash];
+
+        for (var i = 1; i < tuningConfig.stepsList.length; i ++) {
+            // Loop through every step once, until an appropriate step is found
+            // which differs in accidentalVector according to `regarding`.
+        }
+    }
+
+    return nextNote;
 }
 
 /**
@@ -1327,7 +1442,7 @@ function _getMostRecentAccidentalInBar(
                             // This current note fulfils the accidental search condition.
 
                             // Only check for symbol elements.
-                            
+
                             if (notes[i].elements) {
                                 var symbolCodes = [];
 
@@ -1397,7 +1512,7 @@ function _getMostRecentAccidentalInBar(
                             // This current note fulfils the accidental search condition.
 
                             // Only check for symbol elements.
-                            
+
                             if (notes[i].elements) {
                                 // List of symbol codes that make up the accidental.
 
@@ -1507,7 +1622,7 @@ function _getMostRecentAccidentalInBar(
  */
 function getAccidental(cursor, tick, noteLine, botchedCheck, bars, before,
     currentOperatingNote, graceChord, excludeBeforeInSameChord) {
-    
+
     console.log("getAccidental() tick: " + tick + ", line: " + noteLine);
 
     var tickOfNextBar = -1; // if -1, the cursor at the last bar

@@ -1,26 +1,19 @@
-import QtQuick 2.1
 import "fns.ms.js" as Fns
-import QtQuick.Controls 1.3
-import QtQuick.Controls.Styles 1.3
 import MuseScore 3.0
+import QtQuick 2.9
+import QtQuick.Controls 2.2
+import QtQuick.Controls.Styles 2.2
+import QtQuick.Layouts 1.2
+import Qt.labs.settings 1.0
+import FileIO 3.0
 
 MuseScore {
       version: "0.1.0"
-      description: "Retune selection/score to tuning system"
+      description: "Retune selection/score to annotated tuning system(s)"
       menuPath: "Plugins.xen.Tune"
 
       // WARNING! This doesn't validate the accidental code!
       property variant customKeySigRegex: /\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)\.(.*)/g
-
-      // MuseScore's annotations contain formatting code in angle brackets if the
-      // annotation text formatting is not default. This function removes
-      // all text within angle brackets including the brackets themselves
-      function removeFormattingCode(str) {
-        if (typeof(str) == 'string')
-          return str.replace(/<[^>]*>/g, '');
-        else
-          return null;
-      }
 
       onRun: {
         console.log("Xen Tune v0.1");
@@ -109,34 +102,10 @@ MuseScore {
                   console.log("found annotation type: " + annotation.name);
                   if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
                       (annotation.name == 'SystemText')) {
-                    var text = removeFormattingCode(annotation.text);
-                    
-                    var maybeConfig = Fns.parseTuningConfig(text);
+                    var maybeConfigUpdateEvent = Fns.parsePossibleConfigs(annotation.text, cursor.tick);
 
-                    if (maybeConfig != null) {
-                      console.log("Found tuning config:\n" + text);
-                      // tuning config found.
-
-                      configs.push({ // ConfigUpdateEvent
-                        tick: cursor.tick,
-                        config: {
-                          currTuning: maybeConfig
-                        }
-                      });
-                    }
-
-                    maybeConfig = Fns.parseKeySig(text);
-
-                    if (maybeConfig != null) {
-                      // key sig found
-                      console.log("Found key sig:\n" + text);
-
-                      configs.push({ // ConfigUpdateEvent
-                        tick: cursor.tick,
-                        config: {
-                          currKeySig: maybeConfig
-                        }
-                      });
+                    if (maybeConfigUpdateEvent != null) {
+                      configs.push(maybeConfigUpdateEvent);
                     }
                   }
                 }
