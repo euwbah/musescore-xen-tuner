@@ -97,17 +97,22 @@ This plugin enables xen notation by giving you free-reign over declaring:
 ## Caveats
 
 - Does not intend to use the standard Accidentals at all (e.g. auto-formatted, auto-layout accidentals). All accidentals this plugin uses will be cosmetic symbols from the "Symbols" category of the Master Palette. This means:
-  - You cannot drag standard-support accidentals from the "Accidentals" palette. All accidentals used must be from the "Symbols" category in the Master Palette.
+  - You cannot drag standard-support accidentals from the "Accidentals" palette. All accidentals used must be from the "Symbols" category in the Master Palette. You can create your own custom Palette of symbolic SMuFL accidentals if you wish to drag & drop them on notes.
   \
-  Though, you do not need to manually enter accidentals as the point of this plugin is for all accidentals used in a notation system to be accessible just via up/down arrow keys and the enharmonic respell ('J') key.
+  Though, you do not need to manually enter accidentals as the point of this plugin is for all accidentals used in a notation system to be accessible just via up/down arrow keys and the enharmonic respell ('J') key. Using this also automatically positions the accidentals.
+
   - Existing scores not made by this plugin will not work with this plugin.
   - Layout may look weird as this plugin has to reconstruct & re-invent how accidentals are to be laid out and formatted.
-- Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
 - Does not differentiate between the order of appearance of accidentals within one note.
 - Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
 - Does not fully support cross-staff notation. Accidentals don't carry over between two different staves if cross-staff notation is used. However, you can specify all accidentals explicitly.
-- Does not support grace notes occuring **after** a note. Grace notes occuring **before** a note are supported.
-- Octave 8va/15ma/etc... lines are not supported when non-standard number of nominals are used (e.g. bohlen pierce). You can simulate an octave line by setting the reference frequency higher/lower as needed.
+
+#### Smaller caveats
+
+- After you open MuseScore, the first time you run any function of this plugin, there will be a 5-10 second lag. This is normal, [the plugin is loading](https://musescore.org/en/node/306551#comment-1005654).
+- Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
+- Does not support grace notes occurring _after_ a note. Grace notes occuring _before_ a note are supported.
+- Octave 8va/15ma/etc... lines are not supported when non-standard number of nominals are used (e.g. bohlen pierce). You can simulate an octave line by setting the reference frequency higher/lower when needed.
 - If an undeclared accidental combination is used, the note will be regarded as without accidental, even if some (but not all) symbols are declared in accidental chains.
 - Ornaments can only be tuned within +/- 100 cents resolution.
 - Could be very laggy...
@@ -462,14 +467,12 @@ In `(aux) up/down.qml` and `enharmonic.qml`, the plugin should be able to update
 
 This is a VERY involved process:
 
-Given the `XenNote.hash` of the newly adjusted note:
-
-- Obtain `AccidentalVector` via `AccidentalVectorTable` lookup.
-- Remove all accidentals and symbols on a note.
-- Search through `ligatures` to replace any matching accidental combinations with ligature symbols. Flag ligatured accidental chains. Store the order of appearance of ligatured symbols using `z` stacking order property. Create and attach these symbols to the note.
-- For all non-ligatured accidental chains, look up `accChains` to obtain the list of symbols representing the accidental. Store the order of appearance of symbols
-
-We should obtain the `AccidentalVector` of `[-4,-2]`. Which states that we need to apply -4 apotomes and -2 syntonic commas to the nominal.
+- Choose an appropriate spelling for the new note (`NextNote`)
+- Obtain the proper ordering of `AccidentalSymbols` from `XenNote.orderedSymbols` object
+- Ensure the modified note does not affect subsequent notes. Aggressively add explicit accidentals on all notes in the bar that share the same `Note.line` of the original & modified note.
+- Update symbols attached to note, update `Note.line`
+- At the end of processing each chord (or each note, for individually-selected notes mode), auto position the newly created accidentals.
+- At the end of the operation, remove extraneous explicit accidentals (only if config doesn't specify to keep them in case the user wants to do some post-tonal 23rd century stuff)
 
 -----
 
@@ -608,6 +611,8 @@ A number representing a uniquely identifiable accidental symbol. A single symbol
 
 Represents accidental symbols attached to a note. Each entry is the SymbolCode of the symbol and the number of times this symbol occurs.
 
+The keys are NOT ORDERED.
+
 The keys are in left-to-right display order as per [accidental display order](#accidental-display-order) determined by Tuning Config.
 
 This object can be hashed into the `AccidentalSymbols.hash`, which can be appended to a nominal number to produce the `XenNote.hash`. The hashed symbols list is sorted by increasing `SymbolCode`.
@@ -621,6 +626,7 @@ This object can be hashed into the `AccidentalSymbols.hash`, which can be append
   nominalsFromA4: number, // number of 12edo nominals from A4.
   accidentals?: { // AccidentalSymbols
     // Explicit accidental symbols attached to this note.
+    // Not ordered.
     SymbolCode: number,
     SymbolCode: number,
     ...
@@ -656,6 +662,11 @@ The n-th number represents the degree of the n-th accidental chain. The order of
 ```js
 {
   nominal: number, // no. of nominals away from tuning note (mod equave)
+
+  // How to spell the accidental in proper left-to-right order
+  // If no accidentals, orderedSymbols is an empty list [].
+  orderedSymbols: [SymbolCode]
+
   accidentals?: { // AccidentalSymbols
     // The spelling of this note according to symbols present.
     // Both Implicit & Explicit accidentals must be represented.
@@ -674,7 +685,7 @@ Think of this as the xen version of 'tonal pitch class'.
 
 This is how the plugin represents a 'microtonal' note, containing data pertaining to how the note should be spelt/represented microtonally.
 
-The SymbolCode keys of `accidentals` should be sorted left-to-right in terms of appearance when drawing the accidentals.
+The `accidentals` object is not sorted. When creating/displaying an accidental, use `orderedSymbols` to iterate each symbol in left-to-right order.
 
 If `accidentals` is null, represents a nominal of the tuning system (note without accidental).
 
@@ -949,6 +960,20 @@ This contains a list of timed configs for each staff, sorted by increasing tick.
 
 The `ConfigUpdateEvent`s will modify properties of `parms` over time to reflect the current configurations applied to the current staff (`cursor.staffIdx`) to apply at current cursor position.
 
+#### `SavedCursorPosition`
+
+```js
+{
+  tick: number, // Saved Cursor.tick
+  staffIdx: number, // Cursor.staffIdx
+  voice: number, // Cursor.voice
+}
+```
+
+Represents a saved `MS::PluginAPI::Cursor` position created by `saveCursorPosition(Cursor)`.
+
+Cursor position can be restored with `restoreCursorPosition(SavedCursorPosition)`.
+
 #### `NextNote`
 
 ```js
@@ -962,6 +987,47 @@ The `ConfigUpdateEvent`s will modify properties of `parms` over time to reflect 
 ```
 
 Return value of `chooseNextNote()` function. Contains info about what the plugin chooses to provide as the 'next note' during the up/down/enharmonic cycle operations.
+
+#### `BarState`
+
+```js
+{
+  // on staff line 4
+  -4: {
+    // at tick 1000
+    1000: [
+      // Grace Chords + Chords in voice 0
+      [
+        [Note, Note], // grace chord 1
+        [Note], // grace chord 2
+        ...,
+        [Note] // main Chord.
+      ],
+
+      // voice 1 has no notes.
+      [],
+
+      // voice 2 has notes
+      [[Note, Note], [Note], ...],
+
+      // voice 3 has no notes
+      []
+    ],
+    // at tick 2000
+    { 
+      etc... 
+    }
+  },
+  // On staff line -1
+  -1: {
+    etc...
+  }
+}
+```
+
+Return value of `readBarState()`. This object is helpful checking accidental-related things as it presents notes on a line-by-line (nominal) basis, with notes properly sorted by order of appearance.
+
+The tick-notes mappings on each line can be sorted by tick, and each (grace) chord can be traversed in proper order of appearance.
 
 ## Functions
 

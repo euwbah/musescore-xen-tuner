@@ -1,8 +1,10 @@
+// When there's some syntax error in fns.js and its not showing up,
+// uncomment this line.
+// import "fns.js" as Aaaimport "fns.ms.js" as Fns
 import "fns.ms.js" as Fns
 import MuseScore 3.0
 import QtQuick 2.9
 import QtQuick.Controls 2.2
-import QtQuick.Controls.Styles 2.2
 import QtQuick.Layouts 1.2
 import Qt.labs.settings 1.0
 import FileIO 3.0
@@ -13,8 +15,10 @@ MuseScore {
       menuPath: "Plugins.xen.Tune"
 
       onRun: {
-        console.log("Xen Tune");
-        Fns.init(Accidental, NoteType, SymId, Element);
+        console.log('Xen Tune');
+        // When you want to find which import has a syntax error, uncomment this line
+        // console.log(JSON.stringify(Fns));
+        Fns.init(Accidental, NoteType, SymId, Element, Ms);
         console.log(Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')
