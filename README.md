@@ -16,6 +16,23 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 - [ ] MIDI/MPE export with channel pitch bend support.
 
+
+## Quick Start
+
+> :warning: This project is still a work in progress. It is semi-usable, but I haven't had time to test nor write proper how-tos yet.
+
+Download the project as .zip (the green "Code" button on top right of the project page).
+
+Extract files to plugins folder & activate them (see [this guide](https://musescore.org/en/handbook/3/plugins))
+
+Remove the default keyboard shortcuts for pitch-up/down (up/down arrow keys) and enharmonic (J key) in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts).
+
+Assign `Up Arrow` to `up.qml`, `Down Arrow` to `down.qml` and `J` for enharmonic.qml using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins).
+
+Copy & read the [example tuning configuration](#case-studyexample).
+
+Read [how the plugin conceptualizes tunings & accidentals](#what-how) to make your own tuning configurations.
+
 ## [List of Supported Accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
 This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
