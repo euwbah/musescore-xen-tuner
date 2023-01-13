@@ -19,7 +19,7 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 ## Quick Start
 
-> :warning: This project is still a work in progress. It is semi-usable, but I haven't had time to test nor write proper how-tos yet.
+> :warning: This project is still a work in progress. It is semi-usable, but I haven't had time to test nor write proper how-tos yet. In the meanwhile, feel free to message me on discord (euwbah#1417), [Telegram](https://t.me/euwbah) or [Instagram](https://www.instagram.com/euwbah/) if you need any assistance.
 
 Download the project as .zip (the green "Code" button on top right of the project page).
 
@@ -488,8 +488,8 @@ This is a VERY involved process:
 - Obtain the proper ordering of `AccidentalSymbols` from `XenNote.orderedSymbols` object
 - Ensure the modified note does not affect subsequent notes. Aggressively add explicit accidentals on all notes in the bar that share the same `Note.line` of the original & modified note.
 - Update symbols attached to note, update `Note.line`
-- At the end of processing each chord (or each note, for individually-selected notes mode), auto position the newly created accidentals.
-- At the end of the operation, remove extraneous explicit accidentals (only if config doesn't specify to keep them in case the user wants to do some post-tonal 23rd century stuff)
+- At the end of processing each chord (in range selection mode), or each note (for `Alt+Click` selection mode), auto position the newly created accidentals. The `BarState` object comes in handy as it sorts notes by order of appearance.
+- At the end of the operation, remove extraneous explicit accidentals (only if config doesn't specify to keep them in case the user wants to do some post-tonal 23rd century stuff)  The `BarState` object comes in handy as it sorts notes by order of appearance.
 
 -----
 
@@ -602,6 +602,31 @@ A ligatured entry will contribute additional `XenNote` spellings pointing to the
 With these additional lookup entries, a ligatured spelling is implemented simply as an 'enharmonic spelling', and ligatures can be toggled with the enharmonic cycling operation.
 
 When creating/managing accidentals during up/down operations, this plugin favours spellings with lesser symbols. If for whatever reason, a ligatured spelling has more symbols than an non-ligatured one, the plugin will not automatically use the ligatured spelling. Thus, it only makes sense to define ligatures if the ligatured spellings will always have fewer symbols than the non-ligatured one.
+
+
+## Auto-positioning & layout
+
+This section describes the methodology of auto-positioning accidentals. This plugin will try its best to position accidentals. However, being a very ambitious project, this is an experimental feature and needs much feedback, testing & help from the community.
+
+### 1. Read chords at given tick
+
+First, we need to gather all the chords with the same tick position into one `Chords` data structure. In a similar spirit to `BarState`, , except there is no tick lookup, and that grace chords between multiple voices are indexed together, left to right.
+
+For example, in the situation where both voice 1 and 2 have chords at the same tick, and voice 1 has 2 grace chords and voice 2 has 1 grace chord. The generated data structure will look like this:
+
+```js
+{
+  1: {
+    0: [Chord1, Chord2],
+    1: [Chord3]
+  },
+  2: {
+    0: [Chord4]
+  }
+}
+```
+
+### 2. 
 
 ## Data Structures
 
@@ -1047,6 +1072,11 @@ Return value of `chooseNextNote()` function. Contains info about what the plugin
 Return value of `readBarState()`. This object is helpful checking accidental-related things as it presents notes on a line-by-line (nominal) basis, with notes properly sorted by order of appearance.
 
 The tick-notes mappings on each line can be sorted by tick, and each (grace) chord can be traversed in proper order of appearance.
+
+#### `Chords`
+
+```js
+```
 
 ## Functions
 

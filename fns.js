@@ -28,8 +28,13 @@ function generateDefaultTuningConfig() {
 }
 
 /*
-Any two notes that are less than this many cents apart will be considered
-enharmonically equivalent.
+Sets the maximum interval (in cents) of notes that will be
+considered enharmonically equivalent.
+
+If your tuning system is extremely huge and has very small
+intervals, you may need to set this to a smaller value so
+that notes do not get incorrectly classified as enharmonic
+equivalents.
 
 Don't set this too low, it may cause floating point errors to
 make enharmonically equivalent show up as not equivalent.
@@ -38,6 +43,32 @@ Don't set this too high, it may cause notes that should not be
 considered enharmonically equivalent to show up as equivalent.
 */
 var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
+
+/*
+When in complex/non-octave tunings, certain notes can be very far off from
+the original 12edo pitches of the notes. Using cents tuning alone for
+large tuning offsets will cause an unpleasant timbre during playback.
+
+Any tuning offsets more than the specified number of semitones will include
+PlayEvent adjustments, which will internally change the MIDI note playback
+of this note during playback.
+
+However, when PlayEvents are used to offset tuning a note, the playback sounded
+when selecting/modifying the note will not include the semitone offset. 
+
+The score has to be played in order to hear the correct pitch.
+
+If you rather hear the correct pitch when selecting/modifying the note,
+in spite of weird timbres caused by playback, set this number higher
+(e.g. 40). 
+
+If you rather preserve timbre as much as possible, set this
+number to 1.
+
+2 is a good midpoint for preserving selection playback for most
+standard tunings.
+*/
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 2;
 
 /**
  * 
@@ -148,6 +179,9 @@ function tokenizeNote(note) {
     var octavesFromA4 = Math.floor((note.pitch - 69) / 12);
     var nominals = Lookup.TPC_TO_NOMINAL[note.tpc][0];
     octavesFromA4 += Lookup.TPC_TO_NOMINAL[note.tpc][1];
+    
+    console.log('note bbox: ' + JSON.stringify(note.bbox) + '\npos: ' + 
+        note.posX + ', ' + note.posY + '\npage pos: ' + JSON.stringify(note.pagePos));
 
     var hasAcc = false;
     var accidentals = {};
@@ -1106,11 +1140,12 @@ function resetParms(parms) {
  * @param {[number]} tickOfThisBar Tick of first segment of this bar
  * @param {[number]} tickOfNextBar Tick of first seg of the next bar, or -1 if last bar
  * @param {*} MuseScore Cursor object
+ * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @returns {NoteData?} 
  *      The parsed note data. If the note's accidentals are not valid within the
  *      declared TuningConfig, returns `null`.
  */
-function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor) {
+function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
     /*
     Example repr. of the note Ebbbb\\4 with implicit accidentals:
     {
@@ -1149,7 +1184,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var graceChord = findGraceChord(msNote.internalNote);
 
     var accidentalsHash = getAccidental(
-        cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0);
+        cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0, null, reusedBarState);
 
     console.log("Found effective accidental: " + accidentalsHash);
 
@@ -1181,8 +1216,8 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var xenNote = tuningConfig.notesTable[xenHash];
 
     if (xenNote == undefined) {
-        console.log("FATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config");
-        console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
+        console.log("\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config. \n Please check your tuning config. \n-----------------------\n");
+        // console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
     }
 
@@ -1202,9 +1237,10 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
  * @param {[number]} tickOfThisBar Tick of first segment of this bar
  * @param {[number]} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {*} cursor MuseScore Cursor object
+ * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @returns {NoteData} NoteData object
  */
-function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor) {
+function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
     var msNote = tokenizeNote(note);
     console.log(accidentalsHash(msNote.accidentals));
     var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
@@ -1267,13 +1303,15 @@ function calcCentsOffset(noteData, tuningConfig) {
  * @param {*} note MuseScore note object
  * @param {KeySig} keySig 
  * @param {TuningConfig} tuningConfig 
+ * @param {[number]} tickOfThisBar Tick of first segment of this bar
+ * @param {[number]} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {*} cursor MuseScore note object
+ * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  */
-function tuneNote(note, keySig, tuningConfig, bars, cursor) {
-    var barBoundaries = getBarBoundaries(getTick(note), bars);
+function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
 
     var noteData = parseNote(note, tuningConfig, keySig,
-        barBoundaries[0], barBoundaries[1], cursor);
+        tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
 
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
 
@@ -1281,7 +1319,7 @@ function tuneNote(note, keySig, tuningConfig, bars, cursor) {
 
     var midiOffset = Math.round(centsOffset / 100);
 
-    if (Math.abs(midiOffset) <= 2) {
+    if (Math.abs(midiOffset) <= PLAY_EVENT_MOD_SEMITONES_THRESHOLD) {
         // If the midiOffset required is not that huge (within +/- 2 semitones)
         // don't affect PlayEvents.
 
@@ -1891,6 +1929,14 @@ function restoreCursorPosition(savedPosition) {
  *  `exclude=2` will be used, no matter what it was set to.
  * 
  *  TODO: Check if this may cause any problems.
+ * @param {BarState?} reusedBarState
+ *  If an empty object is provided, a shallow copy of the read bar state
+ *  will be stored in this object.
+ *  
+ *  If the same bar is being read again, and nothing has changed in
+ *  the bar, this object can be passed back to this function to reuse the bar state,
+ *  so that it doesn't need to repeat `readBarState`.
+ * 
  * @returns {string?} 
  *  If an accidental is found, returns the accidental hash of the
  *  AccidentalSymbols object. 
@@ -1898,7 +1944,7 @@ function restoreCursorPosition(savedPosition) {
  *  If no accidentals found, returns null.
  */
 function getAccidental(cursor, note, tickOfThisBar,
-    tickOfNextBar, exclude, lineOverride) {
+    tickOfNextBar, exclude, lineOverride, reusedBarState) {
 
     var nTick = getTick(note);
     var nLine = lineOverride || note.line;
@@ -1912,7 +1958,19 @@ function getAccidental(cursor, note, tickOfThisBar,
         return null;
     }
 
-    var barState = readBarState(tickOfThisBar, tickOfNextBar, cursor);
+    var barState;
+    if (reusedBarState && Object.keys(reusedBarState).length != 0) {
+        barState = reusedBarState;
+    } else {
+        barState = readBarState(tickOfThisBar, tickOfNextBar, cursor);
+        if (reusedBarState) {
+            // if empty reusedBarState provided, populate it with the generated
+            // bar state.
+
+            // TODO: If lagging, check if for-in is more performant for QJS engine.
+            Object.assign(reusedBarState, barState);
+        }
+    }
 
     var lineState = barState[nLine];
 
@@ -2164,6 +2222,13 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement) {
  * @param {*} parms Reference to `parms` object.
  * @param {*} newElement Reference to `PluginAPI.newElement()` function
  * @param {*} cursor Cursor object.
+ * 
+ * @returns {BarState}
+ *  Returns an updated `BarState` object which includes changes made to
+ *  the newly modified note.
+ *  
+ *  Use this for layout & formatting purposes so that `BarState` does not
+ *  need to be recalculated so often.
  */
 function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tuningConfig = parms.currTuning;
@@ -2262,7 +2327,10 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     // STEP 4
     //
 
-    tuneNote(note, keySig, tuningConfig, bars, cursor);
+    var newBarState = {};
+    tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newBarState);
+
+    return newBarState;
 }
 
 /**
@@ -2306,6 +2374,8 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
         firstBarTickIndex = lastBarTickIndex;
 
     var currBarTick = bars[firstBarTickIndex];
+    
+    console.log('removeUnnec( from bar ' + firstBarTickIndex + ' (' + currBarTick + ') to ' + endBarTick + ')');
 
     // Repeat procedure for 1 bar at a time.
 

@@ -23,7 +23,7 @@ MuseScore {
       property var stepwiseDirection: 0
       property var stepwiseAux: 0
       
-      onRun: {
+      onRun: onRun: {
         console.log("Xen Up");
 
         if (typeof curScore === 'undefined')
@@ -253,6 +253,8 @@ MuseScore {
 
               console.log('processing:' + cursor.tick + ', voice: ' + cursor.voice + ', staffIdx: ' + cursor.staffIdx);
 
+              var tickOfLastModified = -1;
+
               // Loop elements of a voice
               while (cursor.segment && (cursor.tick < endTick)) {
                 if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
@@ -304,6 +306,7 @@ MuseScore {
 
                       // Modify pitch.
                       Fns.executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
+                      tickOfLastModified = cursor.tick;
                     }
                   }
                 }
@@ -311,10 +314,13 @@ MuseScore {
               }
 
               // Don't forget to remove unnecessary accidentals for the last bit of 
-              // the selection
+              // the selection that wasn't included in the loop above.
 
-              Fns.removeUnnecessaryAccidentals(
-                tickOfThisBar, tickOfThisBar, parms.currKeySig, parms.bars, cursor, newElement);
+              if (tickOfLastModified != -1) {
+                Fns.removeUnnecessaryAccidentals(
+                  tickOfLastModified, tickOfLastModified, parms.currKeySig, parms.bars, 
+                  cursor, newElement);
+              }
             }
           }
         }

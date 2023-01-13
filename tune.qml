@@ -149,12 +149,36 @@ MuseScore {
             cursor.staffIdx = staff;
             cursor.rewind(0);
 
-            var measureCount = 0;
+          // 0-indexed bar counter.
+            // Used to keep track of bar boundaries efficiently.
+            var currBar = parms.bars.length - 1;
+            for (var i = 0; i < parms.bars.length; i++) {
+              if (parms.bars[i].tick > cursor.tick) {
+                currBar = i - 1;
+                break;
+              }
+            }
+
+            var tickOfThisBar = parms.bars[currBar];
+            var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
 
             console.log("Tuning. staff: " + staff + ", voice: " + voice);
 
+            // Tuning doesn't affect note/accidental state,
+            // we can reuse bar states per bar to prevent unnecessary
+            // computation.
+            var reusedBarState = {};
+
             // Loop elements of a voice
             while (cursor.segment && (fullScore || cursor.tick < endTick)) {
+              if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
+                // Update bar boundaries.
+                currBar++;
+                tickOfThisBar = tickOfNextBar;
+                tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
+                // reset bar state.
+                reusedBarState = {};
+              }
 
               // Apply all declared configs up to current cursor position.
 
@@ -178,12 +202,14 @@ MuseScore {
                     // iterate through all grace chords
                     var notes = graceChords[i].notes;
                     for (var j = 0; j < notes.length; j++) {
-                      Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning, parms.bars, cursor);
+                      Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning, 
+                        tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
                     }
                   }
                   var notes = cursor.element.notes;
                   for (var i = 0; i < notes.length; i++) {
-                    Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning, parms.bars, cursor);
+                    Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning, 
+                      tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
 
                     // REMOVE AFTER TESTING
                     // this is how find other symbols (aux accidentals) attached to the note
