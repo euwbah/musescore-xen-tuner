@@ -27,7 +27,13 @@ Extract files to plugins folder & activate them (see [this guide](https://musesc
 
 Remove the default keyboard shortcuts for pitch-up/down (up/down arrow keys) and enharmonic (J key) in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts).
 
-Assign `Up Arrow` to `up.qml`, `Down Arrow` to `down.qml` and `J` for enharmonic.qml using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins).
+Assign the following shortcuts using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins):
+ 
+- `up.qml` & `down.qml`: Up & Down arrow keys
+- `enharmonic.qml`: J key
+- `tune`: Alt+R
+
+After entering new notes, remember to press `Alt+R` to tune notes to the correct pitch. If you use up/down/J keys, the modified notes will also be tuned.
 
 Copy & read the [example tuning configuration](#case-studyexample).
 
