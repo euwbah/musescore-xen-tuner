@@ -623,7 +623,7 @@ Here is an image of non-positioned and positioned versions of the same notes at 
 
 ![](imgs/layout-example.png)
 
-We will use this example to figure out the approach of auto-positioning.
+We will use this example to formulate our auto-positioning algorithm.
 
 ### 1. Read chords at given tick
 
