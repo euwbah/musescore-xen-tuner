@@ -166,7 +166,13 @@ function tokenizeNote(note) {
     for (var i = 0; i < note.elements.length; i++) {
         // If note has a Full/Half supported accidental,
 
-        var acc = Lookup.LABELS_TO_CODE[note.elements[i].symbol.toString()];
+        var elem = note.elements[i];
+
+        if (!elem.symbol) {
+            continue;
+        }
+
+        var acc = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
 
         if (acc) {
             if (accidentals[acc])
@@ -175,6 +181,8 @@ function tokenizeNote(note) {
                 accidentals[acc] = 1;
 
             hasAcc = true;
+
+            console.log('found elem: ' + elem.symbol.toString() + ', bounding: ' + JSON.stringify(elem.bbox));
         }
     }
 

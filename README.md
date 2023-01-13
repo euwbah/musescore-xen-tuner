@@ -4,13 +4,13 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 ## Goals
 
-- [x] (50% complete) The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
+- [x] (60%, needs [data entry](#help-needed)) The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
 
-- [ ] The user should not need to open up the symbols palette and manually search for the accidental the user needs. Every unique accidental and note in the equave should be accessible with just up/down arrows and 'J' to cycle through enharmonics.
+- [x] (60%, needs testing) The user should not need to open up the symbols palette and manually search for the accidental the user needs. Every unique accidental and note in the equave should be accessible with just up/down arrows and 'J' to cycle through enharmonics.
 
 - [ ] In large tuning systems, the user should not need to press the up arrow one [gongulus](https://googology.fandom.com/wiki/Gongulus) times to get to the desired note. An auxiliary up/down operation should be provided that transposes to the next note that considers a smaller subset of accidentals and leaves the other accidentals unchanged.
 
-- [ ] Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol.
+- [x] (60%, needs testing) Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol.
 
 - [ ] Proper transposition by any interval of choice for all regular mappings.
 
