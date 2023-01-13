@@ -2402,6 +2402,8 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                             var msNote = msNotes[noteIdx];
 
                             var accHash = accidentalsHash(msNote.accidentals);
+                            var accHashWords = accHash.split(' ');
+                            var isNatural = accHashWords.length == 2 && accHashWords[0] == '2';
 
                             if (accHash != '') {
                                 // we found an explicit accidental on this note.
@@ -2419,6 +2421,11 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
                                     // is also redundant. Remove.
+
+                                    setAccidental(msNote.internalNote, null, newElement);
+                                } else if (isNatural && !currAccState && (!keySig || !keySig[lineNum])) {
+                                    // This note has a natural accidental, but it is not
+                                    // needed, since the prior accidental state/key sig is natural.
 
                                     setAccidental(msNote.internalNote, null, newElement);
                                 } else {
