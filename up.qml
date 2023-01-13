@@ -1,6 +1,7 @@
 // When there's some syntax error in fns.js and its not showing up,
 // uncomment this line.
 // import "fns.js" as Aaaimport "fns.ms.js" as Fns
+import "fns.ms.js" as Fns
 import MuseScore 3.0
 import QtQuick 2.9
 import QtQuick.Controls 2.2
@@ -156,6 +157,9 @@ MuseScore {
 
             for (var i = 0; i < selectedNotes.length; i++) {
               var note = selectedNotes[i];
+              var voice = note.track % 4;
+              var staffIdx = Math.floor(note.track / 4);
+              var tick = Fns.getTick(note);
 
               parms.currKeySig = null;
               parms.currTuning = Fns.generateDefaultTuningConfig();
@@ -177,29 +181,13 @@ MuseScore {
 
               affected.push(note);
 
-              var notes = note.parent.notes; // represents the notes in the chord of the selected note.
-              var noteChordIndex = -1; // Index of note in notes array
-              for (var j = 0; j < notes.length; j++) {
-                if (notes[j].is(note)) {
-                  noteChordIndex = j;
-                  break;
-                }
-              }
+              Fns.setCursorToPosition(cursor, tick, voice, staffIdx);
 
-              console.log('noteChordIndex: ' + noteChordIndex);
+              console.log('indiv note: line: ' + note.line + ', voice: ' + cursor.voice 
+                + ', staff: ' + cursor.staffIdx + ', tick: ' + segment.tick);
 
-              var segment;
-              if (note.parent.parent.tick !== undefined)
-                segment = note.parent.parent;
-              else
-                segment = note.parent.parent.parent;
-
-              setCursorToPosition(cursor, segment.tick, note.track % 4, note.track / 4);
-
-              console.log('indiv note: line: ' + note.line + ', accidental: ' + convertAccidentalTypeToName(0 + note.accidentalType) +
-                        ', voice: ' + cursor.voice + ', staff: ' + cursor.staffIdx + ', tick: ' + segment.tick);
-
-              for (var j = 0; j < parms.staffConfigs[staff].length; j++) {
+              // Set c
+              for (var j = 0; j < parms.staffConfigs[Math.floor(note.track / 4)].length; j++) {
                 var config = parms.staffConfigs[cursor.staffIdx][j];
                 if (config.tick <= cursor.tick) {
                   var configKeys = Object.keys(config.config);
@@ -210,7 +198,11 @@ MuseScore {
                 }
               }
 
+              var barBoundaries = Fns.getBarBoundaries(tick, parms.bars);
+
               // Implement pitch modification here.
+
+              Fns.executeTranspose(note, )
 
             }
           }

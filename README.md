@@ -1031,10 +1031,30 @@ The tick-notes mappings on each line can be sorted by tick, and each (grace) cho
 
 ## Functions
 
+I list the most useful functions here, but you can find the rest in the source code.
+
+There's JSDoc documentation for the functions in `fns.js`.
+
 #### `tokenizeNote`
 
-Takes in a MuseScore Note element and returns a `MSNote` object.
+Reads a MuseScore `PluginAPI::Note` object and tokenizes it into `MSNote`. Use this to retrieve symbols on a note & its nominal offset from the reference note.
+
+#### `parseNote`
+
+Reads a MuseScore `PluginAPI::Note` object and parses it into `NoteData`. Use this to retrieve the effective `XenNote` spelling of a note, taking into account prior accidentals via `getAccidental()`, current `KeySig` and `TuningConfig`.
 
 #### `getAccidental`
 
-Checks the current (or preceding if `before=true`) note for explicit accidentals.
+Retrieve the accidental symbol that applies to a note/staff line at a given tick. Has settings to include or exclude accidentals on the note being checked itself.
+
+#### `tuneNote`
+
+Updates `Note.tuning`. If the tuning amount is too large, will also update `PlayEvent`s of a `PluginAPI::Note` object so that the timbre of the playback is not off.
+
+#### `executeTranspose`
+
+Moves a `PluginAPI::Note` stepwise up/down, or enharmonically cycles the note. This function will aggressively add explicit accidentals to following notes that may be possibly affected by this operation.
+
+#### `removeUnnecessaryAccidentals`
+
+Removes unnecessary explicit accidentals created by the plugin or the user from a range of specified bars in one staff.

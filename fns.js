@@ -140,6 +140,8 @@ function findGraceChord(note) {
 
 /**
  * Reads the Ms::PluginAPI::Note and creates a `MSNote` data structure.
+ * 
+ * @param {*} note `PluginAPI::Note`
  */
 function tokenizeNote(note) {
     // 69 = MIDI A4
@@ -1258,9 +1260,26 @@ function tuneNote(note, keySig, tuningConfig, bars, cursor) {
     console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
 
     var midiOffset = Math.round(centsOffset / 100);
+
+    if (Math.abs(midiOffset) <= 2) {
+        // If the midiOffset required is not that huge (within +/- 2 semitones)
+        // don't affect PlayEvents.
+
+        // When PlayEvent is changed, the playback of a Note when selected
+        // will not match the actual playback of the note, which can be 
+        // quite annoying.
+
+        // This reduces the chance of that happening when the tuning
+        // & nominals are close to 12.
+        midiOffset = 0;
+    }
+
     centsOffset -= midiOffset * 100;
 
     note.tuning = centsOffset;
+
+    // Update midi offset as well.
+
     // If there are ornaments on this note, the ornaments
     // will result in multiple play events. Though,
     // it's not possible to microtune the ornaments, you can still at least
@@ -1741,8 +1760,8 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
                 break;
             }
         } else if (!cursor.next()) {
-            console.log('INFO: setCursorToPosition reached end during forward traversal. tick: ' 
-                + cursor.tick + ', elem: ' + cursor.element);
+            console.log('INFO: setCursorToPosition reached end during forward traversal to ' 
+                + tick + '|' + voice + '. tick: ' + cursor.tick + ', elem: ' + cursor.element);
             break;
         }
     }
