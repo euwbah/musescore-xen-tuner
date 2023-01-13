@@ -13,18 +13,18 @@ MuseScore {
 
       version: "0.1.0"
       description: "Cycle selection/selected note(s) through enharmonic equivalents."
-      menuPath: "Plugins.xen.enharmonic"
+      menuPath: "Plugins.xen.Enharmonic"
 
       /* 
       Just update these vars to change the direction/aux of this operation.
 
-      Directions: 1 (up), 0 (enharmonic cycle), -1 ()
+      Directions: 1 (up), 0 (enharmonic cycle), -1 (down)
       */
       property var stepwiseDirection: 0
       property var stepwiseAux: 0
       
-      onRun: onRun: {
-        console.log("Xen Up");
+      onRun: {
+        console.log("Xen Enharmonic");
 
         if (typeof curScore === 'undefined')
               Qt.quit();

@@ -18,7 +18,7 @@ MuseScore {
       /* 
       Just update these vars to change the direction/aux of this operation.
 
-      Directions: 1 (up), 0 (enharmonic cycle), -1 ()
+      Directions: 1 (up), 0 (enharmonic cycle), -1 (down)
       */
       property var stepwiseDirection: 1
       property var stepwiseAux: 0
