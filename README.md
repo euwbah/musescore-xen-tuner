@@ -609,11 +609,23 @@ When creating/managing accidentals during up/down operations, this plugin favour
 
 This section describes the methodology of auto-positioning accidentals. This plugin will try its best to position accidentals. However, being a very ambitious project, this is an experimental feature and needs much feedback, testing & help from the community.
 
+### 0. Auto-positioning case study
+
+The auto-positioning function regards all chords at the same tick position at once. Thus, we only need to care about the positioning of accidentals one tick at a time.
+
+Here are the non-positioned and positioned versions juxtaposed:
+
+
+
 ### 1. Read chords at given tick
 
-First, we need to gather all the chords with the same tick position into one `Chords` data structure. In a similar spirit to `BarState`, , except there is no tick lookup, and that grace chords between multiple voices are indexed together, left to right.
+First, we need to gather all the chords with the same tick position into one `Chords` data structure. In a similar spirit to `BarState`, the purpose is to allow for easy traversal of chords for the purpose of auto-positioning.
 
-For example, in the situation where both voice 1 and 2 have chords at the same tick, and voice 1 has 2 grace chords and voice 2 has 1 grace chord. The generated data structure will look like this:
+The `Chords` splits chords by voice. Within each voice, the main chord is separated from the grace chords. The index of the grace chords are synced across all voices right-to-left.
+
+To give an example, let's say voice 1 and 2 have chords + grace chords at the same tick; voice 1 has 2 grace chords and voice 2 has 1 grace chord. 
+
+The generated data structure will look like this:
 
 ```js
 {

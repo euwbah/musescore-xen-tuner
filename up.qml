@@ -221,7 +221,7 @@ MuseScore {
               Fns.removeUnnecessaryAccidentals(
                 tick, tick, parms.currKeySig, parms.bars, cursor, newElement);
               
-              // Format
+              // Auto position accidentals in this bar.
 
             }
           }

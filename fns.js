@@ -180,8 +180,8 @@ function tokenizeNote(note) {
     var nominals = Lookup.TPC_TO_NOMINAL[note.tpc][0];
     octavesFromA4 += Lookup.TPC_TO_NOMINAL[note.tpc][1];
     
-    console.log('note bbox: ' + JSON.stringify(note.bbox) + '\npos: ' + 
-        note.posX + ', ' + note.posY + '\npage pos: ' + JSON.stringify(note.pagePos));
+    // console.log('note bbox: ' + JSON.stringify(note.bbox) + '\npos: ' + 
+    //     note.posX + ', ' + note.posY + '\npage pos: ' + JSON.stringify(note.pagePos));
 
     var hasAcc = false;
     var accidentals = {};
@@ -216,7 +216,7 @@ function tokenizeNote(note) {
 
             hasAcc = true;
 
-            console.log('found elem: ' + elem.symbol.toString() + ', bounding: ' + JSON.stringify(elem.bbox));
+            // console.log('found elem: ' + elem.symbol.toString() + ', bounding: ' + JSON.stringify(elem.bbox));
         }
     }
 
@@ -2184,6 +2184,9 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
 function modifyNote(note, lineOffset, orderedSymbols, newElement) {
     console.log('modifyNote(' + (note.line + lineOffset) + ', ' + JSON.stringify(orderedSymbols) + ')');
     var newLine = note.line + lineOffset;
+
+    // This is the easiest hacky solution to move a note's line.
+
     note.line = newLine;
 
     var acc = newElement(Element.ACCIDENTAL);
@@ -2194,7 +2197,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement) {
     note.add(acc);
     note.accidentalType = Accidental.NONE;
 
-    note.line = newLine; // Some hack to really make it register...
+    note.line = newLine; // Finally...
 
     setAccidental(note, orderedSymbols, newElement);
 }
@@ -2207,7 +2210,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement) {
  * - Finds next pitch to transpose to
  * - Aggresively apply explicit accidentals on notes that may be affected by the
  *   modification of the current note.
- * - Modifies pitch & accidental of note.
+ * - Modifies pitch & accidental of note. Explicit accidental is always used.
  * - Tunes the note.
  * 
  * This function will create some unnecessary accidentals that should be
@@ -2322,7 +2325,16 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     //
     //
 
-    modifyNote(note, nextNote.lineOffset, nextNote.xen.orderedSymbols, newElement);
+    var accSymbols = nextNote.xen.orderedSymbols;
+
+    if (!accSymbols || accSymbols.length == 0) {
+        // If the nextNote is a nominal, use explicit natural symbol.
+        
+        // The new note added should always use explicit accidentals.
+        accSymbols = [2];
+    }
+
+    modifyNote(note, nextNote.lineOffset, accSymbols, newElement);
 
     //
     // STEP 4
@@ -2524,4 +2536,28 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
         // go next bar
         currBarTick = nextBarTick;
     }
+}
+
+/**
+ * Segregate notes into chords according to the `Chords` structure.
+ * 
+ * Each `Chords` object represents the chords (+ grace chords) available
+ * at a given tick.
+ * 
+ * @param {BarState} barState 
+ */
+function segregateChords(barState) {
+
+}
+
+/**
+ * 
+ * Automatically positions accidentals.
+ * 
+ * @param {BarState} barState 
+ *  `BarState` object containing a structured representation of the notes
+ *  in a bar.
+ */
+function autoPositionAccidentals(barState) {
+
 }
