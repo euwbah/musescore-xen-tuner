@@ -488,8 +488,9 @@ This is a VERY involved process:
 - Obtain the proper ordering of `AccidentalSymbols` from `XenNote.orderedSymbols` object
 - Ensure the modified note does not affect subsequent notes. Aggressively add explicit accidentals on all notes in the bar that share the same `Note.line` of the original & modified note.
 - Update symbols attached to note, update `Note.line`
-- At the end of processing each chord (in range selection mode), or each note (for `Alt+Click` selection mode), auto position the newly created accidentals. The `BarState` object comes in handy as it sorts notes by order of appearance.
-- At the end of the operation, remove extraneous explicit accidentals (only if config doesn't specify to keep them in case the user wants to do some post-tonal 23rd century stuff)  The `BarState` object comes in handy as it sorts notes by order of appearance.
+- At the end of each bar (or selection), remove extraneous explicit accidentals (only if config doesn't specify to keep them in case the user wants to do some post-tonal 23rd century stuff)  The `BarState` object comes in handy as it sorts notes by order of appearance.
+- Then, process each tick-chords in the bar into a list of `Chords` objects. Each `Chords` object represents the chords & grace chords of all 4 voices at a single tick position.
+- Use the `Chords` object to auto position accidentals.
 
 -----
 

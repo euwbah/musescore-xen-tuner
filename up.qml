@@ -213,12 +213,15 @@ MuseScore {
               // Modify pitch.
 
               // direction: 1: up, -1 = down, 0: enharmonic cycle.
-              Fns.executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
+              var barState = Fns.executeTranspose(note, stepwiseDirection, 
+                stepwiseAux, parms, newElement, cursor);
 
               // Remove unnecessary accidentals just for this bar.
 
               Fns.removeUnnecessaryAccidentals(
                 tick, tick, parms.currKeySig, parms.bars, cursor, newElement);
+              
+              // Format
 
             }
           }

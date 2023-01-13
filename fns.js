@@ -1528,6 +1528,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * @param {number} tickOfThisBar Tick of first segment of the bar
  * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
  * @param {*} cursor MuseScore cursor object
+ * @param {BarState} reusedBarState
  * @returns {NextNote?} 
  *  `NextNote` object containing info about how to spell the newly modified note.
  *  Returns `null` if no next note can be found.
