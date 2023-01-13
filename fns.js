@@ -173,7 +173,7 @@ function tokenizeNote(note) {
                 accidentals[acc] += 1;
             else
                 accidentals[acc] = 1;
-            
+
             hasAcc = true;
         }
     }
@@ -1042,7 +1042,8 @@ function parsePossibleConfigs(text, tick) {
     var maybeConfig = parseTuningConfig(text);
 
     if (maybeConfig != null) {
-        console.log("Found tuning config:\n" + text);
+        var numSteps = maybeConfig.stepsList.length;
+        console.log("Found tuning config:\n" + text + "\n" + numSteps + " steps/equave");
         // tuning config found.
 
         return { // ConfigUpdateEvent
@@ -1068,6 +1069,16 @@ function parsePossibleConfigs(text, tick) {
     }
 
     return null;
+}
+
+/**
+ * At the start of each voice, call this to reset parms to default.
+ * 
+ * @param {parms} parms Parms object.
+ */
+function resetParms(parms) {
+    parms.currTuning = generateDefaultTuningConfig();
+    parms.currKeySig = null;
 }
 
 /**
@@ -1187,6 +1198,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
  */
 function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor) {
     var msNote = tokenizeNote(note);
+    console.log(accidentalsHash(msNote.accidentals));
     var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
 
     return noteData;
@@ -1252,9 +1264,9 @@ function calcCentsOffset(noteData, tuningConfig) {
 function tuneNote(note, keySig, tuningConfig, bars, cursor) {
     var barBoundaries = getBarBoundaries(getTick(note), bars);
 
-    var noteData = parseNote(note, tuningConfig, keySig, 
+    var noteData = parseNote(note, tuningConfig, keySig,
         barBoundaries[0], barBoundaries[1], cursor);
-    
+
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
 
     console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
@@ -1336,7 +1348,7 @@ function getBarBoundaries(tick, bars) {
  * @returns {BarState} `BarState` object
  */
 function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
-    
+
     // console.log('readBarState(' + tickOfThisBar + ', ' + tickOfNextBar + ')');
 
     var ogCursorPos = saveCursorPosition(cursor);
@@ -1467,18 +1479,20 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * @param {*} note The current `PluginAPI::Note` MuseScore note object to be modified
  * @param {KeySig} keySig Current key signature
  * @param {TuningConfig} tuningConfig Tuning Config object
- * @param {[number]} bars `parms.bars` list of bar ticks
+ * @param {number} tickOfThisBar Tick of first segment of the bar
+ * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
  * @param {*} cursor MuseScore cursor object
  * @returns {NextNote?} 
  *  `NextNote` object containing info about how to spell the newly modified note.
  *  Returns `null` if no next note can be found.
  */
 function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
-    tuningConfig, bars, cursor) {
+    tuningConfig, tickOfThisBar, tickOfNextBar, cursor) {
+
+    var noteData = parseNote(note, tuningConfig, keySig,
+        tickOfThisBar, tickOfNextBar, cursor);
     
-    var barBoundaries = getBarBoundaries(getTick(note), bars);
-    var noteData = parseNote(note, tuningConfig, keySig, 
-        barBoundaries[0], barBoundaries[1], cursor);
+    console.log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
 
     if (direction === 0) {
         // enharmonic cycling
@@ -1534,6 +1548,8 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
 
     // The index of the StepwiseList this note is currently at.
     var currStepIdx = tuningConfig.stepsLookup[noteData.xen.hash];
+
+    console.log('currStepIdx: ' + currStepIdx);
 
     // If a valid step is found, this will contain list of enharmonically equivalent
     // XenNote.hashes that matches the accidental vector requirements of `regarding`.
@@ -1613,6 +1629,8 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
         return null;
     }
 
+    console.log('validOptions: ' + JSON.stringify(validOptions));
+
     var currAV = tuningConfig.avTable[noteData.xen.hash];
 
     // Returns the XenNote hash option so far.
@@ -1640,8 +1658,8 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
         // enharmonics based on prior existing accidentals are disallowed.
 
         var priorAcc = getAccidental(
-            cursor, note, barBoundaries[0], barBoundaries[1], 2, note.line - nominalOffset);
-        
+            cursor, note, tickOfThisBar, tickOfNextBar, 2, note.line - nominalOffset);
+
 
         if (priorAcc == null && keySig) {
             var keySigAcc = keySig[newXenNote.nominal];
@@ -1670,7 +1688,24 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
                     matchPriorAcc: true
                 }
             }
+        } else {
+            // If there's no prior accidental nor key signature accidental on this line,
+            // if a note can be represented by a nominal, use the nominal. 
+            // This avoids unnecessary enharmonics.
+
+            if (option.split(' ').length == 1) {
+                return {
+                    xen: newXenNote,
+                    nominal: newXenNote.nominal,
+                    equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
+                    lineOffset: -nominalOffset,
+                    matchPriorAcc: true
+                }
+            }
         }
+
+        // Otherwise, choose the best accidental option according to the above stated choosing rules
+        // in JSDoc.
 
         // Compute AV distance, choose option with smallest distance
 
@@ -1749,27 +1784,27 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
         console.log("FATAL ERROR: setCursorToPosition staffIdx out of range: " + staffIdx);
         return;
     }
-    
+
     // console.log('Called setCursorToPosition. tick: ' + tick + ', voice: ' + voice + ', staffIdx: ' + staffIdx);
 
     while (cursor.tick < tick) {
         if (cursor.measure && tick > cursor.measure.lastSegment.tick) {
             if (!cursor.nextMeasure()) {
-                console.log('INFO: setCursorToPosition reached end during forward measure traversal. tick: ' 
-                    + cursor.tick + ', elem: ' + cursor.element);
+                // console.log('INFO: setCursorToPosition reached end during forward measure traversal. tick: '
+                //     + cursor.tick + ', elem: ' + cursor.element);
                 break;
             }
         } else if (!cursor.next()) {
-            console.log('INFO: setCursorToPosition reached end during forward traversal to ' 
-                + tick + '|' + voice + '. tick: ' + cursor.tick + ', elem: ' + cursor.element);
+            // console.log('INFO: setCursorToPosition reached end during forward traversal to '
+            //     + tick + '|' + voice + '. tick: ' + cursor.tick + ', elem: ' + cursor.element);
             break;
         }
     }
 
     while (cursor.tick > tick) {
         if (!cursor.prev()) {
-            console.log('WARN: setCursorToPosition reached start during backward traversal. tick: ' 
-                + cursor.tick + ', elem: ' + cursor.element);
+            // console.log('WARN: setCursorToPosition reached start during backward traversal. tick: '
+            //     + cursor.tick + ', elem: ' + cursor.element);
             break;
         }
     }
@@ -1780,8 +1815,8 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
         //
         // In these cases, the cursor will not move to the 'correct' location, but it is
         // fine since there is nothing to check anyways.
-        console.log('WARN: didn\'t set Cursor correctly (This is fine if voice/staff is blank).\n' + 
-        'requested: ' + tick + ', got t|v: ' + cursor.tick + ' cursor.voice: ' + cursor.voice);
+        // console.log('WARN: didn\'t set Cursor correctly (This is fine if voice/staff is blank).\n' +
+        //     'requested: ' + tick + ', got t|v: ' + cursor.tick + ' cursor.voice: ' + cursor.voice);
     }
 }
 
@@ -1854,13 +1889,20 @@ function restoreCursorPosition(savedPosition) {
  *  
  *  If no accidentals found, returns null.
  */
-function getAccidental(cursor, note, tickOfThisBar, 
+function getAccidental(cursor, note, tickOfThisBar,
     tickOfNextBar, exclude, lineOverride) {
 
     var nTick = getTick(note);
     var nLine = lineOverride || note.line;
 
-    console.log("getAccidental() tick: " + nTick + ", line: " + nLine);
+    // console.log("getAccidental() tick: " + nTick + " (within " + tickOfThisBar + " - " 
+    //     + tickOfNextBar + "), line: " + nLine);
+
+    if (nTick > tickOfNextBar || nTick < tickOfThisBar) {
+        console.log("FATAL ERROR: getAccidental() tick " + nTick + 
+            " not within given bar ticks: " + tickOfThisBar + " to " + tickOfNextBar);
+        return null;
+    }
 
     var barState = readBarState(tickOfThisBar, tickOfNextBar, cursor);
 
@@ -1878,7 +1920,7 @@ function getAccidental(cursor, note, tickOfThisBar,
 
     // contains ticks of chords on line sorted from right-to-left.
     var lineTicks = Object.keys(lineState).sort(
-        function(a, b) {
+        function (a, b) {
             return parseInt(b) - parseInt(a);
         }
     );
@@ -1894,7 +1936,7 @@ function getAccidental(cursor, note, tickOfThisBar,
 
         // loop each voice from back to front.
         // Remember, every chord here is registered with the same tick!
-        for (var voice = 3; voice >= 0; voice --) {
+        for (var voice = 3; voice >= 0; voice--) {
             if (currTick == nTick && voice > note.voice) {
                 // E.g.: Within the same tick, voice 2's accidental 
                 //       cannot carry over to voice 1
@@ -1915,7 +1957,7 @@ function getAccidental(cursor, note, tickOfThisBar,
 
             // loop chords back to front. (start from main chord, then
             // proceeds to grace chords).
-            for (var chdIdx = chords.length - 1; chdIdx >= 0; chdIdx --) {
+            for (var chdIdx = chords.length - 1; chdIdx >= 0; chdIdx--) {
                 var chd = chords[chdIdx];
 
                 if (currTick == nTick && voice == note.voice) {
@@ -1925,9 +1967,9 @@ function getAccidental(cursor, note, tickOfThisBar,
                     if (chdIdxOfNote == -1) {
                         // We haven't found the chdIdx of the note yet...
 
-                        for (var nIdx = chd.length - 1; nIdx >= 0; nIdx --) {
+                        for (var nIdx = chd.length - 1; nIdx >= 0; nIdx--) {
                             var currNote = chd[nIdx];
-        
+
                             if (currNote.is(note)) {
                                 chdIdxOfNote = chdIdx;
                                 nIdxOfNote = nIdx;
@@ -1957,7 +1999,7 @@ function getAccidental(cursor, note, tickOfThisBar,
                 }
 
                 // loop notes back to front.
-                for (var nIdx = chd.length - 1; nIdx >= 0; nIdx --) {
+                for (var nIdx = chd.length - 1; nIdx >= 0; nIdx--) {
                     if (currTick == nTick && voice == note.voice && chdIdx == chdIdxOfNote) {
                         if (nIdx > nIdxOfNote || (exclude == 1 && nIdx == nIdxOfNote)) {
                             // If we're traversing the same chord as the note in question,
@@ -1975,8 +2017,8 @@ function getAccidental(cursor, note, tickOfThisBar,
 
                     if (msNote.accidentals) {
                         // we found the first explicit accidental! return it!
-                        var accHash =  accidentalsHash(msNote.accidentals);
-                        console.log('Found accidental (' + accHash + ') at: t: ' + 
+                        var accHash = accidentalsHash(msNote.accidentals);
+                        console.log('Found accidental (' + accHash + ') at: t: ' +
                             currTick + ', v: ' + voice + ', chd: ' + chdIdx + ', n: ' + nIdx);
 
                         return accHash;
@@ -1985,7 +2027,7 @@ function getAccidental(cursor, note, tickOfThisBar,
             }// end of chord loop
         }// end of voice loop
     }// end of ticks loop
-    
+
     // By the end of everything, if we still haven't found any explicit accidental,
     // return nothing.
 
@@ -2073,12 +2115,18 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * @param {*} newElement 
  */
 function modifyNote(note, lineOffset, orderedSymbols, newElement) {
+    console.log('modifyNote(' + (note.line + lineOffset) + ', ' + JSON.stringify(orderedSymbols) + ')');
     var newLine = note.line + lineOffset;
     note.line = newLine;
-    acc = newElement(Element.ACCIDENTAL);
-    acc.accidentalType = Accidental.NONE;
+
+    var acc = newElement(Element.ACCIDENTAL);
     note.add(acc);
-    acc.accidentalType = Accidental.NONE;
+    note.accidentalType = Accidental.NATURAL;
+
+    acc = newElement(Element.ACCIDENTAL);
+    note.add(acc);
+    note.accidentalType = Accidental.NONE;
+
     note.line = newLine; // Some hack to really make it register...
 
     setAccidental(note, orderedSymbols, newElement);
@@ -2099,16 +2147,36 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement) {
  * removed after this bar is processed.
  * 
  * @param {*} note `PluginAPI::Note` object to modify
+ * @param {number} direction 1 for up, -1 for down, 0 for enharmonic cycle
+ * @param {number?} aux 
+ *  The Nth auxiliary operation for up/down operations. If 0/null, defaults
+ *  to normal stepwise up/down. Otherwise, the Nth auxiliary operation will
+ *  be performed.
+ * 
+ * @param {*} parms Reference to `parms` object.
+ * @param {*} newElement Reference to `PluginAPI.newElement()` function
+ * @param {*} cursor Cursor object.
  */
-function executeTranspose(note, direction, parms, newElement, cursor) {
+function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tuningConfig = parms.currTuning;
     var keySig = parms.currKeySig; // may be null/invalid
     var regarding = parms.currAux; // may be null/undefined
     var bars = parms.bars;
+    var noteTick = getTick(note);
+
+    var barBoundaries = getBarBoundaries(noteTick, bars);
+    var tickOfThisBar = barBoundaries[0];
+    var tickOfNextBar = barBoundaries[1];
+
+    console.log('executeTranspose(' + direction + ', ' + aux + '): ');
+
+    // TODO: implement aux config & operations.
 
     // STEP 1: Choose the next note.
     var nextNote = chooseNextNote(
-        direction, null, note, keySig, tuningConfig, bars, cursor);
+        direction, null, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
+
+    console.log('nextNote: ' + JSON.stringify(nextNote));
 
     var newLine = note.line + nextNote.lineOffset;
 
@@ -2117,9 +2185,7 @@ function executeTranspose(note, direction, parms, newElement, cursor) {
 
     var ogCursorPos = saveCursorPosition(cursor);
 
-    var noteTick = getTick(note);
-    
-    var barBoundaries = getBarBoundaries(noteTick, bars);
+
 
     /*
     Applies explicit accidental to ALL notes with the same Note.line 
@@ -2157,8 +2223,8 @@ function executeTranspose(note, direction, parms, newElement, cursor) {
                     if (!gnote.is(note) &&
                         (gnote.line == note.line
                             || gnote.line == newLine)) {
-                        makeAccidentalsExplicit(gnote, tuningConfig, keySig, 
-                            barBoundaries[0], barBoundaries[1], newElement, cursor);
+                        makeAccidentalsExplicit(gnote, tuningConfig, keySig,
+                            tickOfThisBar, tickOfNextBar, newElement, cursor);
                     }
                 }
             }
@@ -2166,8 +2232,8 @@ function executeTranspose(note, direction, parms, newElement, cursor) {
             for (var i = 0; i < notes.length; i++) {
                 var n = notes[i];
                 if (!n.is(note) && (n.line == note.line || n.line == newLine)) {
-                    makeAccidentalsExplicit(n, tuningConfig, keySig, 
-                        barBoundaries[0], barBoundaries[1], newElement, cursor);
+                    makeAccidentalsExplicit(n, tuningConfig, keySig,
+                        tickOfThisBar, tickOfNextBar, newElement, cursor);
                 }
             }
 
@@ -2202,7 +2268,9 @@ function executeTranspose(note, direction, parms, newElement, cursor) {
  * **IMPORTANT:** `cursor.staffIdx` must be set to the staff to operate on.
  * 
  * @param {number} startBarTick Any tick position within the starting bar (or start of selection)
- * @param {number} endBarTick any tick pos within ending bar (or end of selection)
+ * @param {number} endBarTick 
+ *  Any tick pos within ending bar (or end of selection).
+ *  If -1, performs the operation till the end of the score.
  * @param {KeySig} keySig Key signature object
  * @param {[number]} bars List of bars' ticks
  * @param {*} cursor Cursor object
@@ -2211,26 +2279,29 @@ function executeTranspose(note, direction, parms, newElement, cursor) {
 function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cursor, newElement) {
 
     var lastBarTickIndex = -1; // if -1, means its the last bar of score
-    var firstBarTickIndex = -1; // if -1, something's wrong.
+    var firstBarTickIndex = -1;
 
     for (var i = 0; i < bars.length; i++) {
-        if (bars[i] > endBarTick) {
-            lastBarTickIndex = i;
+        if (endBarTick != -1 && bars[i] > endBarTick) {
+            lastBarTickIndex = i - 1;
             break;
         }
         if (bars[i] > startBarTick && firstBarTickIndex == -1) {
-            firstBarTickIndex = i;
+            firstBarTickIndex = i - 1;
         }
     }
 
     if (lastBarTickIndex == -1)
-        lastBarTickIndex = bars.length;
+        lastBarTickIndex = bars.length - 1;
+
+    if (firstBarTickIndex == -1)
+        firstBarTickIndex = lastBarTickIndex;
 
     var currBarTick = bars[firstBarTickIndex];
 
     // Repeat procedure for 1 bar at a time.
 
-    for (var barIdx = firstBarTickIndex; barIdx < lastBarTickIndex; barIdx++) {
+    for (var barIdx = firstBarTickIndex; barIdx <= lastBarTickIndex; barIdx++) {
 
         /*
         Procedure for each bar:
@@ -2246,7 +2317,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
            If any accidental is found redundant remove it.
         */
 
-        
+
         var nextBarTick;
         if (barIdx == bars.length - 1) {
             nextBarTick = -1;
@@ -2263,12 +2334,13 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
 
         var lines = Object.keys(barState);
 
-        for (var lineIdx = 0; lineIdx < lines.length; lineIdx ++) {
-            var currLine = lines[lineIdx];
+        for (var lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            var lineNum = lines[lineIdx]; // staff line number
+            var lineTickVoices = barState[lineNum]; // tick to voices mappings.
 
             // Sort ticks in increasing order.
-            var ticks = Object.keys(barState[currLine]).sort(
-                function(a, b) {
+            var ticks = Object.keys(barState[lineNum]).sort(
+                function (a, b) {
                     return parseInt(a) - parseInt(b)
                 }
             );
@@ -2278,20 +2350,20 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                 var currTick = ticks[tickIdx];
 
                 // go from voice 1 to 4.
-                for (var voice = 0; voice < 4; voice ++) {
+                for (var voice = 0; voice < 4; voice++) {
                     // We are traversing all voices left to right in order,
                     // there is no need to reset accidental state.
-                    
-                    var chds = currLine[currTick][voice];
+
+                    var chds = lineTickVoices[currTick][voice];
 
                     // go from leftmost to rightmost chord
-                    for (var chdIdx = 0; chdIdx < chds.length; chdIdx ++) {
+                    for (var chdIdx = 0; chdIdx < chds.length; chdIdx++) {
                         var msNotes = chds[chdIdx].map(
-                            function(note) {
+                            function (note) {
                                 return tokenizeNote(note);
                             }
                         );
-                        
+
                         // Before we proceed, make sure that all explicit accidentals 
                         // attached to notes within this same chord & line
                         // are exactly the same.
@@ -2301,7 +2373,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                         // as long as the accidentals are all the same.
                         // In that situation, it is clear that all the notes
                         // are the exact same note.
-                        
+
                         // Of course, people wouldn't write music like that,
                         // but while spamming transpose up/down, it is possible
                         // that such a scenario is reached, and the plugin should
@@ -2311,7 +2383,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                         var proceed = true;
                         for (var noteIdx = 0; noteIdx < msNotes.length; noteIdx++) {
                             var accHash = accidentalsHash(msNotes[noteIdx].accidentals);
-                            
+
                             if (accHash != '') {
                                 if (prevExplicitAcc == null) {
                                     prevExplicitAcc = accHash;
@@ -2335,7 +2407,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                                 // we found an explicit accidental on this note.
                                 // check if we really need it or not.
 
-                                var currAccState = accidentalState[currLine];
+                                var currAccState = accidentalState[lineNum];
 
                                 if (currAccState && currAccState == accHash) {
                                     // if the exact same accidental hash is found on the
@@ -2343,7 +2415,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                                     // accidental is redundant. Remove it.
 
                                     setAccidental(msNote.internalNote, null, newElement);
-                                } else if (!currAccState && keySig[currLine] == accHash) {
+                                } else if (!currAccState && keySig && keySig[lineNum] == accHash) {
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
                                     // is also redundant. Remove.
@@ -2353,7 +2425,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                                     // Otherwise, if we find an explicit accidental
                                     // that is necessary, update the accidental state.
 
-                                    accidentalState[currLine] = accHash;
+                                    accidentalState[lineNum] = accHash;
                                 }
                             }
                         }

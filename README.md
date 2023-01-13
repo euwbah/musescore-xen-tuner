@@ -950,13 +950,15 @@ E.g.: If a new key signature is to be applied at tick 1760 in the current staff:
     ...
   },
   currKeySig: KeySig?, // current key signature being applied
-  currTuning: TuningConfig, 
+  currTuning: TuningConfig,
+  currAux: TODO,
+  currExplicit: TODO,
 }
 ```
 
 `parms` represents the global state object of the plugin.
 
-This contains a list of timed configs for each staff, sorted by increasing tick. 
+This contains a list of timed configs for each staff, sorted by increasing tick.
 
 The `ConfigUpdateEvent`s will modify properties of `parms` over time to reflect the current configurations applied to the current staff (`cursor.staffIdx`) to apply at current cursor position.
 

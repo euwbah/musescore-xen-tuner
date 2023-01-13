@@ -1,12 +1,18 @@
 var Lookup = ImportLookup();
 
-
 window.testTuning = `
+A4: 440
+0 200 300 500 700 800 1000 1200
+db b (72) # #+
+\ (101.069) /
+`;
+
+window.testTuning2 = `
 A4: 440
 0 200 300 500 700 800 1000 1200
 (100) #
 (20) /
-lig(1,2
+lig(1,2)
 1 1 #^
 `;
 

@@ -12,15 +12,15 @@ import FileIO 3.0
 MuseScore {
 
       version: "0.1.0"
-      description: "Raise selection/selected note(s) up to a higher step"
-      menuPath: "Plugins.xen.up"
+      description: "Raise selection/selected note(s) down to a lower step"
+      menuPath: "Plugins.xen.down"
 
       /* 
       Just update these vars to change the direction/aux of this operation.
 
       Directions: 1 (up), 0 (enharmonic cycle), -1 ()
       */
-      property var stepwiseDirection: 1
+      property var stepwiseDirection: -1
       property var stepwiseAux: 0
       
       onRun: {

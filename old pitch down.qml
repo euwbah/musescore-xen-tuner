@@ -1,3 +1,8 @@
+/*
+XXX: KEPT FOR REFERENCE ONLY.
+DELETE ONCE TESTING IS COMPLETE.
+*/
+
 import QtQuick 2.1
 import QtQuick.Controls 1.3
 import QtQuick.Controls.Styles 1.3

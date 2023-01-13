@@ -140,8 +140,7 @@ MuseScore {
           for (var voice = 0; voice < 4; voice++) {
             // After each voice & rewind, 
             // reset all configs back to default
-            parms.currKeySig = null;
-            parms.currTuning = Fns.generateDefaultTuningConfig();
+            Fns.resetParms(parms);
 
             // NOTE: FOR WHATEVER REASON, rewind(1) must be called BEFORE assigning voice and staffIdx,
             //       and rewind(0) MUST be called AFTER rewind(1), AND AFTER assigning voice and staffIdx.
