@@ -617,33 +617,142 @@ This section describes the methodology of auto-positioning accidentals. This plu
 
 The auto-positioning function regards all chords at the same tick position at once. Thus, we only need to care about the positioning of accidentals one tick at a time.
 
-Here are the non-positioned and positioned versions juxtaposed:
+However, different voices and grace notes can share the same tick position, so we need to handle the positioning of every voice + grace chords all at once.
 
+Here is an image of non-positioned and positioned versions of the same notes at a single 'tick':
 
+![](imgs/layout-example.png)
+
+We will use this example to figure out the approach of auto-positioning.
 
 ### 1. Read chords at given tick
 
-First, we need to gather all the chords with the same tick position into one `Chords` data structure. In a similar spirit to `BarState`, the purpose is to allow for easy traversal of chords for the purpose of auto-positioning.
+First, we need to restructure our `BarState` data. Gather all the chords with the same tick position into one `Chords` data structure.
 
-The `Chords` splits chords by voice. Within each voice, the main chord is separated from the grace chords. The index of the grace chords are synced across all voices right-to-left.
+The `Chords` object splits chords by voice. Within each voice, the chords & grace chords are sorted right to left, with the main chord first in the list.
 
-To give an example, let's say voice 1 and 2 have chords + grace chords at the same tick; voice 1 has 2 grace chords and voice 2 has 1 grace chord. 
-
-The generated data structure will look like this:
+The generated data structure of the above example will look like this:
 
 ```js
 {
-  1: {
-    0: [Chord1, Chord2],
-    1: [Chord3]
-  },
-  2: {
-    0: [Chord4]
-  }
+  // Voice 1
+  [
+    [Main chord],
+    [Second grace chord],
+    [First grace chord]
+  ],
+  // Voice 2
+  [
+    [Main chord],
+    [First grace chord]
+  ],
+  // Voice 3&4 empty
+  [],
+  []
 }
 ```
 
-### 2. 
+Within a single chord, the notes are listed in no particular order. (The line mapping from `BarState` is removed)
+
+The rationale for sorting right-to-left is so that we ensure that the index of the second grace chord of voice 1 equals the index of the first grace chord of voice 2.
+
+This way, the positioning of grace chords are consistent between voices, and all grace chords that should be vertically aligned have the same index.
+
+This allows us to break down/decompose the process into even smaller steps.
+
+### 2. Per-vertical chord accidentals processing
+
+All vertically-aligned chords (discounting offsets due to clusters of noteheads) are given the same index. Now we process the accidentals of all vertically aligned chords together (regardless of voice).
+
+e.g. Where `k` is the chord index, we concat all the voices together: `Chords[0][k].concat(Chords[1][k]).concat(Chords[2][k])...`
+
+To position accidentals, we use the zigzag pattern: The accidentals for the top most note are positioned closest to the chord as possible, then the bottom most note's accidentals are positioned, then the second-top-most, then second-bottom-most, etc... until all the notes' accidentals are placed.
+
+To accomplish this:
+
+- Fold/flatten the list of vertically-aligned chords so that all the notes are in one list
+- Sort the notes in increasing `.line` order (i.e. decreasing pitch, from top to bottom)
+- Reorder the list using two pointers.
+
+Once we have the zigzag list, we can 'add' accidentals.
+
+### 3. Populate accidental offsets
+
+We cannot add accidentals as we go along, as adding accidentals one-by-one may cause the position of the elements on the page to change, which means we will need to recalculate the bounding boxes of the noteheads every time we add an accidental.
+
+Instead, we can rely on the fact that the element offsets are consistent relative to the attached notehead. What we can do is to calculate positions for ALL accidentals within the current vertical-chord, and express the positions as offsets from the parent element of each accidental.
+
+By storing offsets, at the end of everything we can assign to offsets to all the accidentals in one go, and everything should work out.
+
+To calculate where should an accidental go, we must take note of the bounding boxes of every fixed element/prior accidentals already keyed-in, and make sure that:
+
+- We do not overlap with any fixed elements/already-positioned accidentals
+- The chosen position of the accidental MUST be left of the notehead that the accidental is supposed to belong to.
+- If there are multiple accidentals on a single notehead, we sort by increasing z index, the lower z index is positioned first so that it appears on the right side. The symbols of a multi-symbol accidental must always appear adjacent, and cannot be pushed back/interrupted by another accidental.
+
+### 4. How to check overlap
+
+We can check overlap using the `.pagePos` and `.bbox` properties of `PluginAPI::Element` (both noteheads & accidental symbols are elements).
+
+`Element.pagePos` represents the absolute position of the element's origin:
+
+```js
+{
+  "x":24.269899801587307,
+  "y":30.73749507936508
+}
+```
+
+and `Element.bbox` contains info about how far up, down, left, and right does the element extend from its origin, and where its top-left corner is positioned relative to its origin.
+
+```js
+{
+  "x":0,
+  "y":-1.3359375,
+  "width":0.9759375,
+  "height":2.6640625000000004,
+  "left":0,
+  "right":0.9759375,
+  "top":-1.3359375,
+  "bottom":1.3281250000000004
+}
+```
+
+From the above two example properties, we can see that the absolute bounding box of the element is:
+
+```js
+{
+  "left":24.2...,
+  "right": 25.2...,
+  "top":29.4...,
+  "bottom":32.4...
+}
+```
+
+### 5. Mark accidental(s) position
+
+Using the absolute bounding boxes of fixed/already positioned elements from step 4., we can determine the appropriate X position for an accidental, then mark its position offset:
+
+- Filter out all bounding boxes that are not vertically overlapping with the Y axis of the to-be-positioned accidental. (Use `intervalOverlap()` function)
+- Sort bounding boxes by decreasing X position (i.e. from right to left)
+- Between every Nth and (N+1)th bounding box, calculate the gap between them. The gap is the distance between the left edge of the Nth bounding box and the right edge of the (N+1)th bounding box.
+- If the sum of the widths of bounding boxes of the symbols required in the to-be-positioned multi-symbol accidental can fit within the gap, place them flushed to the left edge of the Nth bounding box (i.e. flushed as right as possible).
+- Mark the positioned symbols as 'fixed' so that the next accidentals cannot overlap.
+- Calculate the X offset of the positioned symbols relative to the notehead's page position. Remember to account for the symbol's origin offset. (the notehead's X position is equal to its left bounding box edge).
+
+### 6. Assign offsets
+
+Assign the respective calculated X offsets to all the symbols at one go.
+
+### 7. Push back grace notes
+
+The newly positioned accidentals will not push back grace notes/prior grace notes. To fix this, we need to manually push back ALL grace notes by the largest (leftest, -ve) X offset applied in step 6.
+
+To do this, we just need to iterate the next indexed chords in the `Chords` structure.
+
+### 8. Rinse and repeat
+
+We can repeat steps 2-7 for the grace notes, calculating accidental offsets relative to grace notes one vertical-chord at a time, until all chords are completed.
 
 ## Data Structures
 

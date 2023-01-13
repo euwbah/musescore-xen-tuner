@@ -180,8 +180,8 @@ function tokenizeNote(note) {
     var nominals = Lookup.TPC_TO_NOMINAL[note.tpc][0];
     octavesFromA4 += Lookup.TPC_TO_NOMINAL[note.tpc][1];
     
-    // console.log('note bbox: ' + JSON.stringify(note.bbox) + '\npos: ' + 
-    //     note.posX + ', ' + note.posY + '\npage pos: ' + JSON.stringify(note.pagePos));
+    console.log('note bbox: ' + JSON.stringify(note.bbox) +
+                ', pagePos: ' + JSON.stringify(note.pagePos));
 
     var hasAcc = false;
     var accidentals = {};
@@ -206,8 +206,6 @@ function tokenizeNote(note) {
             continue;
         }
 
-        console.log('.fontSize: ' + elem.fontSize);
-
         var acc = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
 
         if (acc) {
@@ -218,7 +216,9 @@ function tokenizeNote(note) {
 
             hasAcc = true;
 
-            // console.log('found elem: ' + elem.symbol.toString() + ', bounding: ' + JSON.stringify(elem.bbox));
+            // console.log('found elem: ' + elem.symbol.toString() + 
+            //     ', bbox: ' + JSON.stringify(elem.bbox) +
+            //     ', pagePos: ' + JSON.stringify(elem.pagePos));
         }
     }
 
@@ -2540,14 +2540,34 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
 }
 
 /**
- * Segregate notes into chords according to the `Chords` structure.
+ * Checks if two intervals on a number line overlap/touch
+ * each other.
+ * 
+ * E.g. [1, 3] and [2, 4] overlap, but [1, 2] and [2, 3] do not.
+ * 
+ * @param {number} a1 Start of first interval
+ * @param {number} a2 End of first interval
+ * @param {number} b1 Start of second interval
+ * @param {number} b2 End of second interval
+ * @returns 
+ */
+function intervalOverlap(a1, a2, b1, b2) {
+    return (a1 - b2) * (a2 - b1) <= 0;
+}
+
+/**
+ * Partition notes in a `BarState` according to tick position,
+ * according to the `Chords` structure.
  * 
  * Each `Chords` object represents the chords (+ grace chords) available
- * at a given tick.
+ * at a given tick for all voices.
  * 
- * @param {BarState} barState 
+ * @param {BarState} barState `BarState` object to transmute.
+ * 
+ * @returns {{number: Chords}} 
+ *  A mapping of `Chords` objects indexed by tick position.
  */
-function segregateChords(barState) {
+function partitionChords(barState) {
 
 }
 
