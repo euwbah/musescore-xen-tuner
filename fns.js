@@ -206,6 +206,8 @@ function tokenizeNote(note) {
             continue;
         }
 
+        console.log('.fontSize: ' + elem.fontSize);
+
         var acc = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
 
         if (acc) {
@@ -1242,7 +1244,6 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
  */
 function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
     var msNote = tokenizeNote(note);
-    console.log(accidentalsHash(msNote.accidentals));
     var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
 
     return noteData;

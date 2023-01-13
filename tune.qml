@@ -149,11 +149,11 @@ MuseScore {
             cursor.staffIdx = staff;
             cursor.rewind(0);
 
-          // 0-indexed bar counter.
+            // 0-indexed bar counter.
             // Used to keep track of bar boundaries efficiently.
             var currBar = parms.bars.length - 1;
             for (var i = 0; i < parms.bars.length; i++) {
-              if (parms.bars[i].tick > cursor.tick) {
+              if (parms.bars[i] > cursor.tick) {
                 currBar = i - 1;
                 break;
               }
@@ -163,6 +163,7 @@ MuseScore {
             var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
 
             console.log("Tuning. staff: " + staff + ", voice: " + voice);
+            // console.log("Starting bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
 
             // Tuning doesn't affect note/accidental state,
             // we can reuse bar states per bar to prevent unnecessary
@@ -173,9 +174,10 @@ MuseScore {
             while (cursor.segment && (fullScore || cursor.tick < endTick)) {
               if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
                 // Update bar boundaries.
-                currBar++;
+                currBar ++;
                 tickOfThisBar = tickOfNextBar;
                 tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
+                // console.log("Next bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
                 // reset bar state.
                 reusedBarState = {};
               }

@@ -113,20 +113,18 @@ This plugin enables xen notation by giving you free-reign over declaring:
 
 ## Caveats
 
-- Does not intend to use the standard Accidentals at all (e.g. auto-formatted, auto-layout accidentals). All accidentals this plugin uses will be cosmetic symbols from the "Symbols" category of the Master Palette. This means:
-  - You cannot drag standard-support accidentals from the "Accidentals" palette. All accidentals used must be from the "Symbols" category in the Master Palette. You can create your own custom Palette of symbolic SMuFL accidentals if you wish to drag & drop them on notes.
-  \
-  Though, you do not need to manually enter accidentals as the point of this plugin is for all accidentals used in a notation system to be accessible just via up/down arrow keys and the enharmonic respell ('J') key. Using this also automatically positions the accidentals.
-
+- Does not intend to use the standard Accidentals at all. Accidental symbols used/created by the plugin are cosmetic symbols from the "Symbols" category of the Master Palette. This means:
+  - You cannot drag accidentals from the "Accidentals" palette. All accidentals used must be from the "Symbols" category in the Master Palette.
   - Existing scores not made by this plugin will not work with this plugin.
-  - Layout may look weird as this plugin has to reconstruct & re-invent how accidentals are to be laid out and formatted.
-- Does not differentiate between the order of appearance of accidentals within one note.
+  - Accidentals on grace notes can't be made smaller.
+  - Formatting may look weird as this plugin has to reconstruct how accidentals are to be positioned.
 - Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
 - Does not fully support cross-staff notation. Accidentals don't carry over between two different staves if cross-staff notation is used. However, you can specify all accidentals explicitly.
 
 #### Smaller caveats
 
 - After you open MuseScore, the first time you run any function of this plugin, there will be a 5-10 second lag. This is normal, [the plugin is loading](https://musescore.org/en/node/306551#comment-1005654).
+- Does not differentiate between the order of appearance of accidentals within one note.
 - Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
 - Does not support grace notes occurring _after_ a note. Grace notes occuring _before_ a note are supported.
 - Octave 8va/15ma/etc... lines are not supported when non-standard number of nominals are used (e.g. bohlen pierce). You can simulate an octave line by setting the reference frequency higher/lower when needed.

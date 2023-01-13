@@ -242,7 +242,7 @@ MuseScore {
               // Used to keep track of bar boundaries efficiently.
               var currBar = parms.bars.length - 1;
               for (var i = 0; i < parms.bars.length; i++) {
-                if (parms.bars[i].tick > cursor.tick) {
+                if (parms.bars[i] > cursor.tick) {
                   currBar = i - 1;
                   break;
                 }
