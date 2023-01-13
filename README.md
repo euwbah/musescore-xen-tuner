@@ -600,7 +600,7 @@ When creating/managing accidentals during up/down operations, this plugin favour
 
 ## Auto-positioning & layout
 
-This section describes the methodology of auto-positioning accidentals. This plugin will try its best to position accidentals. However, being a very ambitious project, this is an experimental feature and needs much feedback, testing & help from the community.
+This section describes the methodology of auto-positioning accidentals. This plugin will try its best to position accidentals. However, this is a very ambitious feature, and needs much feedback, testing & help from the community.
 
 ### 0. Auto-positioning case study
 
