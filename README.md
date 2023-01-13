@@ -252,42 +252,31 @@ E.g. if you declare `x.+./` in chain 1, you cannot declare `x.d` in chain 2, bec
 
 1. Parse tuning text annotation to construct the `TuningConfig`.
 2. The up/down operation should move the current selected note(s) stepwise to the nearest `XenNote` in the `TuningConfig` that is **not** enharmonically equivalent. It should also choose the enharmonic spelling with the minimal number of required explicit accidentals.
-3. Run through a series of checks:
-   - If the new note affects a succeeding note/grace note's accidental implicitly, attach explicit accidentals to the succeeding note **before** the current note is modified.
-   - If the new note agrees with the prior accidental/key signature, flag that no explicit accidentals are needed on the modified note.
-   - If the new note has a side effect of making explicit accidentals of a succeeding note/grace redundant, flag the succeeding note for later accidental removal.
-4. Update the note using to reflected changes to the new note
-   - Calculate new `note.line` by subtracting old nominal from new nominal.
-   - Assign `note.line`
-   - Use `setAccidental` to set the note.
-   - Assign `note.line` AGAIN (to fight against MuseScore's score update)
-5. Remove redundant accidentals on flagged notes.
-6. Apply the same method as `tune.qml` to tune all the notes in selected bars (including the unselected parts of the last bar).
+   - Explicit accidentals are aggresively created to prevent the modified note from affecting succeeding notes' accidentals.
+   - At the end of each bar/selection remove unnecessary accidentals within a bar.
+   - At the end of each bar/selection, auto-position accidentals & fix colliding symbols & grace notes.
+3. Update the note using to reflected changes to the new note
+4. Apply the same method as `tune.qml` to tune all the notes in selected bars (including the unselected parts of the last bar).
 
 `enharmonic.qml`:
 
 1. Parse tuning text annotation to construct the `TuningConfig`.
-2. All enharmonically equivalent spellings are indexed/logically grouped together in the `TuningConfig`.
+2. All enharmonically equivalent spellings are indexed/logically grouped together in the `TuningConfig` using the `EnharmonicGraph`.
 3. Cycle enharmonic spellings by index using the lookup table.
+4. Perform the same housekeeping, checks & formatting as `up/down.qml`.
 
-No checks on subsequent notes are needed because enharmonically equivalent notes/accidentals should always result in the same pitch.
 
-For the same reason as `up/down.qml`, recommend the user to **always manually run `tune.qml` after this operation.**
+`aux up/down.qml` / `aux2 up/down.qml` etc...:
 
-`aux up/down.qml`:
-
-1. Parse tuning text annotation to construct the `TuningConfig`.
-2. Take note of the special auxiliary step config annotation which specifies which accidental cycles/sets to regard/disregard for the auxiliary up/down operation.
-3. For this aux up/down operation, instead of using the nearest adjacent non-equivalent pitch. Skip to the nearest non-equivalent `XenNote` spelling such that accidentals present in disregarded accidental cycles remain unchanged. This is effectively forms a 'quotient group' (ish).
-4. Continue with steps 8-10 of `up/down.qml`.
+Same as `up/down.qml`, except that it will skip user specified accidental chains for each auxiliary up/down action.
 
 Let's use the current 2.3.5 JI subset example:
 
 Assume we configure aux up/down to disregard the syntonic comma accidental chain and only regard the sharps/flats chain.
 
-Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `Gx/`, followed by `Dbbbb/`, `Fxx/`, `Cbb/`, etc... because those are the next nearest `XenNote`s in the `TuningTable` which have an identical syntonic comma accidental. This way, the user can move a note up/down in bigger increments to save time.
+Then, upon executing 'aux up' on the note `A/`, it should skip all the way to `Gx/`, followed by `Dbbbb/`, `Fxx/`, `Cbb/`, etc... because those are the next nearest `XenNote`s in the `TuningTable` which have an identical syntonic comma accidental. This way, the user can move a note up/down in bigger increments, while preserving existing accidentals.
 
-We can also make clones `aux2 up/down.qml` etc... which work the same way with individually configurable accidental chains.
+We can also make clones `aux2 up/down.qml` etc... which work the same way with individually configurable accidental chains. This way, the user can declare multiple up/down arrow key shortcuts (home/end, pg up/pg dn, etc...), where each shortcut increments a different sized step. Very useful for large tunings.
 
 ### Construction of `TuningTable` & `TuningConfig`
 
