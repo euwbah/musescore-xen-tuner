@@ -25,21 +25,41 @@ Download the project as .zip (the green "Code" button on top right of the projec
 
 Extract files to plugins folder & activate them (see [this guide](https://musescore.org/en/handbook/3/plugins))
 
-Remove the default keyboard shortcuts for pitch-up/down (up/down arrow keys) and enharmonic (J key) in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts).
+Remove the following default keyboard shortcuts in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
-Assign the following shortcuts using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins):
+- pitch-up/down (`Up/Down` arrow keys)
+- enharmonic (`J`)
+
+If you wish to use the auxiliary up/down stepwise feature where you can choose exactly which sets/chains of accidentals to change/keep same when transposing, you can also remove/replace these default shortcuts which opens them up to be assigned to the plugin:
+
+- Go to higher/lower pitched note in chord (`Alt+Up/Down`)
+- Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
+
+:warning: IMPORTANT: Assign the following shortcuts using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins). Having these shortcuts is 99.9% of the reason why you should use this plugin:
  
-- `up.qml` & `down.qml`: Up & Down arrow keys
-- `enharmonic.qml`: J key
-- `tune`: Alt+R
+- `up.qml` & `down.qml` &rarr; `Up/Down` arrow keys
+- `enharmonic.qml`&rarr; `J`
+- `tune` &rarr; `Alt+R`
+- `up/down aux1.qml` &rarr; `Alt+Up/Down`. (Optional, if using aux1)
+- `up/down aux2.qml` &rarr; `Ctrl+Alt+Up/Down`. (Optional, if using aux2)
+
+Once you have set all those up, you will need to specify configurations used in your score, such as the [tuning system](#how-to-tuning-configuration), [key signatures](#how-to-key-signatures) (if any), or whether to always use explicit accidentals.
+
+You can configure these by adding a System Text or Staff Text element containing configuration text. These texts don't have to be visible (you can press `V` to toggle visibility).
+
+A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on.
+
+A configuration is only applied to notes from that bar onwards.
+
+You can place configuration texts over multiple staves and bars to write a piece where different parts use different tunings/notation systems, and each part can change tuning/notation system at any bar.
 
 After entering new notes, remember to press `Alt+R` to tune notes to the correct pitch. If you use up/down/J keys, the modified notes will also be tuned.
 
 Copy & read the [example tuning configuration](#case-studyexample).
 
-Read [how the plugin conceptualizes tunings & accidentals](#what-how) to make your own tuning configurations.
+Read [how the plugin conceptualizes tunings & accidentals](#how-to-understand-this-plugin) to make your own tuning configurations.
 
-## [List of Supported Accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
+## [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
 This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
 
@@ -48,6 +68,54 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 While the accidental data entry project is in progress, the new accidentals will be supported. The included `tabulate_accidentals.py` script updates your local copy of supported accidentals according to the "CSV Export" sheet. If you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can just run this python script yourself with Python 3. (Though, it is recommended to keep your plugin updated as there are ongoing bugfixes etc...)
 
 Note that if you have been using Symbol Code numbers to refer to your accidentals, you may need to ensure that the Symbol Codes still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code of symbols may change and is unstable.
+
+## How to understand this plugin
+
+> 🟢 To use this plugin to its full potential, we first need to know how this plugin conceptualizes & represents accidentals. If you are lazy to read, skip to [here](#how-to-tuning-configuration) to see tuning configuration examples. Though, it is highly recommended that you read this section first.
+
+A **symbol code** represents a visually unique symbol, which could have multiple different IDs under the hood. For the purposes of this plugin, all similar-looking symbols are considered the same symbol.
+
+This plugin only uses accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). This is because, you can only have one Official Accidental&trade; per note, but you can attach multiple 'Symbols' to visually convey multiple accidentals on a note.
+
+To refer to a symbol when keying in tuning/key signature configuration texts, you can either use the Symbol Code number (the 'Symbol Code' column of the [spreadsheet](#list-of-supported-symbols)), or by the Text Code representation (in the 'Text Code' column).
+
+> When entering symbols, both `#` and `5` both refer to the same sharp symbol.
+
+All this while, those who wish to write in notation systems where multiple accidentals can belong to a single notehead have been manually formatting/drag-dropping/tuning each accidental, with no easy way of simply pressing up/down to cycle through all the possible pitches of the tuning system. This includes composers who write in [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), etc...
+
+However, most, if not all, notation systems have one thing in common: an accidental always refers to the same-sized interval offset. A sharp always affects a note by the same amount no matter what other accidentals may be on the note, and no matter what note in the octave/equave it is.
+
+Now, when we say "sharps and flats", these accidentals represents a chain of accidentals along a spectrum. For the purpose of this plugin, let's call it the **accidental chain**. Each successive item in this chain of sharps and flats refer to a constant-sized pitch increment. The number of increments of the unit interval is called the **degree** of the **chain**. `#` (sharp) is "degree 1", and `bb` (double flat) is "degree -2" of the sharps-flats chain.
+
+In 12edo, each degree along the sharps/flats chain represents a 100 cent increment, so `bb` represents -200 cents. We can theoretically extend this chain indefinitely to include as many sharps and flats as we want. However, there aren't any symbols available for more than 3 sharps/flats.
+
+With this plugin, that is not an issue as you can compose different symbols together to form a degree. To do this, connect the Text Codes or Symbol Codes with a period (`.`).
+
+> If you need degree -5 on your sharps-flats accidental chain &mdash; i.e. a 5-flats accidental &mdash; you can specify `bbb.bb` (Text Codes) or `8.7` (Symbol Codes). The order which you specify the symbols will affect which symbol is on the left or right. In this case, the triple flat is on the left, and double flat on the right.
+
+You can't attach two accidental degrees from the same accidental chain on to a single note (like how it wouldn't make sense to call a note "C-sharp-double-flat-triple-natural"). The plugin will simply just not work.
+
+If you want to combine accidentals, they have to be from different accidental chains. You can specify as many accidental chains as you need in this plugin, as long as the symbols used in each accidental chain are mutually exclusive.
+
+> E.g. in Helmholtz-Ellis Just Intonation notation, our pure classic major thirds (5:4) have to be notated as a 'ditone' (81:64) that is lowered by a syntonic comma (81:80) to arrive at a classic major third (5:4). 
+> The interval between D and F# is a ditone. This means, if we want the (5:4) interval between D and F, we need to spell it as `F#\` (F sharp syntonic comma-down)
+>
+> Here, we are combining accidentals from two different accidental chains. The +1 degree from the sharps-flats chain, and the -1 degree from the syntonic commas chain (which we usually use up/down arrows to denote).
+>
+> To support this 5-limit HEJI notation, we simply need to declare 2 accidental chains. One for sharps-flats for the apotome (2187:2048), and one for arrow ups/downs for the syntonic commas (81:80)
+
+This plugin enables an **infinite** number of notation systems by giving you free-reign over declaring:
+
+- Any number of accidental chains with regular or irregular step sizes between each degree
+- Accidentals (that can be composed of any number of symbols) that represent a single degree on an accidental chain.
+- The tunings of the nominals (A, B, C, D, etc...)
+- The number of nominals within an octave/equave (you can notate Bohlen-Pierce & other systems with less/more than 7 'alphabets')
+- The interval of the 'equave' (you can have stretched octave/tritave/etc... tunings, or even _negative-sized equaves_ to notate negative clefs for avant-garde 21st century negative harmony stuff)
+- Accidental ligatures --- where a single symbol (or multiple) can represent & substitute for a combination of accidentals from differing accidental chains (useful for HEJI & Sagittal)
+
+## How to: tuning configuration
+
+## How to: key signatures
 
 ## HELP NEEDED!
 
@@ -82,40 +150,103 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
 
 For more info on this project, see [this post](https://www.facebook.com/groups/497105067092502/permalink/2700729770063343/).
 
-## What? How?
+## Config example: irregular steps
 
-To use this plugin, we first need to know how this plugin conceptualizes accidentals. Let's fix some terminology first.
+For whatever reason, if you wish to irregular intervals between accidentals within one accidental chain, you can do so with this syntax:
 
-A **symbol code** represents a visually unique symbol, which could have multiple different IDs under the hood. For the purposes of this plugin, all similar-looking symbols are considered the same symbol.
+```txt
+b.b(-50) bbb bb b (100) # x(25) #x x.x
+```
 
-Technically speaking, MuseScore has two different types of 'accidentals'. You can use accidentals from the usual 'Accidentals' palette, but you can access a larger range of accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). You can only have one 'accidental' attached to a note, but you can attach multiple symbols to get multiple accidentals on one note. No matter how you attach the accidental, this plugin will identical looking accidentals/symbols as the same and assign them the same **symbol code**
+This declares an accidental chain ranging from 2 double flats to 2 double sharps.
 
-One or more symbol codes can come together to form a single accidental that represents a **degree** on an **accidental chain**. 
+The `(-50)` symbolizes that the two double flat `b.b` accidental is 50 cents lower than what it should be. Hence, it signifies -450 cents.
 
-We are all familiar with sharps and flats. We can also have double sharps, triple flats etc...
+Similarly, the `(25)` symbolizes that the double sharp `x` accidental now refers to 225 cents.
 
-When we say "sharps and flats", what we're really referring to is an **accidental chain**. Each successive item in this chain of sharps and flats refer to a regular (or regular-ish) pitch increment. The number of increments of the unit interval is the **degree**. In other words, `bb` (double flat) is really "degree -2" of the "sharps and flats" chain. In 12edo, each degree represents a 100 cent increment, so `bb` represents -200 cents.
+**There should not be a space between the accidental notation and the `(cent offset)`**
 
-You can compose different symbols together to form a degree. E.g. if you want 5 flats, you can do `bbb.bb` to compose a triple flat and a double flat together as one logically grouped accidental degree.
+If you have a chain of accidentals that are completely irregular, what you can do is to set the generator interval to 0, and specify manual offsets for each accidental:
 
-You can't attach two accidental degrees from the same accidental chain on to a single note (like how it wouldn't make sense to call a note "C-sharp-flat-natural").
+```txt
+b^(-90) v(-50) (0) ^(30) ^2(70)
+```
 
-However, you can combine different degrees of different accidental chains together to form the composite accidental aka **accidental vector**. 
+This sets the b^ accidental to -90 cents, v to -50 cents, and so on.
 
-For example, in 5-limit just intonation, we will need to tune the 'ditone' (81/64) down a syntonic comma (81/80) to arrive at a classic major third (5/4). Let's say our 'sharp-flats' chain are all 3-limit apotomes -- so the interval between D and F# is a ditone. We can lower F# down a syntonic comma by adding an accidental from a second accidental chain. 
+However, do note that if you're using this feature, you're either dealing with a really, complicated/obscure tuning system (8th-32nd harmonics scale stretched by pi?), or you're doing something wrong.
 
-We can declare a new accidental chain (the 5-commas chain) with a 21 cents increment between each degree.
+Reasonably sized regular temperament & JI subsets should be representable with only regularly-generated accidental chains.
 
-Then, we can get the note `F#\`, which represents +1 steps in the sharps-flats chain and -1 steps in the 5-commas chain.
+If you require accidental ligatures where some individual symbols represent accidentals from multiple chains (like in HEJI & Sagittal), you should use the accidental ligature feature instead.
 
-This plugin enables xen notation by giving you free-reign over declaring:
+-----
 
-- Accidental chains with regular/irregular step sizes between each degree
-- The combinations of one or more symbols that represent a single degree on an accidental chain.
-- The tunings of the nominals (A, B, C, D, etc...)
-- The number of nominals within an octave/equave (so you can emulate Bohlen-Pierce & other non-octave notations)
-- The interval of the 'equave' (so you can have stretched octave/tritave/etc... tunings)
-- Accidental ligatures --- where a single symbol (or multiple) can represent & substitute for a combination of accidentals from differing accidental chains (useful for HEJI & Sagittal)
+## Config example: accidental ligatures
+
+For proper HEJI and Sagittal notation, we need to take into account that there are combinations of accidentals that can combine into one single symbol.
+
+For example, the sharp and syntonic comma up (ARROW_UP) accidentals can combine into `SHARP_ARROW_UP`.
+
+The solution here is to allow the user to specify a list of ligatures/replacement symbols that apply to specific accidental chains only.
+
+For example, we can have 7-limit JI with 3 accidental chains: apotomes, 5-commas and 7-commas.
+
+In HEJI, there are composite accidental ligatures for compositions of apotomes and 5-commas. The user can append the following text to the Tuning Config text annotation:
+
+```txt
+lig(1,2)
+<acc chain 1 degree> <acc chain 2 degree> <SymbolCode(s)>
+1 3 23
+1 2 24
+1 1 25
+1 -1 26
+1 -2 27
+1 -3 28
+```
+
+`lig(1,2)` signifies that the plugin should perform search-and-replace for exact matches regarding the 1st and 2nd accidental chains only (which are apotomes and 5-commas respectively).
+
+`1 3 23` signifies that the ligature `SHARP_THREE_ARROWS_UP` (SymbolCode 23) is to be applied to replace the symbols that compose the degrees 1 and 3 for the 1st and 2nd accidental chains respectively.
+
+> :warning: The ligature degrees must be stated in order of which the accidental chains are declared in the ligature. If you specify `lig(2,1)` in the first line instead, then `1 3 23` denotes degree 1 for the **second chain**, and degree 3 for the **first chain**.
+>
+> **You cannot reuse Symbol Codes** that are already being used in any accidental chain. Each symbol of a ligature must be unique from symbols in other ligatures and accidentals.
+
+This means that if some note has an accidental vector of `[1,3,2]` (sharp + 3 syntonic commas + 2 7-commas). The plugin will find that there is an exact match in the 1st and 2nd chains of `[1,3,2]` to the `1 3` ligature vector, and thus the `1 3` part gets ligatured as SymbolCode 23 (`SHARP_THREE_ARROWS_UP`).
+
+Hence, the resulting combination of symbols on the note should be sharp-3-arrows (`[1, 3, 0]`) + 2 7-commas up (`[0, 0, 2]`) = `[1, 3, 2]`.
+
+You can also specify Text Codes in place of SymbolCode numbers (e.g. `#^3` instead of `23`).
+
+If you require a ligature that consists of more than one symbol, separate `SymbolCode`s with a dot (`.`). E.g., `1 3 #.^3` will ligature `[1,3,2]` into `SHARP` + `NATURAL_THREE_ARROWS_UP` + 2 7-commas up. (Though, this is an impractical example).
+
+> :warning: Note that ligatures are not a replacement for specifying symbols for each degree in an accidental chain. You can only apply ligatures to degrees in a chain with symbols assigned to them.
+
+If you require more than one ligature declaration between any number of accidental chains, the user can do so by appending more `lig(x,y,z,...)` declarations below.
+
+E.g.:
+
+```txt
+lig(1,2)
+1 1 108
+1 -1 109
+etc...
+lig(2,3)
+etc...
+lig(1,2,3)
+etc...
+```
+
+The ligatures will be searched and replaced in the order of which they are declared.
+
+The above example will first try to find matches between chains 1 and 2. If a match is found, it will no longer search for further ligatures involving chains 1 and 2, since they have been replaced.
+
+Then, ligatures for chains 2 and 3 will be searched. Again, if there's a match, any further ligatures involving chains 2 and 3 will not be in use.
+
+Finally, neither ligature has matched so far, then ligatures involving all 3 chains will be searched.
+
+I don't think you should use a notation system that would require this much complexity though...
 
 ## Caveats
 
@@ -487,106 +618,6 @@ This is a VERY involved process:
 
 -----
 
-## Advanced example: irregular steps
-
-For whatever reason, if you wish to irregular intervals between accidentals within one accidental chain, you can do so with this syntax:
-
-```txt
-b.b(-50) bbb bb b (100) # x(25) #x x.x
-```
-
-This declares an accidental chain ranging from 2 double flats to 2 double sharps.
-
-The `(-50)` symbolizes that the two double flat `b.b` accidental is 50 cents lower than what it should be. Hence, it signifies -450 cents.
-
-Similarly, the `(25)` symbolizes that the double sharp `x` accidental now refers to 225 cents.
-
-**There should not be a space between the accidental notation and the `(cent offset)`**
-
-If you have a chain of accidentals that are completely irregular, what you can do is to set the generator interval to 0, and specify manual offsets for each accidental:
-
-```txt
-b^(-90) v(-50) (0) ^(30) ^2(70)
-```
-
-This sets the b^ accidental to -90 cents, v to -50 cents, and so on.
-
-However, do note that if you're using this feature, you're either dealing with a really, complicated/obscure tuning system (8th-32nd harmonics scale stretched by pi?), or you're doing something wrong.
-
-Reasonably sized regular temperament & JI subsets should be representable with only regularly-generated accidental chains.
-
-If you require accidental ligatures where some individual symbols represent accidentals from multiple chains (like in HEJI & Sagittal), you should use the accidental ligature feature instead.
-
------
-
-## Advanced example: accidental ligatures
-
-For proper HEJI and Sagittal notation, we need to take into account that there are combinations of accidentals that can combine into one single symbol.
-
-For example, the sharp and syntonic comma up (ARROW_UP) accidentals can combine into `SHARP_ARROW_UP`.
-
-The solution here is to allow the user to specify a list of ligatures/replacement symbols that apply to specific accidental chains only.
-
-For example, we can have 7-limit JI with 3 accidental chains: apotomes, 5-commas and 7-commas.
-
-In HEJI, there are composite accidental ligatures for compositions of apotomes and 5-commas. The user can append the following text to the Tuning Config text annotation:
-
-```txt
-lig(1,2)
-<acc chain 1 degree> <acc chain 2 degree> <SymbolCode(s)>
-1 3 23
-1 2 24
-1 1 25
-1 -1 26
-1 -2 27
-1 -3 28
-```
-
-`lig(1,2)` signifies that the plugin should perform search-and-replace for exact matches regarding the 1st and 2nd accidental chains only (which are apotomes and 5-commas respectively).
-
-`1 3 23` signifies that the ligature `SHARP_THREE_ARROWS_UP` (SymbolCode 23) is to be applied to replace the symbols that compose the degrees 1 and 3 for the 1st and 2nd accidental chains respectively.
-
-> :warning: The ligature degrees must be stated in order of which the accidental chains are declared in the ligature. If you specify `lig(2,1)` in the first line instead, then `1 3 23` denotes degree 1 for the **second chain**, and degree 3 for the **first chain**.
->
-> **You cannot reuse Symbol Codes** that are already being used in any accidental chain. Each symbol of a ligature must be unique from symbols in other ligatures and accidentals.
-
-This means that if some note has an accidental vector of `[1,3,2]` (sharp + 3 syntonic commas + 2 7-commas). The plugin will find that there is an exact match in the 1st and 2nd chains of `[1,3,2]` to the `1 3` ligature vector, and thus the `1 3` part gets ligatured as SymbolCode 23 (`SHARP_THREE_ARROWS_UP`).
-
-Hence, the resulting combination of symbols on the note should be sharp-3-arrows (`[1, 3, 0]`) + 2 7-commas up (`[0, 0, 2]`) = `[1, 3, 2]`.
-
-You can also specify Text Codes in place of SymbolCode numbers (e.g. `#^3` instead of `23`).
-
-If you require a ligature that consists of more than one symbol, separate `SymbolCode`s with a dot (`.`). E.g., `1 3 #.^3` will ligature `[1,3,2]` into `SHARP` + `NATURAL_THREE_ARROWS_UP` + 2 7-commas up. (Though, this is an impractical example).
-
-> :warning: Note that ligatures are not a replacement for specifying symbols for each degree in accidental chains. You can only apply ligatures to degrees in a chain with symbols assigned to them.
-
-If you require more than one ligature declaration between any number of accidental chains, the user can do so by appending more `lig(x,y,z,...)` declarations below.
-
-E.g.:
-
-```txt
-lig(1,2)
-1 1 108
-1 -1 109
-etc...
-lig(2,3)
-etc...
-lig(1,2,3)
-etc...
-```
-
-The ligatures will be searched and replaced in the order of which they are declared.
-
-The above example will first try to find matches between chains 1 and 2. If a match is found, then it will flag that accidental chains 1 and 2 has been replaced with and will no longer search for matches involving chains 1 and 2.
-
-Then, ligatures for chains 2 and 3 will be searched, and any matches will be flagged.
-
-Finally, if nothing has been matched so far, then ligatures involving all 3 chains will be searched.
-
-Though, this is a very extreme example and I can't think of any notation system that requires that much complexity.
-
-This will effectively tell the
-
 ### Ligature implementation
 
 If ligatures are defined, these will add additional entries to the `NotesTable` when there is an exact match in the degrees of the `AccidentalVector` regarding `considered` accidental chains.
@@ -596,6 +627,10 @@ A ligatured entry will contribute additional `XenNote` spellings pointing to the
 With these additional lookup entries, a ligatured spelling is implemented simply as an 'enharmonic spelling', and ligatures can be toggled with the enharmonic cycling operation.
 
 When creating/managing accidentals during up/down operations, this plugin favours spellings with lesser symbols. If for whatever reason, a ligatured spelling has more symbols than an non-ligatured one, the plugin will not automatically use the ligatured spelling. Thus, it only makes sense to define ligatures if the ligatured spellings will always have fewer symbols than the non-ligatured one.
+
+-----
+
+
 
 
 ## Auto-positioning & layout
@@ -1045,12 +1080,14 @@ Represents a ligature declaration.
   equaveSize: number, // = the last cents value in nominals list
   tuningNote: number, // MIDI note number of tuning note
   tuningNominal: number, // tuning note number of 12edo nominals from A4.
-  tuningFreq: number // Hz of tuning note.
+  tuningFreq: number, // Hz of tuning note.
+  auxList: [[number]], // List of list of indices of accidental chains.
 }
 ```
 
 This is the resulting data structure to be generated after parsing a tuning config staff/system text annotation.
 
+The Nth entry of auxList represents the Nth auxiliary `accChainsToCheckSame` to pass into the `chooseNextNote` function. `auxList[0]` is `null`, representing the default up/down which includes all accidental chains.
 
 #### `TuningConfigLookup`
 
@@ -1132,7 +1169,6 @@ E.g.: If a new key signature is to be applied at tick 1760 in the current staff:
   },
   currKeySig: KeySig?, // current key signature being applied
   currTuning: TuningConfig,
-  currAux: TODO,
   currExplicit: TODO,
 }
 ```

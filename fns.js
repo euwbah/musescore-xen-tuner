@@ -364,6 +364,7 @@ function parseTuningConfig(text) {
         nominals: [],
         ligatures: [],
         accChains: [],
+        auxList: [null], // the 0th entry should be null.
         numNominals: null,
         equaveSize: null,
         tuningNote: null,
@@ -445,7 +446,7 @@ function parseTuningConfig(text) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux)\([0-9,]+\)/);
+        var matches = line.match(/(lig|aux)\([0-9,]*\)/);
         if (matches) {
             nextDeclStartLine = i;
             break;
@@ -489,7 +490,7 @@ function parseTuningConfig(text) {
                 });
 
                 if (hasInvalid) {
-                    console.log('invalid symbol: ' + symbols_offset[0]);
+                    console.error('invalid symbol: ' + symbols_offset[0]);
                     return null;
                 }
 
@@ -501,7 +502,7 @@ function parseTuningConfig(text) {
         }
 
         if (!increment || centralIdx == null) {
-            console.log('Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
+            console.error('Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
             return null;
         }
 
@@ -533,7 +534,7 @@ function parseTuningConfig(text) {
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
-        if (line.match(/aux\([0-9,]+\)/)) {
+        if (line.match(/aux\([0-9,]*\)/)) {
             nextDeclStartLine = i;
             break;
         }
@@ -548,7 +549,7 @@ function parseTuningConfig(text) {
         var match = line.match(/lig\(([0-9,]+)\)/);
 
         if (!match) {
-            console.log('Expecting lig(...) or aux(...), got "' + line + '" instead.');
+            console.error('Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
             return null;
         }
 
@@ -561,7 +562,7 @@ function parseTuningConfig(text) {
             });
 
         if (hasInvalid) {
-            console.log('Invalid ligature declaration: ' + line);
+            console.error('Invalid ligature declaration: ' + line);
             return null;
         }
 
@@ -585,7 +586,7 @@ function parseTuningConfig(text) {
                 });
 
             if (hasInvalid) {
-                console.log('invalid ligature symbol: ' + words[words.length - 1]);
+                console.error('invalid ligature symbol: ' + words[words.length - 1]);
                 return null;
             }
 
@@ -605,13 +606,47 @@ function parseTuningConfig(text) {
     //
     //
 
-    // TODO.
-
     for (var i = nextDeclStartLine; i < lines.length; i++) {
         if (nextDeclStartLine == null) break;
+
+        var line = lines[i].trim();
+
+        // Check for `aux(x,y,..)` declaration
+
+        var match = line.match(/aux\(([0-9,]*)\)/);
+
+        if (!match) {
+            console.error('Couldn\'t parse tuning config: Expecting aux(x?, y?, ...), got "' + line + '" instead.');
+        }
+
+        hasInvalid = false;
+        var accChainIndices = match[1]
+            .split(',')
+            .filter(function(x) {return x.trim().length > 0})
+            .map(function (x) {
+                var n = parseInt(x);
+                if (isNaN(n) || n < 1) hasInvalid = true;
+                return n - 1;
+            });
+        
+        if (hasInvalid) {
+            console.error('Invalid aux declaration: ' + line);
+            return null;
+        }
+
+        var accChainsToCheckSame = [];
+
+        for (var accChainIdx = 0; accChainIdx < tuningConfig.accChains.length; accChainIdx++) {
+            // invert the accidental chains - only accidental chains not specified by the aux declaration
+            // should maintain at the same degree.
+            if (accChainIndices.indexOf(accChainIdx) != -1)
+                continue;
+            
+            accChainsToCheckSame.push(accChainIdx);
+        }
+
+        tuningConfig.auxList.push(accChainsToCheckSame);
     }
-
-
 
     //
     //
@@ -1099,7 +1134,7 @@ function removeFormattingCode(str) {
  */
 function parsePossibleConfigs(text, tick) {
     if (tick === undefined || tick === null) {
-        console.assert(false, 'FATAL ERROR: parsePossibleConfigs() missing tick parameter!');
+        console.error('FATAL ERROR: parsePossibleConfigs() missing tick parameter!');
         return null;
     }
 
@@ -1240,7 +1275,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var xenNote = tuningConfig.notesTable[xenHash];
 
     if (xenNote == undefined) {
-        console.assert(false, "\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config. \n Please check your tuning config. \n-----------------------\n");
+        console.error("\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config. \n Please check your tuning config. \n-----------------------\n");
         // console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
     }
@@ -1884,12 +1919,12 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
     cursor.rewind(0);
 
     if (voice < 0 || voice > 3) {
-        console.assert(false, "FATAL ERROR: setCursorToPosition voice out of range: " + voice);
+        console.error("FATAL ERROR: setCursorToPosition voice out of range: " + voice);
         return;
     }
 
     if (staffIdx < 0 || (cursor.score && staffIdx >= cursor.score.nstaves)) {
-        console.assert(false, "FATAL ERROR: setCursorToPosition staffIdx out of range: " + staffIdx);
+        console.error("FATAL ERROR: setCursorToPosition staffIdx out of range: " + staffIdx);
         return;
     }
 
@@ -2015,7 +2050,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     //     + tickOfNextBar + "), line: " + nLine);
 
     if (nTick > tickOfNextBar || nTick < tickOfThisBar) {
-        console.assert(false, "FATAL ERROR: getAccidental() tick " + nTick +
+        console.error("FATAL ERROR: getAccidental() tick " + nTick +
             " not within given bar ticks: " + tickOfThisBar + " to " + tickOfNextBar);
         return null;
     }
@@ -2308,7 +2343,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement) {
 function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tuningConfig = parms.currTuning;
     var keySig = parms.currKeySig; // may be null/invalid
-    var regarding = parms.currAux; // may be null/undefined
+    var accChainsToCheckSame = parms.currTuning.auxList[aux]; // may be null/undefined
     var bars = parms.bars;
     var noteTick = getTick(note);
 
@@ -2316,13 +2351,11 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tickOfThisBar = barBoundaries[0];
     var tickOfNextBar = barBoundaries[1];
 
-    console.log('executeTranspose(' + direction + ', ' + aux + '): ');
-
-    // TODO: implement aux config & operations.
+    console.log('executeTranspose(' + direction + ', ' + aux + '). Check same: ' + JSON.stringify(accChainsToCheckSame));
 
     // STEP 1: Choose the next note.
     var nextNote = chooseNextNote(
-        direction, null, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
+        direction, accChainsToCheckSame, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
 
     if (!nextNote) {
         // If no next note (e.g. no enharmonic)
@@ -3002,12 +3035,12 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
 
                     if (!chdElement) {
                         // this shouldn't happen...
-                        console.assert(false, "ERROR: chord object is present but no note inside!");
+                        console.error("ERROR: chord object is present but no note inside!");
                         continue;
                     }
 
                     if (chdElement.parent.type != Ms.CHORD) {
-                        console.assert(false, "ERROR: parent of note object isn't a chord??");
+                        console.error("ERROR: parent of note object isn't a chord??");
                         continue;
                     }
 
