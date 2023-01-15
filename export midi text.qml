@@ -7,6 +7,7 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.2
 import Qt.labs.settings 1.0
+import QtQuick.Dialogs 1.1
 import FileIO 3.0
 
 MuseScore {
@@ -23,6 +24,15 @@ MuseScore {
         }
       }
 
+      MessageDialog {
+        id: messageDialog
+        title: ""
+        text: ""
+        onAccepted: {
+          Qt.quit()
+        }
+      }
+
       onRun: {
         console.log('Xen Export MIDI CSV');
         // When you want to find which import has a syntax error, uncomment this line
@@ -35,7 +45,7 @@ MuseScore {
               Qt.quit();
 
         // Stores midi text to be written to file.
-        var midiText = '';
+        var midiText = division + '\n';
         var currentScorePath = curScore.path;
 
         console.log("currentScorePath: " + currentScorePath);
@@ -259,10 +269,14 @@ MuseScore {
         var success = fileIO.write(midiText);
 
         if (success) {
-          console.log('Successfully exported MIDI CSV to ' + exportPath);
+          messageDialog.title = 'MIDI CSV Export Success';
+          messageDialog.text = 'exported to ' + exportPath + '.\nRun "python3 generate-mpe.py ' + exportPath + '" to generate MPE MIDI files.';
         } else {
-          console.log('Failed to export MIDI CSV to ' + exportPath);
+          messageDialog.title = 'MIDI CSV Export Failed';
+          messageDialog.text = 'failed to export to ' + exportPath + '. See plugin creator logs for details.';
         }
+
+        messageDialog.open();
 
         Qt.quit();
       }

@@ -813,8 +813,12 @@ This midi.csv file is fed into a Python script which generates one MPE midi file
 ### midi.csv format
 
 ```csv
+ticks per quarter note
 staff number, MIDI note, ontime, duration, velocity, cents offset
+...
 ```
+
+The first line contains the number of midi ticks per quarter note, and the second line onwards contains midi play events.
 
 > :warning: To simplify the implementation, there will not be any info about tempo/time signature (and the midi spec will default to 4/4, 120 BPM). When importing the generated midi files into DAWs, make sure to disable auto import tempo information.
 

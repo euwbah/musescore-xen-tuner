@@ -1545,7 +1545,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
     // iterate play events
     for (var i = 0; i < note.playEvents.length; i++) {
         var pev = note.playEvents[i];
-        var pitch = pev.pitch; // midi pitch, to nearest semitone
+        var pitch = note.pitch + pev.pitch; // midi pitch, to nearest semitone
         var ontime = noteData.ms.tick + pev.ontime;
 
         var midiOffset = Math.round(centsOffset / 100);
