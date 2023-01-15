@@ -149,7 +149,7 @@ function readSymbolCode(codeOrText) {
  * @returns `Segment.tick` tick time-position of note.
  */
 function getTick(note) {
-    assert(note !== undefined && note !== null, "getTick called on non existent note");
+    console.assert(note !== undefined && note !== null, "getTick called on non existent note");
     if (note.parent.parent.tick !== undefined)
         return note.parent.parent.tick;
     else
@@ -1086,7 +1086,7 @@ function removeFormattingCode(str) {
  */
 function parsePossibleConfigs(text, tick) {
     if (tick === undefined || tick === null) {
-        console.log('FATAL ERROR: parsePossibleConfigs() missing tick parameter!');
+        console.assert(false, 'FATAL ERROR: parsePossibleConfigs() missing tick parameter!');
         return null;
     }
 
@@ -1227,7 +1227,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var xenNote = tuningConfig.notesTable[xenHash];
 
     if (xenNote == undefined) {
-        console.log("\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config. \n Please check your tuning config. \n-----------------------\n");
+        console.assert(false, "\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config. \n Please check your tuning config. \n-----------------------\n");
         // console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
     }
@@ -1273,6 +1273,9 @@ function calcCentsOffset(noteData, tuningConfig) {
     // calc cents (from reference note) of XenNote spelt in equave 0
     // remember to include equave offset (caused by equave modulo wrapping)
     var xenCentsFromRef = cents_equaves[0] - cents_equaves[1] * tuningConfig.equaveSize;
+
+    // don't forget to apply reference note tuning offset
+    xenCentsFromRef += Math.log2(tuningConfig.tuningFreq / 440) * 1200;
 
     // apply NoteData equave offset.
     xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
@@ -1859,12 +1862,12 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
     cursor.rewind(0);
 
     if (voice < 0 || voice > 3) {
-        console.log("FATAL ERROR: setCursorToPosition voice out of range: " + voice);
+        console.assert(false, "FATAL ERROR: setCursorToPosition voice out of range: " + voice);
         return;
     }
 
     if (staffIdx < 0 || (cursor.score && staffIdx >= cursor.score.nstaves)) {
-        console.log("FATAL ERROR: setCursorToPosition staffIdx out of range: " + staffIdx);
+        console.assert(false, "FATAL ERROR: setCursorToPosition staffIdx out of range: " + staffIdx);
         return;
     }
 
@@ -1990,7 +1993,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     //     + tickOfNextBar + "), line: " + nLine);
 
     if (nTick > tickOfNextBar || nTick < tickOfThisBar) {
-        console.log("FATAL ERROR: getAccidental() tick " + nTick +
+        console.assert(false, "FATAL ERROR: getAccidental() tick " + nTick +
             " not within given bar ticks: " + tickOfThisBar + " to " + tickOfNextBar);
         return null;
     }
@@ -2977,12 +2980,12 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
 
                     if (!chdElement) {
                         // this shouldn't happen...
-                        console.log("ERROR: chord object is present but no note inside!");
+                        console.assert(false, "ERROR: chord object is present but no note inside!");
                         continue;
                     }
 
                     if (chdElement.parent.type != Ms.CHORD) {
-                        console.log("ERROR: parent of note object isn't a chord??");
+                        console.assert(false, "ERROR: parent of note object isn't a chord??");
                         continue;
                     }
 
