@@ -65,10 +65,10 @@ in spite of weird timbres caused by playback, set this number higher
 If you rather preserve timbre as much as possible, set this
 number to 1.
 
-2 is a good midpoint for preserving selection playback for most
+3 is a good midpoint for preserving selection playback for most
 standard tunings.
 */
-var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 100;
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 13;
 
 /**
  * The smaller the number, the more tightly packed accidental symbols
@@ -775,6 +775,19 @@ function parseTuningConfig(text) {
                     cents -= tuningConfig.equaveSize;
                     equavesAdjusted--;
                 }
+            } else if (tuningConfig.equaveSize < 0) {
+                // negative equave - negative harmony
+                while (cents < 0) {
+                    cents -= tuningConfig.equaveSize;
+                    equavesAdjusted--;
+                }
+                while (cents >= -tuningConfig.equaveSize) {
+                    cents += tuningConfig.equaveSize;
+                    equavesAdjusted++;
+                }
+
+                // Because the reference note is on 'top', and it works downwards.
+                equavesAdjusted += 1;
             }
 
             xenNotesEquaves.push({
@@ -1275,7 +1288,7 @@ function calcCentsOffset(noteData, tuningConfig) {
     var xenCentsFromRef = cents_equaves[0] - cents_equaves[1] * tuningConfig.equaveSize;
 
     // don't forget to apply reference note tuning offset
-    xenCentsFromRef += Math.log2(tuningConfig.tuningFreq / 440) * 1200;
+    xenCentsFromRef += Math.log(tuningConfig.tuningFreq / 440) * 1200 / Math.log(2);
 
     // apply NoteData equave offset.
     xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
@@ -1635,6 +1648,8 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
 
         var newStepIdx = mod(currStepIdx + offset, tuningConfig.stepsList.length);
 
+        // These assumes that the equave has positive size.
+        // For negative equaves, use the negative value of equaveOffset later.
         if (newStepIdx == 0 && direction == 1) {
             // looped back from end of stepsList. Add an equave.
             equaveOffset++;
@@ -1699,6 +1714,11 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
     // Returns the XenNote hash option so far.
     var bestOption = null;
 
+    if (tuningConfig.equaveSize < 0) {
+        equaveOffset = -equaveOffset;
+        console.log('equaveSize < 0, reversing equaveOffset: ' + equaveOffset);
+    }
+
     // AccidentalVector Distance is measured as sum of squares
     var bestOptionAccDist = 100000;
     var bestNumSymbols = 10000;
@@ -1711,10 +1731,12 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
         var newXenNote = tuningConfig.notesTable[option];
 
         var newNoteEqvsAdj = tuningConfig.tuningTable[option][1];
-        var currNoteEqvsAdj = tuningConfig.tuningTable[noteData.xen.hash][1];;
+        var currNoteEqvsAdj = tuningConfig.tuningTable[noteData.xen.hash][1];
+
+        var totalEqvOffset = newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset;
 
         var nominalOffset = newXenNote.nominal - noteData.xen.nominal +
-            (newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset) * tuningConfig.numNominals;
+            totalEqvOffset * tuningConfig.numNominals;
 
         // check each option to see if it would match a prior accidental
         // on the new line. An AccidentalVector match is considered a match,
@@ -1792,7 +1814,7 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
         };
 
         if (bestOptionAccDist - avDist > 0.01) {
-            console.log('best av dist');
+            // console.log('best av dist');
             bestOption = nextNoteObj;
             bestOptionAccDist = avDist;
             // reset other lower-tier metrics
@@ -1805,7 +1827,7 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
             var numSymbols = newXenNote.orderedSymbols.length;
 
             if (numSymbols < bestNumSymbols) {
-                console.log('best num symbols');
+                // console.log('best num symbols');
                 bestOption = nextNoteObj;
                 bestNumSymbols = numSymbols;
                 bestLineOffset = 90000; // reset
@@ -1815,7 +1837,7 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
                 // the one that has the least lineOffset
 
                 if (Math.abs(nominalOffset) < bestLineOffset) {
-                    console.log('best line offset');
+                    // console.log('best line offset');
                     bestOption = nextNoteObj;
                     bestLineOffset = Math.abs(nominalOffset);
                     bestSumOfDegree = direction == 1 ? -10000 : 10000;
@@ -1827,7 +1849,7 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
 
                     if ((direction == 1 && sumOfDeg > bestSumOfDegree) ||
                         (direction == -1 && sumOfDeg < bestSumOfDegree)) {
-                        console.log('best sum of degree');
+                        // console.log('best sum of degree');
                         bestOption = nextNoteObj;
                         bestSumOfDegree = sumOfDeg;
                     }
@@ -2607,7 +2629,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
  * @returns 
  */
 function intervalOverlap(a1, a2, b1, b2) {
-    console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
+    // console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
     return (a1 - b2) * (a2 - b1) <= 0;
 }
 
@@ -2726,7 +2748,7 @@ function positionAccSymbolsOfChord(chord) {
     // of noteheads are all fixed relative to the chord segment.
 
     chord.forEach(function (note) {
-        console.log('noteline: ' + note.line);
+        // console.log('noteline: ' + note.line);
         positionedElemsBbox.push(
             {
                 left: note.pagePos.x + note.bbox.left,
@@ -2746,9 +2768,9 @@ function positionAccSymbolsOfChord(chord) {
 
     var count = 0;
     while (count++ < chord.length) {
-        console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
-            return bbox.left;
-        })));
+        // console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
+        //     return bbox.left;
+        // })));
         var note = chord[isZig ? ascIdx : descIdx];
 
         var absNoteBbox = {
@@ -2764,7 +2786,7 @@ function positionAccSymbolsOfChord(chord) {
         // Symbols appearing to the right come first.
         for (var i = 0; i < note.elements.length; i++) {
             var elem = note.elements[i];
-            console.log(JSON.stringify(elem.bbox));
+            // console.log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
                 if (symCode) {
@@ -2791,7 +2813,7 @@ function positionAccSymbolsOfChord(chord) {
                 var bbox = positionedElemsBbox[i];
                 var willCollideVertically = intervalOverlap(bbox.top - 0.4, bbox.bottom + 0.4, absNoteBbox.top, absNoteBbox.bottom);
 
-                console.log('check bbox: ' + bbox.left + ', willCollideVertically: ' + willCollideVertically);
+                // console.log('check bbox: ' + bbox.left + ', willCollideVertically: ' + willCollideVertically);
                 if (!willCollideVertically) continue;
 
                 if (prevElemLeft == null) {
@@ -2804,7 +2826,7 @@ function positionAccSymbolsOfChord(chord) {
                 prevElemLeft = bbox.left; // absolute x left pos of positioned bbox.
 
                 if (gapWidth >= symbolsWidth && prevElemLeft <= note.pagePos.x) {
-                    console.log('gapWidth: ' + gapWidth + ', symbolsWidth: ' + symbolsWidth + ', prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x)
+                    // console.log('gapWidth: ' + gapWidth + ', symbolsWidth: ' + symbolsWidth + ', prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x)
                     // the symbols can be added in this gap.
                     // exit loop. prevElemLeft now contains the absolute position
                     // to put the right most symbol.
@@ -2820,7 +2842,7 @@ function positionAccSymbolsOfChord(chord) {
 
             accSymbolsRTL.forEach(function (sym) {
                 var offX = prevX - (sym.bbox.right - sym.bbox.left) - ACC_SPACE;
-                console.log('offX: ' + offX);
+                // console.log('offX: ' + offX);
                 registeredSymbolOffsets.push({
                     sym: sym,
                     x: offX,
@@ -2865,9 +2887,9 @@ function positionAccSymbolsOfChord(chord) {
         isZig = !isZig;
     } // finish registering positions
 
-    console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
-        return bbox.left;
-    })));
+    // console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
+    //     return bbox.left;
+    // })));
 
     // Now, we need to apply the offsets
 
@@ -2929,8 +2951,8 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
         var chordsByTick = partitionChords(tickOfThisBar, tickOfNextBar, cursor);
         var ticks = Object.keys(chordsByTick);
 
-        console.log('auto positioning from ' + tickOfThisBar + ' to ' + tickOfNextBar +
-            '\nTicks found: ' + ticks.join(', '));
+        // console.log('auto positioning from ' + tickOfThisBar + ' to ' + tickOfNextBar +
+        //     '\nTicks found: ' + ticks.join(', '));
 
         ticks.forEach(function (tick) {
             // the Chords object
@@ -2955,19 +2977,19 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
                 // for all voices, at this tick.
                 var vertStack = [];
                 for (var voice = 0; voice <= 3; voice++) {
-                    console.log('num chords in voice ' + voice + ': ' + chords[voice].length);
+                    // console.log('num chords in voice ' + voice + ': ' + chords[voice].length);
                     var chord = chords[voice][vertStackIndex]; // [Note]
                     if (!chord) {
-                        console.log('no chord in voice ' + voice + ' at vertStackIndex ' + vertStackIndex);
+                        // console.log('no chord in voice ' + voice + ' at vertStackIndex ' + vertStackIndex);
                         continue;
                     }
 
                     if (chord.length == 0) {
-                        console.log('chord no notes');
+                        // console.log('chord no notes');
                         continue;
                     }
 
-                    console.log('num notes in chord: ' + chord.length);
+                    // console.log('num notes in chord: ' + chord.length);
 
                     // At the same time, we need to push back the chord
                     // by graceOffset, so that the symbols that were just
@@ -2990,13 +3012,13 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
                     }
 
                     chdElement.parent.offsetX = graceOffset;
-                    console.log('applied grace chord offset: ' + graceOffset);
+                    // console.log('applied grace chord offset: ' + graceOffset);
 
                     vertStack = vertStack.concat(chord);
                 }
 
-                console.log('vertStack.length: ' + vertStack.length);
-                console.log('vertStack[0]: ' + vertStack[0]);
+                // console.log('vertStack.length: ' + vertStack.length);
+                // console.log('vertStack[0]: ' + vertStack[0]);
 
                 // If no more chords at this vert stack index,
                 // finish.
@@ -3004,7 +3026,7 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
 
                 // Now, we have all notes that should be vertically aligned.
                 // Position symbols for this vert stack.
-                console.log(vertStack.length);
+                // console.log(vertStack.length);
                 var biggestXOffset = positionAccSymbolsOfChord(vertStack);
 
                 graceOffset += biggestXOffset;

@@ -24,7 +24,7 @@ MuseScore {
       property var stepwiseAux: 0
       
       onRun: {
-        console.log("Xen Up");
+        console.log("Xen Down");
 
         if (typeof curScore === 'undefined')
               Qt.quit();
