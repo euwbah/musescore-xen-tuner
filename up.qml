@@ -38,6 +38,7 @@ MuseScore {
         cursor.rewind(1);
         var startStaff;
         var endStaff;
+        var startTick = cursor.tick;
         var endTick;
         var noPhraseSelection = false;
         if (!cursor.segment) { // no selection
@@ -151,8 +152,10 @@ MuseScore {
 
             if (selectedNotes.length == 0) {
               console.log('no selected note elements, defaulting to pitch-up/pitch-down shortcuts');
-              // <UP DOWN VARIANT CHECKPOINT>
-              cmd('pitch-up');
+              if (stepwiseDirection == 1)
+                cmd('pitch-up');
+              else if (stepwiseDirection == -1)
+                cmd('pitch-down');
               Qt.quit();
             }
 
@@ -212,6 +215,8 @@ MuseScore {
 
               // Modify pitch.
 
+              curScore.startCmd();
+
               // direction: 1: up, -1 = down, 0: enharmonic cycle.
               var barState = Fns.executeTranspose(note, stepwiseDirection, 
                 stepwiseAux, parms, newElement, cursor);
@@ -220,8 +225,16 @@ MuseScore {
 
               Fns.removeUnnecessaryAccidentals(
                 tick, tick, parms.currKeySig, parms.bars, cursor, newElement);
+
+              curScore.endCmd();              
+              curScore.startCmd();
               
               // Auto position accidentals in this bar.
+              Fns.autoPositionAccidentals(
+                tick, tick, parms.bars, cursor
+              );
+              curScore.endCmd();              
+              
 
             }
           }
@@ -230,6 +243,7 @@ MuseScore {
         {
           // Standard implementation for phrase selection.
           for (var staff = startStaff; staff <= endStaff; staff++) {
+            curScore.startCmd();
             for (var voice = 0; voice < 4; voice++) {
               
               // reset curr configs
@@ -265,6 +279,18 @@ MuseScore {
                   Fns.removeUnnecessaryAccidentals(
                     tickOfThisBar, tickOfThisBar, parms.currKeySig, parms.bars, cursor, newElement);
                   
+                  // We can't do this one-shot at the end, because the unnecessary accidentals
+                  // dependins on tuning config & key sig, which may be different for each
+                  // bar.
+
+                  // However, a more efficient method would be to store the last tick when
+                  // key sig/tuning config was changed, and when config is changed
+                  // again, we remove unnecessary accidentals, then proceed.
+                  // This would be more efficient than re-running this function every bar.
+                  // 
+                  // TODO: improve efficiency of removeUnnecessaryAccidentals call
+                  // (Only if performance improvements are necessary)
+
                   // Update bar boundaries.
                   currBar++;
                   tickOfThisBar = tickOfNextBar;
@@ -309,8 +335,8 @@ MuseScore {
 
                       // Modify pitch.
                       Fns.executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
-                      tickOfLastModified = cursor.tick;
                     }
+                    tickOfLastModified = cursor.tick;
                   }
                 }
                 cursor.next();
@@ -324,7 +350,20 @@ MuseScore {
                   tickOfLastModified, tickOfLastModified, parms.currKeySig, parms.bars, 
                   cursor, newElement);
               }
-            }
+
+              // Also don't forget to auto position accidentals for the last bar.
+            } // end of voices
+
+            curScore.endCmd();
+
+            curScore.startCmd();
+
+            // After processing all voices in a staff, 
+            // auto position accidentals in this staff in the selection range
+            Fns.autoPositionAccidentals(
+              startTick, endTick, parms.bars, cursor
+            );
+            curScore.endCmd();
           }
         }
 

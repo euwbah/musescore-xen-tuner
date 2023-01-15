@@ -616,14 +616,14 @@ We will use this example to formulate our auto-positioning algorithm.
 
 ### 1. Read chords at given tick
 
-First, we need to restructure our `BarState` data. Gather all the chords with the same tick position into one `Chords` data structure.
+We read the contents of one bar at once. Instead of partitioning by `line` which `BarState` does, this time we're partitioning our data into ticks. Gather all the chords with the same tick position into one `Chords` data structure.
 
 The `Chords` object splits chords by voice. Within each voice, the chords & grace chords are sorted right to left, with the main chord first in the list.
 
 The generated data structure of the above example will look like this:
 
 ```js
-{
+[ // Chords object
   // Voice 1
   [
     [Main chord],
@@ -638,10 +638,10 @@ The generated data structure of the above example will look like this:
   // Voice 3&4 empty
   [],
   []
-}
+]
 ```
 
-Within a single chord, the notes are listed in no particular order. (The line mapping from `BarState` is removed)
+Within a single chord, the notes are listed in no particular order.
 
 The rationale for sorting right-to-left is so that we ensure that the index of the second grace chord of voice 1 equals the index of the first grace chord of voice 2.
 
@@ -729,15 +729,39 @@ Using the absolute bounding boxes of fixed/already positioned elements from step
 - Mark the positioned symbols as 'fixed' so that the next accidentals cannot overlap.
 - Calculate the X offset of the positioned symbols relative to the notehead's page position. Remember to account for the symbol's origin offset. (the notehead's X position is equal to its left bounding box edge).
 
+A symbol that is marked as 'positioned' will take this form:
+
+```js
+{ // PositionedElement
+  element: PluginAPI::Element, // element of the symbol
+  top: ..., // absolute coords of bbox top
+  bottom: ..., // absolute coords of bbox bottom
+  left: ..., // absolute coords of bbox left
+  right: ..., // absolute coords of bbox right
+}
+```
+
 ### 6. Assign offsets
 
 Assign the respective calculated X offsets to all the symbols at one go.
 
 ### 7. Push back grace notes
 
-The newly positioned accidentals will not push back grace notes/prior grace notes. To fix this, we need to manually push back ALL grace notes by the largest (leftest, -ve) X offset applied in step 6.
+The newly positioned accidentals will not push back grace notes/prior grace notes, this will cause positioned accidentals to intersect with grace notes. To fix this, we need to manually push back ALL grace notes by the largest (leftest, -ve) X offset applied in step 6.
 
-To do this, we just need to iterate the next indexed chords in the `Chords` structure.
+We can push back a grace chord by adjusting the note's parent's `Chord.offsetX` property.
+
+As we are iterating each grace chord, we need to keep track of the amount of space pushed back. DO NOT increment a grace chord's offset relative to its present offset, this will cause the offset to repeatedly increase. Instead, we use the `spacePushedBack` variable to keep track of any additional push backs caused by other grace chords on the right.
+
+Also, there are two things to note about how MuseScore positions grace notes by default (even without accidentals):
+
+![](imgs/grace-pushback.png)
+
+Firstly, the default X position of each grace note depends on the noteheads of the voice it belongs to. If the voice's main chord has a notehead cluster, the gracenote's default position will be pushed back to compensate for the notehead cluster.
+
+Secondly, notehead clusters/chords in other voices do not affect the positioning of grace chords in other voices.
+
+As a result, we can decide how much to additionally push back a grace note by measuring the left-most symbol's position with respect to the left-most notehead position per voice. The `symbol.pagePos.x - note.pagePos.x` is the amount of space we need to push back all prior grace chords by.
 
 ### 8. Rinse and repeat
 
@@ -1191,6 +1215,36 @@ The tick-notes mappings on each line can be sorted by tick, and each (grace) cho
 #### `Chords`
 
 ```js
+[
+  // Voice 1
+  [
+    [Main chord],
+    [Second grace chord],
+    [First grace chord]
+  ],
+  // Voice 2
+  [
+    [Main chord],
+    [First grace chord]
+  ],
+  // Voice 3&4 empty
+  [],
+  []
+]
+```
+
+See [Auto Positioning 1: Read chords at given tick](#1-read-chords-at-given-tick).
+
+#### `PositionedElement`
+
+```js
+{ // PositionedElement
+  element: PluginAPI::Element, // element of the symbol
+  top: ..., // absolute coords of bbox top
+  bottom: ..., // absolute coords of bbox bottom
+  left: ..., // absolute coords of bbox left
+  right: ..., // absolute coords of bbox right
+}
 ```
 
 ## Functions

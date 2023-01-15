@@ -13,7 +13,6 @@ with urllib.request.urlopen(SHEET_URL) as csv_download:
     with open('generated-tables.js', 'w') as f:
         csv_data = csv_download.read().decode('utf-8')
         
-        
         # Remove the first 5 lines of the csv
         # If CSV export format is changed, this may have to be changed to a different number
         csv_data = csv_data.split('\n', 5)[5]

@@ -191,6 +191,7 @@ MuseScore {
                   for (var j = 0; j < configKeys.length; j++) {
                     var key = configKeys[j];
                     parms[key] = config.config[key];
+                    console.log('Applied config: ' + key + ' = ' + JSON.stringify(config.config[key]));
                   }
                 }
               }

@@ -68,7 +68,13 @@ number to 1.
 2 is a good midpoint for preserving selection playback for most
 standard tunings.
 */
-var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 2;
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 100;
+
+/**
+ * The smaller the number, the more tightly packed accidental symbols
+ * are when auto-positioning accidentals.
+ */
+var ACC_SPACE = 0.3;
 
 /**
  * 
@@ -143,7 +149,7 @@ function readSymbolCode(codeOrText) {
  * @returns `Segment.tick` tick time-position of note.
  */
 function getTick(note) {
-    console.assert(note !== undefined && note !== null, "getTick called on non existent note");
+    assert(note !== undefined && note !== null, "getTick called on non existent note");
     if (note.parent.parent.tick !== undefined)
         return note.parent.parent.tick;
     else
@@ -179,9 +185,9 @@ function tokenizeNote(note) {
     var octavesFromA4 = Math.floor((note.pitch - 69) / 12);
     var nominals = Lookup.TPC_TO_NOMINAL[note.tpc][0];
     octavesFromA4 += Lookup.TPC_TO_NOMINAL[note.tpc][1];
-    
-    console.log('note bbox: ' + JSON.stringify(note.bbox) +
-                ', pagePos: ' + JSON.stringify(note.pagePos));
+
+    // console.log('note bbox: ' + JSON.stringify(note.bbox) +
+    //     ', pagePos: ' + JSON.stringify(note.pagePos));
 
     var hasAcc = false;
     var accidentals = {};
@@ -252,7 +258,7 @@ function accidentalsHash(accidentals) {
 
     if (accidentals == undefined) {
         // just in case...
-        console.log('WARN: undefined accidentals passed to accidentalsHash');
+        // console.log('WARN: undefined accidentals passed to accidentalsHash');
         return '';
     }
 
@@ -457,7 +463,7 @@ function parseTuningConfig(text) {
         for (var j = 0; j < accChainStr.length; j++) {
             var word = accChainStr[j];
 
-            if (word.match(/\([0-9.]+\)/)) {
+            if (word.match(/^\([0-9-\.]+\)$/)) {
                 increment = parseFloat(word.slice(1, word.length - 1));
                 degreesSymbols.push(null);
                 offsets.push(0);
@@ -792,7 +798,10 @@ function parseTuningConfig(text) {
 
                 // These values will contain the ligatured spelling of the accidental.
                 // Only used when a ligature match is found.
-                var ligaturedSymbols = Object.assign({}, accidentalSymbols); // shallow copy
+                var ligaturedSymbols = {}; 
+                for (var k in accidentalSymbols) {
+                    ligaturedSymbols[k] = accidentalSymbols[k];
+                } // shallow copy;
                 var ligOrderedSymbols = orderedSymbols.map(function (x) { return x; }); // shallow copy
 
                 /*
@@ -1188,7 +1197,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var accidentalsHash = getAccidental(
         cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0, null, reusedBarState);
 
-    console.log("Found effective accidental: " + accidentalsHash);
+    // console.log("Found effective accidental: " + accidentalsHash);
 
     if (accidentalsHash == null && keySig && keySig[nominal] != null
         // Check if KeySig has a valid number of nominals.
@@ -1316,7 +1325,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
 
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
 
-    console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
+    // console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
 
     var midiOffset = Math.round(centsOffset / 100);
 
@@ -1506,8 +1515,11 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * - Otherwise, if two options have very similar AV distances, choose the one with
  *   lesser accidental symbols. This ensures that ligatures will always take effect.
  * 
- * - And if all else are equal, we should pick the enharmonic spelling that 
+ * - Otherwise, we should pick the enharmonic spelling that 
  *   minimizes nominal/line offset amount.
+ * 
+ * - If all else are the same, up should prefer sharp side of acc chains (simply
+ *   the sum of all degrees in the vector), and down should prefer flat side.
  * 
  * 
  * A `NextNote.matchPriorAcc` flag will be returned `true` if an enharmonic
@@ -1539,7 +1551,7 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
 
     var noteData = parseNote(note, tuningConfig, keySig,
         tickOfThisBar, tickOfNextBar, cursor);
-    
+
     console.log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
 
     if (direction === 0) {
@@ -1688,9 +1700,10 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
     var bestOptionAccDist = 100000;
     var bestNumSymbols = 10000;
     var bestLineOffset = 90000;
+    var bestSumOfDegree = direction == 1 ? -10000 : 10000;
 
-    for (var i = 0; i < validOptions.length; i++) {
-        var option = validOptions[i]; // contains XenNote hash of enharmonic option.
+    for (var i = 0; i < Math.max(5, validOptions.length); i++) {
+        var option = validOptions[i % validOptions.length]; // contains XenNote hash of enharmonic option.
 
         var newXenNote = tuningConfig.notesTable[option];
 
@@ -1763,6 +1776,10 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
             avDist += (currAV[j] - optionAV[j]) * (currAV[j] - optionAV[j]);
         }
 
+        var sumOfDeg = currAV.reduce(function (acc, deg) {
+            return acc + deg;
+        });
+
         var nextNoteObj = {
             xen: newXenNote,
             nominal: newXenNote.nominal,
@@ -1771,28 +1788,46 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
             matchPriorAcc: false
         };
 
-        if (avDist < bestOptionAccDist) {
+        if (bestOptionAccDist - avDist > 0.01) {
+            console.log('best av dist');
             bestOption = nextNoteObj;
             bestOptionAccDist = avDist;
             // reset other lower-tier metrics
             bestNumSymbols = 90000;
             bestLineOffset = 90000;
-        } else if (Math.abs(avDist - bestOptionAccDist) < 0.01) {
+            bestSumOfDegree = direction == 1 ? -10000 : 10000;
+        } else if (Math.abs(avDist - bestOptionAccDist) <= 0.01) {
             // If distances are very similar, choose the option with
             // lesser symbols
             var numSymbols = newXenNote.orderedSymbols.length;
 
             if (numSymbols < bestNumSymbols) {
+                console.log('best num symbols');
                 bestOption = nextNoteObj;
                 bestNumSymbols = numSymbols;
                 bestLineOffset = 90000; // reset
+                bestSumOfDegree = direction == 1 ? -10000 : 10000;
             } else if (numSymbols == bestNumSymbols) {
-                // Last tier: if everything else the same, pick
+                // if everything else the same, pick
                 // the one that has the least lineOffset
 
                 if (Math.abs(nominalOffset) < bestLineOffset) {
+                    console.log('best line offset');
                     bestOption = nextNoteObj;
                     bestLineOffset = Math.abs(nominalOffset);
+                    bestSumOfDegree = direction == 1 ? -10000 : 10000;
+                } else if (Math.abs(nominalOffset) == bestLineOffset) {
+                    // If all else are the same, pick the option that
+                    // matches the direction of transpose.
+
+                    // Up should favor sharps, down should favor flats.
+
+                    if ((direction == 1 && sumOfDeg > bestSumOfDegree) ||
+                        (direction == -1 && sumOfDeg < bestSumOfDegree)) {
+                        console.log('best sum of degree');
+                        bestOption = nextNoteObj;
+                        bestSumOfDegree = sumOfDeg;
+                    }
                 }
             }
         }
@@ -1955,7 +1990,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     //     + tickOfNextBar + "), line: " + nLine);
 
     if (nTick > tickOfNextBar || nTick < tickOfThisBar) {
-        console.log("FATAL ERROR: getAccidental() tick " + nTick + 
+        console.log("FATAL ERROR: getAccidental() tick " + nTick +
             " not within given bar ticks: " + tickOfThisBar + " to " + tickOfNextBar);
         return null;
     }
@@ -1970,7 +2005,9 @@ function getAccidental(cursor, note, tickOfThisBar,
             // bar state.
 
             // TODO: If lagging, check if for-in is more performant for QJS engine.
-            Object.assign(reusedBarState, barState);
+            for (var key in barState) {
+                reusedBarState[key] = barState[key];
+            }
         }
     }
 
@@ -2157,9 +2194,17 @@ function setAccidental(note, orderedSymbols, newElement) {
         elem.symbol = SymId[symId];
         note.add(elem);
         elem.z = zIdx;
+
+        // var pageXBefore = elem.pagePos.x;
+
         // Just put some arbitrary 1.4sp offset
         // between each symbol for now.
         elem.offsetX = -1.4 * (zIdx - 999);
+
+        // I've checked that setting an element's offset also updates
+        // its pagePos immediately. Thus, pagePos is a reliable source
+        // of an element's most updated position.
+        // console.log('pagePos.x difference: ' + (elem.pagePos.x - pageXBefore));
         zIdx++;
     }
 }
@@ -2254,7 +2299,16 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var nextNote = chooseNextNote(
         direction, null, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
 
-    console.log('nextNote: ' + JSON.stringify(nextNote));
+    if (!nextNote) {
+        // If no next note (e.g. no enharmonic)
+        // simple do nothing, return bar state.
+        var newBarState = {};
+        tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newBarState);
+
+        return newBarState;
+    }
+
+    // console.log('nextNote: ' + JSON.stringify(nextNote));
 
     var newLine = note.line + nextNote.lineOffset;
 
@@ -2262,8 +2316,6 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     //         by the modification process.
 
     var ogCursorPos = saveCursorPosition(cursor);
-
-
 
     /*
     Applies explicit accidental to ALL notes with the same Note.line 
@@ -2330,7 +2382,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
     if (!accSymbols || accSymbols.length == 0) {
         // If the nextNote is a nominal, use explicit natural symbol.
-        
+
         // The new note added should always use explicit accidentals.
         accSymbols = [2];
     }
@@ -2348,7 +2400,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 }
 
 /**
- * Remove unnecessary accidentals from specified bars within staff.
+ * Remove unnecessary accidentals within a staff in selected range of bars.
  * 
  * This function assumes that the accidental state is always valid.
  * 
@@ -2387,9 +2439,9 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
     if (firstBarTickIndex == -1)
         firstBarTickIndex = lastBarTickIndex;
 
-    var currBarTick = bars[firstBarTickIndex];
-    
-    console.log('removeUnnec( from bar ' + firstBarTickIndex + ' (' + currBarTick + ') to ' + endBarTick + ')');
+    var tickOfThisBar = bars[firstBarTickIndex];
+
+    console.log('removeUnnec( from bar ' + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + endBarTick + ')');
 
     // Repeat procedure for 1 bar at a time.
 
@@ -2410,14 +2462,14 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
         */
 
 
-        var nextBarTick;
+        var tickOfNextBar;
         if (barIdx == bars.length - 1) {
-            nextBarTick = -1;
+            tickOfNextBar = -1;
         } else {
-            nextBarTick = bars[barIdx + 1];
+            tickOfNextBar = bars[barIdx + 1];
         }
 
-        var barState = readBarState(currBarTick, nextBarTick, cursor);
+        var barState = readBarState(tickOfThisBar, tickOfNextBar, cursor);
 
         // Mapping of lines to accidental hash
         // If a line has no accidentals thus far, check key signature
@@ -2535,7 +2587,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
 
 
         // go next bar
-        currBarTick = nextBarTick;
+        tickOfThisBar = tickOfNextBar;
     }
 }
 
@@ -2552,33 +2604,412 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
  * @returns 
  */
 function intervalOverlap(a1, a2, b1, b2) {
+    console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
     return (a1 - b2) * (a2 - b1) <= 0;
 }
 
+
 /**
- * Partition notes in a `BarState` according to tick position,
- * according to the `Chords` structure.
+ * Reads notes in a Bar according to `Chords` structure.
  * 
  * Each `Chords` object represents the chords (+ grace chords) available
  * at a given tick for all voices.
  * 
- * @param {BarState} barState `BarState` object to transmute.
+ * @param {number} tickOfThisBar
+ * @param {number | -1 | null} tickOfNextBar
+ * @param {*} cursor MuseScore cursor object
  * 
  * @returns {{number: Chords}} 
  *  A mapping of `Chords` objects indexed by tick position.
  */
-function partitionChords(barState) {
+function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
+    // console.log('partitionChords(' + tickOfThisBar + ', ' + tickOfNextBar + ')');
 
+    var ogCursorPos = saveCursorPosition(cursor);
+
+    if (tickOfNextBar == null || tickOfNextBar == -1) {
+        tickOfNextBar = 1e9;
+    }
+
+    // mapping of ticks to Chords objects.
+    var chordsPerTick = {};
+
+    // Loop all 4 voices to populate notes map
+
+    for (var voice = 0; voice < 4; voice++) {
+        setCursorToPosition(cursor, tickOfThisBar, voice, ogCursorPos.staffIdx);
+
+        while (cursor.segment && cursor.tick < tickOfNextBar) {
+            if (cursor.element && cursor.element.type == Ms.CHORD) {
+                var notes = cursor.element.notes;
+                var graceChords = cursor.element.graceNotes;
+                var currTick = cursor.tick;
+
+                if (!chordsPerTick[currTick]) {
+                    chordsPerTick[currTick] = [[], [], [], []];
+                }
+
+                // Move right-to-left. Start with the rightmost main chord.
+
+                var listOfNotes = [];
+                for (var i = 0; i < notes.length; i++) {
+                    listOfNotes.push(notes[i]);
+                }
+                chordsPerTick[currTick][voice].push(listOfNotes);
+
+                // Then add grace notes to the list in right-to-left order.
+
+                for (var i = graceChords.length - 1; i >= 0; i--) {
+                    var graceNotes = graceChords[i].notes;
+
+                    var listOfNotes = [];
+
+                    for (var j = 0; j < graceNotes.length; j++) {
+                        listOfNotes.push(graceNotes[j]);
+                    }
+                    chordsPerTick[currTick][voice].push(listOfNotes);
+                }
+            }
+
+            cursor.next();
+        }
+    }
+
+    restoreCursorPosition(ogCursorPos);
+
+    return chordsPerTick;
 }
 
 /**
+ * Positions accidental symbols for all voices' chords that are to be
+ * vertically-aligned.
  * 
- * Automatically positions accidentals.
+ * returns the largest (negative) distance between the left-most symbol the notehead 
+ * it is attached to. This returned value will decide how much should
+ * grace chords be pushed back.
  * 
- * @param {BarState} barState 
- *  `BarState` object containing a structured representation of the notes
- *  in a bar.
+ * @param {[Note]} chord Notes from all voices at a single tick & vertical-chord position.
+ * @returns {number} most negative distance between left-most symbol and left-most notehead.
  */
-function autoPositionAccidentals(barState) {
+function positionAccSymbolsOfChord(chord) {
 
+    // First, we need to sort the chord by increasing line number. (top-to-bottom)
+    chord.sort(function (a, b) { return a.line - b.line });
+
+    // console.log("chord.length: " + chord.length);
+    // chord.forEach(function(n) { console.log("HALLO: " + Object.keys(n)); });
+
+    // Then, we create two indices, one ascending and one descending.
+    // This is to accomplish zigzag pattern.
+
+    var ascIdx = 0;
+    var descIdx = chord.length - 1;
+
+    var mostNegativeDistance = 0;
+
+    // zig means use ascending index (top note)
+    // zag means use descending index (bottom note)
+    var isZig = true;
+
+    // contains absolute bboxes of already positioned elements.
+    // this is what we check against to prevent collision within this
+    // vertical-stack.
+
+    // This list is to be kept sorted by decreasing x position.
+    // (right to left).
+    var positionedElemsBbox = [];
+
+    // first we populate the positioned elems with noteheads. The positions
+    // of noteheads are all fixed relative to the chord segment.
+
+    chord.forEach(function (note) {
+        console.log('noteline: ' + note.line);
+        positionedElemsBbox.push(
+            {
+                left: note.pagePos.x + note.bbox.left,
+                right: note.pagePos.x + note.bbox.right,
+                top: note.pagePos.y + note.bbox.top,
+                bottom: note.pagePos.y + note.bbox.bottom
+            }
+        );
+    });
+
+    // then we sort the bboxes by decreasing x position.
+
+    positionedElemsBbox.sort(function (a, b) { return b.left - a.left });
+
+    // stores positions of positioned symbols to be updated all at once at the end.
+    var registeredSymbolOffsets = [];
+
+    var count = 0;
+    while (count++ < chord.length) {
+        console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
+            return bbox.left;
+        })));
+        var note = chord[isZig ? ascIdx : descIdx];
+
+        var absNoteBbox = {
+            left: note.pagePos.x + note.bbox.left,
+            right: note.pagePos.x + note.bbox.right,
+            top: note.pagePos.y + note.bbox.top,
+            bottom: note.pagePos.y + note.bbox.bottom
+        };
+
+        var accSymbolsRTL = [];
+
+        // stores list of all accidental symbols attached to this notehead.
+        // Symbols appearing to the right come first.
+        for (var i = 0; i < note.elements.length; i++) {
+            var elem = note.elements[i];
+            console.log(JSON.stringify(elem.bbox));
+            if (elem.symbol) {
+                var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
+                if (symCode) {
+                    accSymbolsRTL.push(elem);
+                }
+            }
+        }
+
+        accSymbolsRTL.sort(function (a, b) { return a.z - b.z });
+
+
+        if (accSymbolsRTL.length != 0) {
+            // Found acc symbols to position on this note.
+
+            var symbolsWidth = accSymbolsRTL.reduce(function (acc, sym) {
+                return acc + (sym.bbox.right - sym.bbox.left);
+            }, 0);
+
+            // Now that we have the sorted list of symbols to add, we need
+            // to find holes in the positionedElemsBbox list to insert them.
+
+            var prevElemLeft = null;
+            for (var i = 0; i < positionedElemsBbox.length; i++) {
+                var bbox = positionedElemsBbox[i];
+                var willCollideVertically = intervalOverlap(bbox.top - 0.4, bbox.bottom + 0.4, absNoteBbox.top, absNoteBbox.bottom);
+
+                console.log('check bbox: ' + bbox.left + ', willCollideVertically: ' + willCollideVertically);
+                if (!willCollideVertically) continue;
+
+                if (prevElemLeft == null) {
+                    prevElemLeft = bbox.left;
+                    continue;
+                }
+
+                var gapWidth = prevElemLeft - bbox.right;
+
+                prevElemLeft = bbox.left; // absolute x left pos of positioned bbox.
+
+                if (gapWidth >= symbolsWidth && prevElemLeft <= note.pagePos.x) {
+                    console.log('gapWidth: ' + gapWidth + ', symbolsWidth: ' + symbolsWidth + ', prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x)
+                    // the symbols can be added in this gap.
+                    // exit loop. prevElemLeft now contains the absolute position
+                    // to put the right most symbol.
+                    break;
+                }
+            }
+
+            // There was no gap between vertically intersecting elements 
+            // prevElemLeft contains the leftmost element left pos.
+
+            // prevX is the relative offset to assign to the curr symbol.
+            var prevX = prevElemLeft - note.pagePos.x;
+
+            accSymbolsRTL.forEach(function (sym) {
+                var offX = prevX - (sym.bbox.right - sym.bbox.left) - ACC_SPACE;
+                console.log('offX: ' + offX);
+                registeredSymbolOffsets.push({
+                    sym: sym,
+                    x: offX,
+                    y: 0
+                });
+
+                if (offX < mostNegativeDistance) {
+                    mostNegativeDistance = offX;
+                }
+
+                // create abs bbox for newly positioned symbol
+                var symBbox = {
+                    left: note.pagePos.x + offX + sym.bbox.left,
+                    right: note.pagePos.x + offX + sym.bbox.right,
+                    top: note.pagePos.y + sym.bbox.top,
+                    bottom: note.pagePos.y + sym.bbox.bottom
+                };
+
+                // find index to insert symBbox into positioned elements.
+
+                var insertIdx = positionedElemsBbox.length;
+                for (var j = 0; j < positionedElemsBbox.length; j++) {
+                    if (positionedElemsBbox[j].left < symBbox.left) {
+                        insertIdx = j;
+                        break;
+                    }
+                }
+
+                // Mark symbol as positioned.
+                positionedElemsBbox.splice(insertIdx, 0, symBbox);
+
+                prevX = offX;
+            });
+        }
+
+
+        if (isZig) {
+            ascIdx++;
+        } else {
+            descIdx--;
+        }
+        isZig = !isZig;
+    } // finish registering positions
+
+    console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
+        return bbox.left;
+    })));
+
+    // Now, we need to apply the offsets
+
+    registeredSymbolOffsets.forEach(function (symOff) {
+        symOff.sym.offsetX = symOff.x;
+        symOff.sym.offsetY = symOff.y;
+    });
+
+    return mostNegativeDistance;
+}
+
+/**
+ * Automatically positions accidentals in a staff within specified
+ * selection range.
+ * 
+ * @param {number} startTick Tick inside first bar of selection
+ * @param {number} endTick Tick inside last bar of selection. If -1, performs operation
+ *  till the end of the score.
+ * @param {[number]} bars List of ticks of bars.
+ * @param {*} cursor MuseScore cursor object
+ */
+function autoPositionAccidentals(startTick, endTick, bars, cursor) {
+    var lastBarTickIndex = -1; // if -1, means its the last bar of score
+    var firstBarTickIndex = -1;
+
+    for (var i = 0; i < bars.length; i++) {
+        if (endTick != -1 && bars[i] > endTick) {
+            lastBarTickIndex = i - 1;
+            break;
+        }
+        if (bars[i] > startTick && firstBarTickIndex == -1) {
+            firstBarTickIndex = i - 1;
+        }
+    }
+
+    if (lastBarTickIndex == -1)
+        lastBarTickIndex = bars.length - 1;
+
+    if (firstBarTickIndex == -1)
+        firstBarTickIndex = lastBarTickIndex;
+
+    var tickOfThisBar = bars[firstBarTickIndex];
+
+    console.log('autoPosition(' + startTick + ', ' + endTick + ') from bar '
+        + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + endTick);
+
+    // Repeat procedure for 1 bar at a time.
+
+    for (var barIdx = firstBarTickIndex; barIdx <= lastBarTickIndex; barIdx++) {
+
+        var tickOfNextBar;
+        if (barIdx == bars.length - 1) {
+            tickOfNextBar = -1;
+        } else {
+            tickOfNextBar = bars[barIdx + 1];
+        }
+
+        // mapping of ticks to Chords object of all chords present at that tick.
+        var chordsByTick = partitionChords(tickOfThisBar, tickOfNextBar, cursor);
+        var ticks = Object.keys(chordsByTick);
+
+        console.log('auto positioning from ' + tickOfThisBar + ' to ' + tickOfNextBar +
+            '\nTicks found: ' + ticks.join(', '));
+
+        ticks.forEach(function (tick) {
+            // the Chords object
+            var chords = chordsByTick[tick];
+
+            // One vert stack = all chords at a tick that should be
+            // more or less aligned vertically.
+
+            // The 0th vert stack represent the main chord.
+            // 1st = right most grace chord
+            // etc..
+            var vertStackIndex = 0;
+
+            // keeps track of how far back to push the grace chords.
+            var graceOffset = 0;
+
+            while (true) {
+                // Loop through each vert stack startng with main chord
+                // followed by grace chords right to left.
+
+                // contains array of Note elements
+                // for all voices, at this tick.
+                var vertStack = [];
+                for (var voice = 0; voice <= 3; voice++) {
+                    console.log('num chords in voice ' + voice + ': ' + chords[voice].length);
+                    var chord = chords[voice][vertStackIndex]; // [Note]
+                    if (!chord) {
+                        console.log('no chord in voice ' + voice + ' at vertStackIndex ' + vertStackIndex);
+                        continue;
+                    }
+
+                    if (chord.length == 0) {
+                        console.log('chord no notes');
+                        continue;
+                    }
+
+                    console.log('num notes in chord: ' + chord.length);
+
+                    // At the same time, we need to push back the chord
+                    // by graceOffset, so that the symbols that were just
+                    // don't overlap with the noteheads of this chord.
+
+                    // chdElement contains one of the notes of the chord.
+                    // We use this to get the parent MScore Chord element
+                    // so that we can push it back.
+                    var chdElement = chord[0];
+
+                    if (!chdElement) {
+                        // this shouldn't happen...
+                        console.log("ERROR: chord object is present but no note inside!");
+                        continue;
+                    }
+
+                    if (chdElement.parent.type != Ms.CHORD) {
+                        console.log("ERROR: parent of note object isn't a chord??");
+                        continue;
+                    }
+
+                    chdElement.parent.offsetX = graceOffset;
+                    console.log('applied grace chord offset: ' + graceOffset);
+
+                    vertStack = vertStack.concat(chord);
+                }
+
+                console.log('vertStack.length: ' + vertStack.length);
+                console.log('vertStack[0]: ' + vertStack[0]);
+
+                // If no more chords at this vert stack index,
+                // finish.
+                if (vertStack.length == 0) break;
+
+                // Now, we have all notes that should be vertically aligned.
+                // Position symbols for this vert stack.
+                console.log(vertStack.length);
+                var biggestXOffset = positionAccSymbolsOfChord(vertStack);
+
+                graceOffset += biggestXOffset;
+
+                vertStackIndex++;
+            }
+        });
+
+        tickOfThisBar = tickOfNextBar;
+    }
 }
