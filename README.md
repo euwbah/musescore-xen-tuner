@@ -14,7 +14,7 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 - [ ] Proper transposition by any interval of choice for all regular mappings.
 
-- [ ] MIDI/MPE export with channel pitch bend support.
+- [x] (50%. Files are generated, but no way of importing MPE directly to a DAW) MIDI/MPE export with channel pitch bend support.
 
 
 ## Quick Start
@@ -117,6 +117,42 @@ This plugin enables an **infinite** number of notation systems by giving you fre
 ## How to: tuning configuration
 
 ## How to: key signatures
+
+## How to: exporting MIDI/MPE
+
+MPE is a specification building on top of the MIDI 1.0 standard which allows for polyphonic pitch bend, which this plugin relies on to export microtonal pitch offsets of up to 15 notes per staff.
+
+Unfortunately, as far as I know, there isn't a way to import MPE midi files into DAWs directly. There are two options:
+
+1. Import 1 channel at a time (from channel 1 to 15) into separate tracks/channels in your DAW, assigning the channel's pitch bend to 15 different copies of the synth.
+
+2. Use the included python script to play back the generated MPE midi file in real-time through a virtual MIDI port on your computer. Record this play-back using any DAW that supports MPE MIDI controllers.
+
+The "Export MIDI CSV" plugin generates a .mid.csv file at the same location as the score.
+
+This file can be fed into the `generate-mpe.py` Python script.
+
+To run this, first, you will need to install [Python 3](https://www.python.org/downloads/) (preferably 3.6 or higher).
+
+After installing, Python, you will need to install three Python libraries: [mido](https://mido.readthedocs.io/en/latest/installing.html), [MIDIUtil](https://midiutil.readthedocs.io/en/1.2.1/), and [python-rtmidi](https://github.com/SpotlightKid/python-rtmidi).
+
+> :warning: If you installed Python 3 (the normal way) on Windows, you will need to use the `py` command instead of `python3`.
+
+```bash
+python3 -m pip install MIDIUtil
+python3 -m pip install mido
+python3 -m pip install python-rtmidi
+```
+
+To run the midi generator script:
+
+```bash
+cd path/to/musescore-ji-rtt-plugin
+python3 generate-mpe.py path/to/score.mid.csv
+```
+
+This will generate a .mid file at `path/to/score.mid`.
+
 
 ## HELP NEEDED!
 
