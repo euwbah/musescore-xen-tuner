@@ -268,6 +268,7 @@ I don't think you should use a notation system that would require this much comp
 - Octave 8va/15ma/etc... lines are not supported when non-standard number of nominals are used (e.g. bohlen pierce). You can simulate an octave line by setting the reference frequency higher/lower when needed.
 - If an undeclared accidental combination is used, the note will be regarded as without accidental, even if some (but not all) symbols are declared in accidental chains.
 - Ornaments can only be tuned within +/- 100 cents resolution.
+- When exporting MIDI, crescendos/diminuendos do not affect velocity. There doesn't seem to be a simple way to get the velocity of a note from the plugin API.
 - Could be very laggy...
 
 -----
@@ -802,6 +803,20 @@ As a result, we can decide how much to additionally push back a grace note by me
 ### 8. Rinse and repeat
 
 We can repeat steps 2-7 for the grace notes, calculating accidental offsets relative to grace notes one vertical-chord at a time, until all chords are completed.
+
+## MIDI Export
+
+This plugin 'exports' midi by generating a midi.csv file which contains all play events + tuning information for all notes in the selection/entire score.
+
+This midi.csv file is fed into a Python script which generates one MPE midi file per staff.
+
+### midi.csv format
+
+```csv
+staff number, MIDI note, ontime, duration, velocity, cents offset
+```
+
+> :warning: To simplify the implementation, there will not be any info about tempo/time signature (and the midi spec will default to 4/4, 120 BPM). When importing the generated midi files into DAWs, make sure to disable auto import tempo information.
 
 ## Data Structures
 

@@ -12,11 +12,13 @@ var SymId = null; // WARNING: SymId has a long loading time.
 var fileIO;
 var pluginHomePath = '';
 
-// Just 12 EDO.
+/**
+ * The default tuning config in case tunings/default.txt is invalid or not found.
+ */
 var DEFAULT_TUNING_CONFIG = "   \n\
 A4: 440                         \n\
 0 200 300 500 700 800 1000 1200 \n\
-bbb bb b (100) # x #x           \n\
+bb b (100) # x                  \n\
 ";
 
 /**
@@ -28,12 +30,12 @@ function generateDefaultTuningConfig() {
     var tuningConfig;
     if (defaultTxt.length == 0) {
         console.log("default.txt not found, generating default tuning config...");
-        tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
+        tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true);
     } else {
-        tuningConfig = parseTuningConfig(defaultTxt);
+        tuningConfig = parseTuningConfig(defaultTxt, true);
         if (tuningConfig == null) {
             console.error("ERROR: default.txt is invalid. Please fix your tuning config. Generating default tuning config...");
-            tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
+            tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true);
         }
     }
 
@@ -363,28 +365,34 @@ function createXenHash(nominal, accidentals) {
  *  The path should be relative to the 'tunings' folder in the plugin home directory.
  *  The '.txt' extension is optional.
  * 
+ * @param {boolean?} isNotPath 
+ *  Optional. Specify `true` to read text verbatim instead of trying to read from a file.
+ * 
  * @returns {TuningConfig} The parsed tuning configuration object, or null text was not a tuning config.
  */
-function parseTuningConfig(textOrPath) {
+function parseTuningConfig(textOrPath, isNotPath) {
 
     // Check if a tuning config file in the /tunings directory is specified.
     // Use the contents of that file as the tuning config if there's anything
     // in that file.
-
+    var text = '';
     var textOrPath = textOrPath.trim();
 
-    if (textOrPath.length == 0) {
-        // console.log('not tuning config: empty text');
-        return null;
+    if (!isNotPath) {
+
+        if (textOrPath.length == 0) {
+            // console.log('not tuning config: empty text');
+            return null;
+        }
+
+        if (textOrPath.endsWith('.txt')) {
+            textOrPath = textOrPath.substring(0, textOrPath.length - 4);
+        }
+
+        fileIO.source = pluginHomePath + 'tunings/' + textOrPath + '.txt';
+
+        text = fileIO.read().trim();
     }
-
-    if (textOrPath.endsWith('.txt')) {
-        textOrPath = textOrPath.substring(0, textOrPath.length - 4);
-    }
-
-    fileIO.source = pluginHomePath + 'tunings/' + textOrPath + '.txt';
-
-    var text = fileIO.read().trim();
 
     if (text.length == 0) {
         // If no file/IO Error, parse the textOrPath as the config itself.
@@ -1459,6 +1467,9 @@ function calcCentsOffset(noteData, tuningConfig) {
  * **Make sure curScore.createPlayEvents() is called** so that play events
  * are populated & modifiable from the plugin API!
  * 
+ * This function also generates MIDI CSV entries for PlayEvents of the note
+ * if `returnMidiCSV` is set to true.
+ * 
  * **IMPORTANT: Cursor must be positioned where the msNote is before 
  * calling this function!**
  * 
@@ -1473,8 +1484,17 @@ function calcCentsOffset(noteData, tuningConfig) {
  * @param {[number]} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {*} cursor MuseScore note object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
+ * @param {boolean} returnMidiCSV 
+ *  If true, this function will iterate play events of this note and create
+ *  midi text events for each play event.
+ * @param {number} partVelocity 
+ *  If `returnMidiCSV` is true, you will need to specify the velocity of
+ *  the part (from Dynamic segment annotations). Individual note velocity
+ *  is usually set to an offset relative to the part velocity.
+ * @returns {string} MIDI CSV string to append to the midi csv file.
  */
-function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
+function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, 
+        reusedBarState, returnMidiCSV, partVelocity) {
 
     var noteData = parseNote(note, tuningConfig, keySig,
         tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
@@ -1513,6 +1533,37 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         // to the original note's pitch.
         note.playEvents[i].pitch = midiOffset;
     }
+
+    if (!returnMidiCSV) {
+        return;
+    }
+
+    var midiText = '';
+    var staffIdx = Math.floor(note.track / 4);
+    var velo = (note.veloType == 0) ? (partVelocity + note.veloOffset) : note.veloOffset;
+
+    // iterate play events
+    for (var i = 0; i < note.playEvents.length; i++) {
+        var pev = note.playEvents[i];
+        var pitch = pev.pitch; // midi pitch, to nearest semitone
+        var ontime = noteData.ms.tick + pev.ontime;
+
+        var midiOffset = Math.round(centsOffset / 100);
+
+        pitch += midiOffset;
+
+        var tuning = centsOffset - midiOffset * 100;
+        tuning = tuning.toFixed(5); // don't put too many decimal places
+
+        console.log('registered: staff: ' + staffIdx + ', pitch: ' + pitch + ', ontime: ' + ontime 
+            + ', len: ' + pev.len + ', vel: ' + velo + ', cents: ' + tuning);
+        console.log('veloType: ' + note.veloType);
+        
+        midiText += staffIdx + ', ' + pitch + ', ' + ontime + ', ' + pev.len + ', ' 
+            + velo + ', ' + tuning + '\n';
+    }
+
+    return midiText;
 }
 
 /**
