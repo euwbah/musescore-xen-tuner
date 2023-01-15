@@ -2,15 +2,15 @@
 
 A plugin to give first-class support as many microtonal/xen notation systems as possible by introducing multiple accidentals per note.
 
-## Goals
+## Features/Goals
 
 - [x] (60%, needs [data entry](#help-needed)) The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
 
-- [x] (60%, needs testing) The user should not need to open up the symbols palette and manually search for the accidental the user needs. Every unique accidental and note in the equave should be accessible with just up/down arrows and 'J' to cycle through enharmonics.
+- [x] (90%, needs testing) The user should not need to open up the symbols palette and manually search for the accidental the user needs. Every unique accidental and note in the equave should be accessible with just up/down arrows and 'J' to cycle through enharmonics.
 
-- [ ] In large tuning systems, the user should not need to press the up arrow one [gongulus](https://googology.fandom.com/wiki/Gongulus) times to get to the desired note. An auxiliary up/down operation should be provided that transposes to the next note that considers a smaller subset of accidentals and leaves the other accidentals unchanged.
+- [x] In large tuning systems, the user should not need to press the up arrow one [gongulus](https://googology.fandom.com/wiki/Gongulus) times to get to the desired note. An auxiliary up/down operation should be provided that transposes to the next note that considers a smaller subset of accidentals and leaves the other accidentals unchanged.
 
-- [x] (60%, needs testing) Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol.
+- [x] (80%, needs testing) Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol.
 
 - [ ] Proper transposition by any interval of choice for all regular mappings.
 
@@ -27,18 +27,19 @@ Extract files to plugins folder & activate them (see [this guide](https://musesc
 
 Remove the following default keyboard shortcuts in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
-- pitch-up/down (`Up/Down` arrow keys)
-- enharmonic (`J`)
+- Pitch up/down or move text/articulation up/down  (`Up/Down` arrow keys)
+- Change enharmonic spelling (current mode) (`Ctrl+J`) (optional)
 
 If you wish to use the auxiliary up/down stepwise feature where you can choose exactly which sets/chains of accidentals to change/keep same when transposing, you can also remove/replace these default shortcuts which opens them up to be assigned to the plugin:
 
 - Go to higher/lower pitched note in chord (`Alt+Up/Down`)
 - Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
 
-:warning: IMPORTANT: Assign the following shortcuts using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins). Having these shortcuts is 99.9% of the reason why you should use this plugin:
+**:warning: IMPORTANT:** Assign the following shortcuts using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins). Having these shortcuts makes up 99.9% of the benefits of this plugin:
  
 - `up.qml` & `down.qml` &rarr; `Up/Down` arrow keys
-- `enharmonic.qml`&rarr; `J`
+- `enharmonic.qml`&rarr; `Ctrl+J` or `Alt+J`.
+  - :warning: If you use `J` as a plugin shortcut, you won't be able to type 'J' when editing text. This is a known issue with MuseScore plugin shortcuts.
 - `tune` &rarr; `Alt+R`
 - `up/down aux1.qml` &rarr; `Alt+Up/Down`. (Optional, if using aux1)
 - `up/down aux2.qml` &rarr; `Ctrl+Alt+Up/Down`. (Optional, if using aux2)
@@ -81,7 +82,7 @@ To refer to a symbol when keying in tuning/key signature configuration texts, yo
 
 > When entering symbols, both `#` and `5` both refer to the same sharp symbol.
 
-All this while, those who wish to write in notation systems where multiple accidentals can belong to a single notehead have been manually formatting/drag-dropping/tuning each accidental, with no easy way of simply pressing up/down to cycle through all the possible pitches of the tuning system. This includes composers who write in [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), etc...
+All this while, those who wish to write in notation systems where multiple accidentals can belong to a single notehead have been manually formatting/drag-dropping/tuning each accidental, with no easy way of simply pressing up/down to cycle through the different accidentals/pitches required. This includes composers who write in [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), etc...
 
 However, most, if not all, notation systems have one thing in common: an accidental always refers to the same-sized interval offset. A sharp always affects a note by the same amount no matter what other accidentals may be on the note, and no matter what note in the octave/equave it is.
 

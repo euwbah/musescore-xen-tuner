@@ -14,11 +14,19 @@ MuseScore {
       description: "Retune selection/score to annotated tuning system(s)"
       menuPath: "Plugins.xen.Tune"
 
+      FileIO {
+        id: fileIO
+        source: "./"
+        onError: function(err) {
+          console.error(fileIO.source + ". File IO Error: " + err);
+        }
+      }
+
       onRun: {
         console.log('Xen Tune');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms);
+        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."));
         console.log(Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')
@@ -191,9 +199,9 @@ MuseScore {
                   for (var j = 0; j < configKeys.length; j++) {
                     var key = configKeys[j];
                     parms[key] = config.config[key];
-                    console.log('Applied config: ' + key + ' = eqvSize: ' + config.config[key].equaveSize +
-                      ', staff: ' + staff + ', voice: ' + voice + ', config tick: ' + config.tick
-                      + ', cursor tick: ' + cursor.tick);
+                    // console.log('Applied config: ' + key + ' = eqvSize: ' + config.config[key].equaveSize +
+                    //   ', staff: ' + staff + ', voice: ' + voice + ', config tick: ' + config.tick
+                    //   + ', cursor tick: ' + cursor.tick);
                   }
                 }
               }

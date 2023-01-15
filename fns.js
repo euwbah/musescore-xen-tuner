@@ -9,6 +9,8 @@ var NoteType = null;
 var Element = null;
 var Ms = null;
 var SymId = null; // WARNING: SymId has a long loading time.
+var fileIO;
+var pluginHomePath = '';
 
 // Just 12 EDO.
 var DEFAULT_TUNING_CONFIG = "   \n\
@@ -21,9 +23,20 @@ bbb bb b (100) # x #x           \n\
  * Returns the default tuning config to apply when none is specified
  */
 function generateDefaultTuningConfig() {
-    console.log("Generating default tuning config...");
-    console.log(DEFAULT_TUNING_CONFIG);
-    var tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
+    fileIO.source = pluginHomePath + "tunings/default.txt";
+    var defaultTxt = fileIO.read();
+    var tuningConfig;
+    if (defaultTxt.length == 0) {
+        console.log("default.txt not found, generating default tuning config...");
+        tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
+    } else {
+        tuningConfig = parseTuningConfig(defaultTxt);
+        if (tuningConfig == null) {
+            console.error("ERROR: default.txt is invalid. Please fix your tuning config. Generating default tuning config...");
+            tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG);
+        }
+    }
+
     return tuningConfig;
 }
 
@@ -81,7 +94,7 @@ var ACC_SPACE = 0.3;
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
  */
-function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs) {
+function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs, MSFileIO, homePath) {
     Lookup = ImportLookup();
     // console.log(JSON.stringify(Lookup));
     Accidental = MSAccidental;
@@ -89,7 +102,9 @@ function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs) {
     NoteType = MSNoteType;
     Ms = MSMs;
     Element = MSElement;
-    console.log("Hello world! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
+    fileIO = MSFileIO;
+    pluginHomePath = homePath;
+    console.log("Initialized! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
 }
 
 /**
@@ -342,16 +357,40 @@ function createXenHash(nominal, accidentals) {
  * \.\ \ (21.506) / /./
  * ```
  * 
- * @param {string} text The system/staff text contents to parse.
+ * @param {string} text 
+ *  The system/staff text contents, or a path to a file containing the config text.
+ * 
+ *  The path should be relative to the 'tunings' folder in the plugin home directory.
+ *  The '.txt' extension is optional.
  * 
  * @returns {TuningConfig} The parsed tuning configuration object, or null text was not a tuning config.
  */
-function parseTuningConfig(text) {
-    var text = text.trim();
+function parseTuningConfig(textOrPath) {
 
-    if (text.length == 0) {
+    // Check if a tuning config file in the /tunings directory is specified.
+    // Use the contents of that file as the tuning config if there's anything
+    // in that file.
+
+    var textOrPath = textOrPath.trim();
+
+    if (textOrPath.length == 0) {
         // console.log('not tuning config: empty text');
         return null;
+    }
+
+    if (textOrPath.endsWith('.txt')) {
+        textOrPath = textOrPath.substring(0, textOrPath.length - 4);
+    }
+
+    fileIO.source = pluginHomePath + 'tunings/' + textOrPath + '.txt';
+
+    var text = fileIO.read().trim();
+
+    if (text.length == 0) {
+        // If no file/IO Error, parse the textOrPath as the config itself.
+        text = textOrPath;
+    } else {
+        console.log('Reading tuning config from ' + fileIO.source + ':\n' + text);
     }
 
     var tuningConfig = { // TuningConfig
@@ -410,7 +449,11 @@ function parseTuningConfig(text) {
 
     tuningConfig.tuningNominal = nominalsFromA4;
     tuningConfig.tuningNote = Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
-    tuningConfig.tuningFreq = parseFloat(referenceTuning[1]);
+    tuningConfig.tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
+
+    if (isNaN(tuningConfig.tuningFreq)) {
+        return null;
+    }
 
     // PARSE NOMINALS
     //
@@ -418,7 +461,22 @@ function parseTuningConfig(text) {
 
     var hasInvalid = false;
     var nominals = lines[1].split(' ').map(function (x) {
-        var f = parseFloat(x);
+        var f;
+        if (x.endsWith('c')) {
+            // in cents
+            f = parseFloat(eval(x.slice(0, -1)));
+        } else {
+            // in ratio, convert to cents.
+            var ratio = parseFloat(eval(x));
+
+            if (ratio < 0) {
+                f = -Math.log(-ratio) / Math.log(2) * 1200;
+            } else if (ratio == 0) {
+                f = 0;
+            } else {
+                f = Math.log(ratio) / Math.log(2) * 1200
+            }
+        }
         if (isNaN(f)) hasInvalid = true;
         return f
     });
@@ -464,8 +522,30 @@ function parseTuningConfig(text) {
         for (var j = 0; j < accChainStr.length; j++) {
             var word = accChainStr[j];
 
-            if (word.match(/^\([0-9-\.]+\)$/)) {
-                increment = parseFloat(word.slice(1, word.length - 1));
+            var matchIncrement = word.match(/^\((.+)\)$/);
+            
+            if (matchIncrement) {
+                var maybeIncrement;
+                if (matchIncrement[1].endsWith('c')) {
+                    // in cents
+                    maybeIncrement = parseFloat(eval(matchIncrement[1].slice(0, -1)));
+                } else {
+                    var ratio = parseFloat(eval(matchIncrement[1]));
+                    if (ratio < 0) {
+                        maybeIncrement = -Math.log(-ratio) / Math.log(2) * 1200;
+                    } else if (ratio == 0) {
+                        maybeIncrement = 0;
+                    } else {
+                        maybeIncrement = Math.log(ratio) / Math.log(2) * 1200
+                    }
+                }
+
+                if (isNaN(maybeIncrement)) {
+                    console.error('TUNING CONFIG ERROR: invalid accidental chain increment: ' + matchIncrement[1]);
+                    return null;
+                }
+
+                increment = maybeIncrement;
                 degreesSymbols.push(null);
                 offsets.push(0);
                 centralIdx = j;
@@ -490,11 +570,34 @@ function parseTuningConfig(text) {
                 });
 
                 if (hasInvalid) {
-                    console.error('invalid symbol: ' + symbols_offset[0]);
+                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + symbols_offset[0]);
                     return null;
                 }
 
-                var offset = symbols_offset.length > 1 ? parseFloat(symbols_offset[1].slice(0, symbols_offset[1].length - 1)) : 0;
+                var offset = 0;
+
+                if (symbols_offset.length > 1) {
+                    var offsetText = symbols_offset[1].slice(0, symbols_offset[1].length - 1);
+                    var maybeOffset;
+                    if (offsetText.endsWith('c')) {
+                        // in cents
+                        maybeOffset = parseFloat(eval(offsetText.slice(0, -1)));
+                    } else {
+                        var ratio = parseFloat(eval(offsetText));
+                        if (ratio < 0) {
+                            maybeOffset = -Math.log(-ratio) / Math.log(2) * 1200;
+                        } else if (ratio == 0) {
+                            maybeOffset = 0;
+                        } else {
+                            maybeOffset = Math.log(ratio) / Math.log(2) * 1200
+                        }
+                    }
+                    if (!isNaN(maybeOffset)) {
+                        offset = maybeOffset;
+                    } else {
+                        console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + offsetText);
+                    }
+                }
 
                 degreesSymbols.push(symbolCodes);
                 offsets.push(offset);
@@ -502,7 +605,7 @@ function parseTuningConfig(text) {
         }
 
         if (!increment || centralIdx == null) {
-            console.error('Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
+            console.error('TUNING CONFIG ERROR: Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
             return null;
         }
 
@@ -549,7 +652,7 @@ function parseTuningConfig(text) {
         var match = line.match(/lig\(([0-9,]+)\)/);
 
         if (!match) {
-            console.error('Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
+            console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
             return null;
         }
 
@@ -562,7 +665,7 @@ function parseTuningConfig(text) {
             });
 
         if (hasInvalid) {
-            console.error('Invalid ligature declaration: ' + line);
+            console.error('TUNING CONFIG ERROR: Invalid ligature declaration: ' + line);
             return null;
         }
 
@@ -586,7 +689,7 @@ function parseTuningConfig(text) {
                 });
 
             if (hasInvalid) {
-                console.error('invalid ligature symbol: ' + words[words.length - 1]);
+                console.error('TUNING CONFIG ERROR: invalid ligature symbol: ' + words[words.length - 1]);
                 return null;
             }
 
@@ -616,7 +719,7 @@ function parseTuningConfig(text) {
         var match = line.match(/aux\(([0-9,]*)\)/);
 
         if (!match) {
-            console.error('Couldn\'t parse tuning config: Expecting aux(x?, y?, ...), got "' + line + '" instead.');
+            console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting aux(x?, y?, ...), got "' + line + '" instead.');
         }
 
         hasInvalid = false;
@@ -630,7 +733,7 @@ function parseTuningConfig(text) {
             });
         
         if (hasInvalid) {
-            console.error('Invalid aux declaration: ' + line);
+            console.error('TUNING CONFIG ERROR: Invalid aux declaration: ' + line);
             return null;
         }
 
@@ -1318,19 +1421,21 @@ function calcCentsOffset(noteData, tuningConfig) {
     // lookup tuning table [cents, equavesAdjusted]
     var cents_equaves = tuningConfig.tuningTable[noteData.xen.hash];
 
-    // calc cents (from reference note) of XenNote spelt in equave 0
-    // remember to include equave offset (caused by equave modulo wrapping)
+    // calc XenNote cents from A4
+
+    // include equave offset (caused by equave modulo wrapping)
     var xenCentsFromRef = cents_equaves[0] - cents_equaves[1] * tuningConfig.equaveSize;
 
-    // don't forget to apply reference note tuning offset
+    // apply reference note tuning offset
     xenCentsFromRef += Math.log(tuningConfig.tuningFreq / 440) * 1200 / Math.log(2);
 
     // apply NoteData equave offset.
     xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
 
-    // calculate 12 edo interval from reference
+    // calculate 12 edo interval from A4
+
     var standardCentsFromRef =
-        (noteData.ms.midiNote - tuningConfig.tuningNote) * 100;
+        (noteData.ms.midiNote - 69) * 100;
 
     // the final tuning calculation is the difference between the two
     return xenCentsFromRef - standardCentsFromRef;

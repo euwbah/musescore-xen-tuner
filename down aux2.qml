@@ -10,10 +10,14 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-
       version: "0.1.0"
       description: "Raise selection/selected note(s) down to a lower step. Only modifies accidental chains denoted by the second aux() declaration."
       menuPath: "Plugins.xen.Pitch Down (aux2)"
+
+      FileIO {
+        id: fileIO
+        source: "tunings/default.txt"
+      }
 
       /* 
       Just update these vars to change the direction/aux of this operation.
@@ -29,7 +33,7 @@ MuseScore {
         if (typeof curScore === 'undefined')
               Qt.quit();
 
-        Fns.init(Accidental, NoteType, SymId, Element, Ms);
+        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."));
         console.log(Qt.resolvedUrl("."));
         var parms = {};
         curScore.createPlayEvents();
