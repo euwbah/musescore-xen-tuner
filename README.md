@@ -72,9 +72,11 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 
 #### Keeping accidentals up to date
 
-While the accidental data entry project is in progress, the new accidentals will be supported. The included `tabulate_accidentals.py` script updates your local copy of supported accidentals according to the "CSV Export" sheet. If you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can just run this python script yourself with Python 3. (Though, it is recommended to keep your plugin updated as there are ongoing bugfixes etc...)
+While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-plugin--troubleshooting).
 
-Note that if you have been using Symbol Code numbers to refer to your accidentals, you may need to ensure that the Symbol Codes still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code of symbols may change and is unstable.
+Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `tabulate_accidentals.py` python script yourself with Python 3.
+
+Note that if you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code of symbols may change and is unstable.
 
 ## How to understand this plugin
 
