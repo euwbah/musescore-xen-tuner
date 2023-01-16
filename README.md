@@ -930,7 +930,8 @@ This object can be hashed into the `AccidentalSymbols.hash`, which can be append
   },
   tick: number, // tick position of Segment that this note is attached to.
   line: number, // `PluginAPI::Note.line` property.
-  internalNote: PluginAPI::Note // official MuseScore note object
+  internalNote: PluginAPI::Note, // official MuseScore note object
+  fingerings: [Element], // List of Fingering elements attached to this notehead.
 }
 ```
 
@@ -1144,6 +1145,19 @@ Represents a ligature declaration.
 
 `LigAccVector` is a subspace of `AccidentalVector` which corresponds to the respective accidental chains included by `regarding`.
 
+#### `ConstantConstrictions`
+
+```js
+[number]
+```
+
+Just a list of numbers which filters which next notes are valid for the current up/down aux operation.
+
+- If `0` is in the list, the nominal must stay constant.
+- If `1` is in the list, the degree of the first accidental chain must stay constant.
+- If `2` is in the list, the degree of the second accidental chain must stay constant.
+- etc...
+
 #### `TuningConfig`
 
 ```js
@@ -1162,7 +1176,7 @@ Represents a ligature declaration.
   tuningNote: number, // MIDI note number of tuning note
   tuningNominal: number, // tuning note number of 12edo nominals from A4.
   tuningFreq: number, // Hz of tuning note.
-  auxList: [[number]], // List of list of indices of accidental chains.
+  auxList: [ConstantConstrictions], // List of `ConstantConstrictions`
   usedSymbols: {
     // lookup of all symbols used in this tuning config.
     // anything not in here should be ignored by the plugin.
@@ -1173,8 +1187,6 @@ Represents a ligature declaration.
 ```
 
 This is the resulting data structure to be generated after parsing a tuning config staff/system text annotation.
-
-The Nth entry of auxList represents the Nth auxiliary `accChainsToCheckSame` to pass into the `chooseNextNote` function. `auxList[0]` is `null`, representing the default up/down which includes all accidental chains.
 
 #### `TuningConfigLookup`
 

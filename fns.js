@@ -31,12 +31,13 @@ function generateDefaultTuningConfig() {
     var tuningConfig;
     if (defaultTxt.length == 0) {
         console.log("default.txt not found, generating default tuning config...");
-        tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true);
+        tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
     } else {
-        tuningConfig = parseTuningConfig(defaultTxt, true);
+        console.log('Generated default tuning config from default.txt');
+        tuningConfig = parseTuningConfig(defaultTxt, true, true);
         if (tuningConfig == null) {
             console.error("ERROR: default.txt is invalid. Please fix your tuning config. Generating default tuning config...");
-            tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true);
+            tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
         }
     }
 
@@ -226,6 +227,8 @@ function tokenizeNote(note) {
     var hasAcc = false;
     var accidentals = {};
 
+    var fingerings = [];
+
     // Removed. This plugin no longer attempts to deal with musescore's accidentals.
     // 
     // This plugin relies on SMuFL symbols attached from symbols in the "Symbols"
@@ -242,23 +245,29 @@ function tokenizeNote(note) {
 
         var elem = note.elements[i];
 
-        if (!elem.symbol) {
-            continue;
-        }
+        if (elem.name == 'Fingering') {
+            // Found fingering.
 
-        var acc = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
+            fingerings.push(elem);
+        } else if (elem.symbol) {
+            // Check if it is an accidental symbol.
+            // Don't worry about registering accidentals not in the tuning config.
+            // That will be handled later.
 
-        if (acc) {
-            if (accidentals[acc])
-                accidentals[acc] += 1;
-            else
-                accidentals[acc] = 1;
+            var acc = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
 
-            hasAcc = true;
+            if (acc) {
+                if (accidentals[acc])
+                    accidentals[acc] += 1;
+                else
+                    accidentals[acc] = 1;
 
-            // console.log('found elem: ' + elem.symbol.toString() + 
-            //     ', bbox: ' + JSON.stringify(elem.bbox) +
-            //     ', pagePos: ' + JSON.stringify(elem.pagePos));
+                hasAcc = true;
+
+                // console.log('found elem: ' + elem.symbol.toString() + 
+                //     ', bbox: ' + JSON.stringify(elem.bbox) +
+                //     ', pagePos: ' + JSON.stringify(elem.pagePos));
+            }
         }
     }
 
@@ -269,7 +278,8 @@ function tokenizeNote(note) {
         accidentals: hasAcc ? accidentals : null,
         tick: getTick(note),
         line: note.line,
-        internalNote: note
+        internalNote: note,
+        fingerings: fingerings,
     };
 
     return msNote;
@@ -443,9 +453,12 @@ function clearTuningConfigCache() {
  * @param {boolean?} isNotPath 
  *  Optional. Specify `true` to read text verbatim instead of trying to read from a file.
  * 
+ * @param {boolean?} silent
+ *  Optional. Specify `true` to suppress cache loading messages.
+ * 
  * @returns {TuningConfig} The parsed tuning configuration object, or null text was not a tuning config.
  */
-function parseTuningConfig(textOrPath, isNotPath) {
+function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     // Check if a tuning config file in the /tunings directory is specified.
     // Use the contents of that file as the tuning config if there's anything
@@ -455,20 +468,27 @@ function parseTuningConfig(textOrPath, isNotPath) {
 
     // First, chech the cache if this tuning already exists.
 
-    var tuningCacheStr = _curScore.metaTag('tuningconfigs');
-    var tuningCache = {};
-    if (tuningCacheStr && tuningCacheStr.length && tuningCacheStr.length > 0) {
-        tuningCache = JSON.parse(tuningCacheStr);
-        var maybeCached = tuningCache[textOrPath];
-        if (maybeCached != undefined) {
-            // Cached tuning config found. Use it!
-            console.log('Using cached tuning config:\n' + textOrPath + '\n' +
-                maybeCached.notesTable.length + ' notes/equave, ' + maybeCached.equaveSize + 'c equave');
-            return maybeCached;
+    if (_curScore) {
+        var tuningCacheStr = _curScore.metaTag('tuningconfigs');
+        var tuningCache = {};
+        if (tuningCacheStr && tuningCacheStr.length && tuningCacheStr.length > 0) {
+            tuningCache = JSON.parse(tuningCacheStr);
+            var maybeCached = tuningCache[textOrPath];
+            if (maybeCached != undefined) {
+                // Cached tuning config found. Use it!
+                if (!silent) {
+                    console.log('Using cached tuning config:\n' + textOrPath + '\n' +
+                        maybeCached.stepsList.length + ' notes/equave, ' + maybeCached.equaveSize + 'c equave');
+                }
+
+                return maybeCached;
+            }
         }
+    } else {
+        console.error('ERROR: _curScore not defined. Unable to read cache.');
     }
 
-    if (!isNotPath) {
+    if (!isNotPath && fileIO) {
 
         if (textOrPath.length == 0) {
             // console.log('not tuning config: empty text');
@@ -476,7 +496,7 @@ function parseTuningConfig(textOrPath, isNotPath) {
         }
 
         if (textOrPath.endsWith('.txt')) {
-            textOrPath = textOrPath.substring(0, textOrPath.length - 4);
+            textOrPath = textOrPath.slice(0, textOrPath.length - 4);
         }
 
         fileIO.source = pluginHomePath + 'tunings/' + textOrPath + '.txt';
@@ -742,7 +762,7 @@ function parseTuningConfig(textOrPath, isNotPath) {
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
-        if (line.match(/aux\([0-9,]*\)/)) {
+        if (line.match(/aux\([0-9,]+\)/)) {
             nextDeclStartLine = i;
             break;
         }
@@ -822,20 +842,24 @@ function parseTuningConfig(textOrPath, isNotPath) {
 
         // Check for `aux(x,y,..)` declaration
 
-        var match = line.match(/aux\(([0-9,]*)\)/);
+        var match = line.match(/aux\(([0-9,]+)\)/);
 
         if (!match) {
             console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting aux(x?, y?, ...), got "' + line + '" instead.');
         }
 
         hasInvalid = false;
-        var accChainIndices = match[1]
+        // Contains 0 if the user specifies nominals are allowed to change
+        // 1 if the first accidental chain degree is allowed to change
+        // 2 if the second accidental chain degree is allowed to change
+        // etc...
+        var nomAndChainIndices = match[1]
             .split(',')
             .filter(function (x) { return x.trim().length > 0 })
             .map(function (x) {
                 var n = parseInt(x);
-                if (isNaN(n) || n < 1) hasInvalid = true;
-                return n - 1;
+                if (isNaN(n) || n < 0) hasInvalid = true;
+                return n;
             });
 
         if (hasInvalid) {
@@ -843,18 +867,26 @@ function parseTuningConfig(textOrPath, isNotPath) {
             return null;
         }
 
-        var accChainsToCheckSame = [];
+        var constantConstrictions = []; // ConstantConstrictions list
 
         for (var accChainIdx = 0; accChainIdx < tuningConfig.accChains.length; accChainIdx++) {
             // invert the accidental chains - only accidental chains not specified by the aux declaration
             // should maintain at the same degree.
-            if (accChainIndices.indexOf(accChainIdx) != -1)
+
+            // accChainIdx is 0-based, +1 to make it 1-based.
+            if (nomAndChainIndices.indexOf(accChainIdx + 1) != -1)
                 continue;
 
-            accChainsToCheckSame.push(accChainIdx);
+            constantConstrictions.push(accChainIdx + 1);
         }
 
-        tuningConfig.auxList.push(accChainsToCheckSame);
+        // aux(0) Represents that the nominal should change.
+        // if the user doesn't specify 0, then the nominal should not change.
+
+        if (nomAndChainIndices.indexOf(0) == -1)
+            constantConstrictions.push(0);
+
+        tuningConfig.auxList.push(constantConstrictions);
     }
 
     //
@@ -1239,10 +1271,12 @@ function parseTuningConfig(textOrPath, isNotPath) {
 
     // Make sure to save it to the cache.
 
-    tuningCache[textOrPath] = tuningConfig;
-    _curScore.setMetaTag('tuningconfigs', JSON.stringify(tuningCache));
+    if (_curScore) {
+        tuningCache[textOrPath] = tuningConfig;
+        _curScore.setMetaTag('tuningconfigs', JSON.stringify(tuningCache));
 
-    console.log('Saved tuning to cache.');
+        console.log('Saved tuning to cache.');
+    }
 
     return tuningConfig;
 }
@@ -1503,7 +1537,99 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 }
 
 /**
+ * Checks if an accidental fingering text is attached to the note.
+ * 
+ * If so, replaces the fingering text with actual accidental symbols.
+ * 
+ * The accidental fingering text is a string prefixed by 'a', followed
+ * by the accidental vector that is comma-separated.
+ * 
+ * (Spaces can't be typed into a fingering)
+ * 
+ * Recap: The Nth integer of the accidental vector represents the degree 
+ * of the Nth accidental chain to be applied to this note.
+ * 
+ * 
+ * @param {MSNote} msNote
+ * @returns {MSNote} 
+ *  If accidentals were created, returns the retokenized `MSNote`, 
+ *  Otherwise, returns the original `MSNote`.
+ */
+function renderFingeringAccidental(msNote, tuningConfig, newElement) {
+    var elemToRemove = null;
+    var av = null;
+
+    for (var i = 0; i < msNote.fingerings.length; i++) {
+        var fingering = msNote.fingerings[i];
+        var text = fingering.text;
+        if (text.startsWith('a')) {
+            // Each space-separated number represents the degree of the
+            // nth accidental chain.
+            var isValid = true;
+            var degrees =
+                text
+                    .slice(1)
+                    .trim()
+                    .split(',')
+                    .map(function (x) {
+                        var i = parseInt(x);
+                        if (isNaN(i)) isValid = false
+                        return i;
+                    });
+
+            if (isValid) {
+                // We found a fingering text accidental.
+
+                av = [];
+
+                // If the number of degrees is less than the number of chains,
+                // assume the rest to be 0.
+
+                // If it is more, ignore the extra degrees.
+                for (var accChainIdx = 0; accChainIdx < tuningConfig.accChains.length; accChainIdx++) {
+                    var deg = degrees[accChainIdx];
+                    if (deg)
+                        av.push(deg);
+                    else
+                        av.push(0);
+                }
+
+                elemToRemove = fingering;
+                break;
+            }
+        }
+    }
+
+    if (av == null) return msNote;
+
+    // remove the fingering.
+    msNote.internalNote.remove(elemToRemove);
+
+    var orderedSymbols = [];
+    
+    // Loop from left most (last) acc chain to right most acc chain.
+    for(var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
+        var accChain = tuningConfig.accChains[accChainIdx];
+        var deg = av[accChainIdx];
+        if (deg != 0) {
+            var degIdx = deg + accChain.centralIdx;
+            var symCodes  = accChain.degreesSymbols[degIdx]; // left-to-right
+            orderedSymbols = orderedSymbols.concat(symCodes);
+        }
+    }
+
+    console.log('Set accidental from fingering: ' + orderedSymbols);
+
+    setAccidental(msNote.internalNote, orderedSymbols, 
+        newElement, tuningConfig.usedSymbols);
+
+    return tokenizeNote(msNote.internalNote);
+}
+
+/**
  * Parse a MuseScore Note into `NoteData`.
+ * 
+ * If a fingering accidental is found, it is rendered on to the note.
  * 
  * @param {*} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
@@ -1511,11 +1637,12 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
  * @param {[number]} tickOfThisBar Tick of first segment of this bar
  * @param {[number]} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {*} cursor MuseScore Cursor object
+ * @param {*} newElement reference to the `PluginAPI::newElement` function.
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @returns {NoteData} NoteData object
  */
-function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
-    var msNote = tokenizeNote(note);
+function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState) {
+    var msNote = renderFingeringAccidental(tokenizeNote(note), tuningConfig, newElement);
     var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
 
     return noteData;
@@ -1588,20 +1715,21 @@ function calcCentsOffset(noteData, tuningConfig) {
  * @param {[number]} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {*} cursor MuseScore note object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
+ * @param {boolean} newElement Reference to the `PluginAPI::newElement` function.
  * @param {boolean} returnMidiCSV 
  *  If true, this function will iterate play events of this note and create
  *  midi text events for each play event.
- * @param {number} partVelocity 
+ * @param {number?} partVelocity 
  *  If `returnMidiCSV` is true, you will need to specify the velocity of
  *  the part (from Dynamic segment annotations). Individual note velocity
  *  is usually set to an offset relative to the part velocity.
  * @returns {string} MIDI CSV string to append to the midi csv file.
  */
 function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor,
-    reusedBarState, returnMidiCSV, partVelocity) {
+    reusedBarState, newElement, returnMidiCSV, partVelocity) {
 
     var noteData = parseNote(note, tuningConfig, keySig,
-        tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
+        tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState);
 
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
 
@@ -1842,7 +1970,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * spelling is found that matches prior accidental state.
  * 
  * @param {number} direction `1` for upwards, `0` for enharmonic cycling, `-1` for downwards.
- * @param {[number]?} accChainsToCheckSame
+ * @param {[number]?} constantConstrictions
  *  An optional list of indices of accidental chains specifying the accidental chains
  *  that must maintain at the same degree.
  *  
@@ -1858,15 +1986,20 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
  * @param {*} cursor MuseScore cursor object
  * @param {BarState} reusedBarState
+ * @param {*} newElement 
+ *  Reference to `PluginAPI::newElement`.
+ *  
+ *  Rationale: The parseNote function may create accidental symbols if an
+ *  accidental fingering text is attached on the note.
  * @returns {NextNote?} 
  *  `NextNote` object containing info about how to spell the newly modified note.
  *  Returns `null` if no next note can be found.
  */
-function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
-    tuningConfig, tickOfThisBar, tickOfNextBar, cursor) {
+function chooseNextNote(direction, constantConstrictions, note, keySig,
+    tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newElement) {
 
     var noteData = parseNote(note, tuningConfig, keySig,
-        tickOfThisBar, tickOfNextBar, cursor);
+        tickOfThisBar, tickOfNextBar, cursor, newElement);
 
     console.log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
 
@@ -1968,20 +2101,32 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
         var validEnharmonicOptions = {};
 
         // check for accidental vector requirements according to
-        // accChainsToCheckSame
+        // constantConstrictions
 
         var currNoteAccVec = tuningConfig.avTable[noteData.xen.hash];
 
-        if (accChainsToCheckSame != null) {
+        if (constantConstrictions != null) {
             // Loop each accidental chain to check degree matches one at a time.
-            for (var foo = 0; foo < accChainsToCheckSame.length; foo++) {
+            for (var foo = 0; foo < constantConstrictions.length; foo++) {
                 // newNote.accVec[accChainIdx] needs to match currNote.accVec[accChainIdx]
-                var accChainIdx = accChainsToCheckSame[foo];
+                // for it to be considered a valid option for this auxiliary up/down.
+
+                // If referring to accidental chains, these are 1-indexed, subtract 1
+                // Otherwise, -1 will represent that nominals should stay unchanged.
+                var nomOrAccChainIdx = constantConstrictions[foo] - 1;
 
                 // loop enharmonic spellings at newStepIdx
                 for (var j = 0; j < enharmonicOptions.length; j++) {
                     var option = enharmonicOptions[j];
-                    if (tuningConfig.avTable[option][accChainIdx] != currNoteAccVec[accChainIdx]) {
+
+                    // The user enters aux(0,...) to specify that the
+                    // nominal should be changed. 
+                    // If accChainIdx == -1, this means
+                    // 0 was not specified by the user,
+                    // so the nominal should not change.
+
+                    if ((nomOrAccChainIdx == -1 && tuningConfig.notesTable[option].nominal != noteData.xen.nominal)
+                        || (nomOrAccChainIdx != -1 && tuningConfig.avTable[option][nomOrAccChainIdx] != currNoteAccVec[nomOrAccChainIdx])) {
                         // this enharmonic spelling does not match the requirements. flag as invalid
                         validEnharmonicOptions[option] = false;
                     } else if (validEnharmonicOptions[option] == undefined) {
@@ -2540,7 +2685,7 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
 }
 
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
-    var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
+    var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
     if (noteData.xen.accidentals != null) {
         setAccidental(note, noteData.xen.orderedSymbols, newElement, tuningConfig.usedSymbols);
     } else {
@@ -2613,7 +2758,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
 function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tuningConfig = parms.currTuning;
     var keySig = parms.currKeySig; // may be null/invalid
-    var accChainsToCheckSame = parms.currTuning.auxList[aux]; // may be null/undefined
+    var constantConstrictions = parms.currTuning.auxList[aux]; // may be null/undefined
     var bars = parms.bars;
     var noteTick = getTick(note);
 
@@ -2621,17 +2766,18 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tickOfThisBar = barBoundaries[0];
     var tickOfNextBar = barBoundaries[1];
 
-    console.log('executeTranspose(' + direction + ', ' + aux + '). Check same: ' + JSON.stringify(accChainsToCheckSame));
+    console.log('executeTranspose(' + direction + ', ' + aux + '). Check same: ' + JSON.stringify(constantConstrictions));
 
     // STEP 1: Choose the next note.
     var nextNote = chooseNextNote(
-        direction, accChainsToCheckSame, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
+        direction, constantConstrictions, note, keySig, tuningConfig, tickOfThisBar,
+        tickOfNextBar, cursor, newElement);
 
     if (!nextNote) {
         // If no next note (e.g. no enharmonic)
         // simple do nothing, return bar state.
         var newBarState = {};
-        tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newBarState);
+        tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newBarState, newElement);
 
         return newBarState;
     }
@@ -2722,7 +2868,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     //
 
     var newBarState = {};
-    tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newBarState);
+    tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newBarState, newElement);
 
     return newBarState;
 }
@@ -2916,7 +3062,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
                                     // is also redundant. Remove.
-                                    
+
                                     var realKeySig = removeUnusedSymbols(keySig[lineNum], tuningConfig) || '';
                                     if (realKeySig == accHash) {
                                         setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);

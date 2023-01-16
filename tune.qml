@@ -39,12 +39,14 @@ MuseScore {
         cursor.rewind(1);
         var startStaff;
         var endStaff;
+        var startTick = cursor.tick;
         var endTick;
         var fullScore = false;
         if (!cursor.segment) { // no selection
           fullScore = true;
           startStaff = 0; // start with 1st staff
           endStaff = curScore.nstaves - 1; // and end with last
+          endTick = curScore.lastSegment.tick + 1;
         } else {
           startStaff = cursor.staffIdx;
           cursor.rewind(2);
@@ -145,6 +147,9 @@ MuseScore {
         // Go through each staff + voice to start tuning notes.
 
         for (var staff = startStaff; staff <= endStaff; staff++) {
+
+          curScore.startCmd();
+
           for (var voice = 0; voice < 4; voice++) {
             // After each voice & rewind, 
             // reset all configs back to default
@@ -177,10 +182,13 @@ MuseScore {
             // we can reuse bar states per bar to prevent unnecessary
             // computation.
             var reusedBarState = {};
+            var tickOfLastModified = -1;
 
             // Loop elements of a voice
             while (cursor.segment && (fullScore || cursor.tick < endTick)) {
               if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
+                Fns.removeUnnecessaryAccidentals(
+                    tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
                 // Update bar boundaries.
                 currBar ++;
                 tickOfThisBar = tickOfNextBar;
@@ -216,13 +224,13 @@ MuseScore {
                     var notes = graceChords[i].notes;
                     for (var j = 0; j < notes.length; j++) {
                       Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning, 
-                        tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
+                        tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
                     }
                   }
                   var notes = cursor.element.notes;
                   for (var i = 0; i < notes.length; i++) {
                     Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning, 
-                      tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
+                      tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
 
                     // REMOVE AFTER TESTING
                     // this is how find other symbols (aux accidentals) attached to the note
@@ -231,11 +239,29 @@ MuseScore {
                     //     console.log(note.elements[j].symbol);
                     // }
                   }
+
+                  tickOfLastModified = cursor.tick;
                 }
               }
               cursor.next();
             }
-          }
+            
+            if (tickOfLastModified != -1) {
+              Fns.removeUnnecessaryAccidentals(
+                tickOfLastModified, tickOfLastModified, parms, 
+                cursor, newElement);
+            }
+          } // end of voice loop
+
+          curScore.endCmd();
+
+          curScore.startCmd();
+
+          Fns.autoPositionAccidentals(
+            startTick, endTick, parms, cursor
+          );
+
+          curScore.endCmd();
         }
 
         Qt.quit();

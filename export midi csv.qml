@@ -63,6 +63,7 @@ MuseScore {
           fullScore = true;
           startStaff = 0; // start with 1st staff
           endStaff = curScore.nstaves - 1; // and end with last
+          endTick = curScore.lastSegment.tick + 1;
         } else {
           startStaff = cursor.staffIdx;
           cursor.rewind(2);
@@ -250,13 +251,13 @@ MuseScore {
                     var notes = graceChords[i].notes;
                     for (var j = 0; j < notes.length; j++) {
                       midiText += Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning, 
-                        tickOfThisBar, tickOfNextBar, cursor, reusedBarState, true, velo);
+                        tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement, true, velo);
                     }
                   }
                   var notes = cursor.element.notes;
                   for (var i = 0; i < notes.length; i++) {
                     midiText += Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning, 
-                      tickOfThisBar, tickOfNextBar, cursor, reusedBarState, true, velo);
+                      tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement, true, velo);
                   }
                 }
               }
