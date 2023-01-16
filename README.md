@@ -23,7 +23,13 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 Download the project as .zip (the green "Code" button on top right of the project page).
 
-Extract files to plugins folder & activate them (see [this guide](https://musescore.org/en/handbook/3/plugins))
+Extract files to plugins folder and activate all the following plugins (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
+
+- _clear tuning cache_
+- _down_ & _down aux1_ & _down aux2_ etc...
+- _up_ & _up aux1_ & _up aux2_ etc...
+- _enharmonic_
+- _tune_
 
 Remove the following default keyboard shortcuts in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
