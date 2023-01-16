@@ -11,7 +11,7 @@ import FileIO 3.0
 
 MuseScore {
       version: "0.1.1"
-      description: "Raise selection/selected note(s) down to a lower step"
+      description: "Lower selection/selected note(s) down to a lower step"
       menuPath: "Plugins.xen.Pitch Down"
 
       FileIO {

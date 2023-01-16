@@ -11,21 +11,21 @@ import FileIO 3.0
 
 MuseScore {
       version: "0.1.1"
-      description: "Raise selection/selected note(s) down to a lower step. Only modifies accidental chains denoted by the first aux() declaration."
+      description: "Lower selection/selected note(s) down to a lower step. Steps sizes are determined by the first aux() declaration."
       menuPath: "Plugins.xen.Pitch Down (aux1)"
 
       FileIO {
         id: fileIO
         source: "tunings/default.txt"
       }
-
+      
       /* 
       Just update these vars to change the direction/aux of this operation.
 
       Directions: 1 (up), 0 (enharmonic cycle), -1 (down)
       */
       property var stepwiseDirection: -1
-      property var stepwiseAux: 1
+      property var stepwiseAux: 0
       
       onRun: {
         console.log("Xen Down");

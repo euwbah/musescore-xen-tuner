@@ -10,9 +10,8 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-
       version: "0.1.1"
-      description: "Raise selection/selected note(s) up to a higher step. Only modifies accidental chains denoted by the first aux() declaration."
+      description: "Raise selection/selected note(s) up to a higher step. Steps sizes are determined by the first aux() declaration."
       menuPath: "Plugins.xen.Pitch Up (aux1)"
 
       FileIO {
@@ -26,7 +25,7 @@ MuseScore {
       Directions: 1 (up), 0 (enharmonic cycle), -1 (down)
       */
       property var stepwiseDirection: 1
-      property var stepwiseAux: 1
+      property var stepwiseAux: 0
       
       onRun: {
         console.log("Xen Up");

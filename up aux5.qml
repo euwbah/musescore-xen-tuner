@@ -11,8 +11,8 @@ import FileIO 3.0
 
 MuseScore {
       version: "0.1.1"
-      description: "Raise selection/selected note(s) up to a higher step. Steps sizes are determined by the second aux() declaration."
-      menuPath: "Plugins.xen.Pitch Up (aux2)"
+      description: "Raise selection/selected note(s) up to a higher step. Steps sizes are determined by the fifth aux() declaration."
+      menuPath: "Plugins.xen.Pitch Up (aux5)"
 
       FileIO {
         id: fileIO
