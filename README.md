@@ -74,7 +74,7 @@ Copy & read the [example tuning configuration](#case-studyexample).
 
 Read [how the plugin conceptualizes tunings & accidentals](#how-to-understand-this-plugin) to make your own tuning configurations.
 
-## [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
+### [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
 This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
 
@@ -85,6 +85,8 @@ While the accidental data entry project is in progress, the new accidentals will
 Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `tabulate_accidentals.py` python script yourself with Python 3.
 
 Note that if you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code of symbols may change and is unstable.
+
+-----
 
 ## Introduction
 
@@ -130,6 +132,8 @@ This plugin enables an **infinite** number of notation systems by giving you fre
 - The number of nominals within an octave/equave (you can notate Bohlen-Pierce & other systems with less/more than 7 'alphabets')
 - The interval of the 'equave' (you can have stretched octave/tritave/etc... tunings, or even _negative-sized equaves_ to notate negative clefs for avant-garde 21st century negative harmony stuff)
 - Accidental ligatures --- where a single symbol (or multiple) can represent & substitute for a combination of accidentals from differing accidental chains (useful for HEJI & Sagittal)
+
+-----
 
 ## How to: tuning configuration
 
