@@ -72,7 +72,7 @@ After entering new notes, remember to press `Alt+R` to tune notes to the correct
 
 Copy & read the [example tuning configuration](#case-studyexample).
 
-Read [how the plugin conceptualizes tunings & accidentals](#how-to-understand-this-plugin) to make your own tuning configurations.
+Read [how the plugin conceptualizes tunings & accidentals](#introduction) to make your own tuning configurations.
 
 ### [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
