@@ -44,6 +44,19 @@ function generateDefaultTuningConfig() {
     return tuningConfig;
 }
 
+/**
+ * When using JI ratios attached to noteheads as fingerings,
+ * this determines whether the period after the ratio is required.
+ * 
+ * If you wish to use fingerings normally (i.e. to denote fingerings)
+ * you should leave this as `true`.
+ * 
+ * If you don't want to enter a period after every JI ratio, and you
+ * don't mind having fingerings rendered as JI ratios, you can set this
+ * to false.
+ */
+var REQUIRE_PERIOD_AFTER_FINGERING_RATIO = true;
+
 /*
 Sets the maximum interval (in cents) of notes that will be
 considered enharmonically equivalent.
@@ -1663,27 +1676,80 @@ function calcCentsOffset(noteData, tuningConfig) {
     // calc XenNote cents from A4
 
     // include equave offset (caused by equave modulo wrapping)
-    var xenCentsFromRef = cents_equaves[0] - cents_equaves[1] * tuningConfig.equaveSize;
+    var xenCentsFromA4 = cents_equaves[0] - cents_equaves[1] * tuningConfig.equaveSize;
 
     // apply reference note tuning offset
-    xenCentsFromRef += Math.log(tuningConfig.tuningFreq / 440) * 1200 / Math.log(2);
+    xenCentsFromA4 += Math.log(tuningConfig.tuningFreq / 440) * 1200 / Math.log(2);
 
     // apply NoteData equave offset.
-    xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
+    xenCentsFromA4 += noteData.equaves * tuningConfig.equaveSize;
+
+    // 2 different fingering tuning annotations can be applied to a note.
+    // (and can be applied simultaneously).
+    //
+    // They are applied in this order:
+    //
+    // 1. The fingering JI interval/ratio tuning overrides the tuning entirely,
+    // tuning the note as the specified ratio against the reference note.
+    // Its octave is automatically reduced/expanded to be as close as possible to 
+    // xenCentsFromA4. By default, this fingering must be suffixed by a period
+    // unless the REQUIRE_PERIOD_AFTER_FINGERING_RATIO flag is set to false.
+    // 
+    // 2. The fingering cents offset simply offsets tuning by the specified
+    //    amount of cents.
+    
+    var fingeringCentsOffset = 0;
+    var fingeringJIOffset = null; // this is in cents
+
+    noteData.ms.fingerings.forEach(function (fingering) {
+        var text = fingering.text;
+
+        if (text[0] && (text[0] == '+' || text[0] == '-')) {
+            // Cents offset fingering
+            var cents = parseFloat(eval(text));
+            if (!isNaN(cents)) {
+                fingeringCentsOffset += cents;
+            }
+        } else if (!REQUIRE_PERIOD_AFTER_FINGERING_RATIO || text.endsWith('.')) {
+            // Ratio.
+            if (REQUIRE_PERIOD_AFTER_FINGERING_RATIO)
+                text = text.slice(0, -1);
+            var ratio = parseFloat(eval(text));
+            if (!isNaN(ratio) && ratio != 0) {
+                if (ratio > 0) {
+                    fingeringJIOffset = Math.log(ratio) * 1200 / Math.log(2);
+                } else {
+                    // negative ratio is treated as a negative cents offset
+                    fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
+                }
+            }
+        }
+    });
+
+    if (fingeringJIOffset) {
+        // We need to octave reduce/expand this until it is as close as possible to 
+        // xenCentsFromA4.
+
+        xenCentsFromA4 = fingeringJIOffset - Math.round((fingeringJIOffset - xenCentsFromA4) / 1200) * 1200;
+    }
+
+    // Apply cents offset.
+
+    xenCentsFromA4 += fingeringCentsOffset;
 
     // calculate 12 edo interval from A4
 
-    var standardCentsFromRef =
+    var standardCentsFromA4 =
         (noteData.ms.midiNote - 69) * 100;
 
     // the final tuning calculation is the difference between the two
-    return xenCentsFromRef - standardCentsFromRef;
+    return xenCentsFromA4 - standardCentsFromA4;
 }
 
 /**
  * Literally just tunes the note. It's that simple!
  * 
- * Ok it's not. If a note's cent offset is too great (especially in
+ * If a note's cent offset is too great (especially in
  * systems with weird nominals/non-octave) we will have to use a different MIDI pitch
  * than the original `Note.pitch`, otherwise, the playback will have a very
  * weird timbre.
@@ -1732,6 +1798,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState);
 
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
+
 
     // console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
 
