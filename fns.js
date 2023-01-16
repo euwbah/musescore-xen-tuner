@@ -1706,9 +1706,9 @@ function calcCentsOffset(noteData, tuningConfig) {
 
         if (text[0] && (text[0] == '+' || text[0] == '-')) {
             // Cents offset fingering
-            var cents = parseFloat(eval(text));
+            var cents = parseFloat(eval(text.slice(1)));
             if (!isNaN(cents)) {
-                fingeringCentsOffset += cents;
+                fingeringCentsOffset += cents * (text[0] == '+' ? 1 : -1);
             }
         } else if (!REQUIRE_PERIOD_AFTER_FINGERING_RATIO || text.endsWith('.')) {
             // Ratio.
