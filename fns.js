@@ -86,10 +86,25 @@ standard tunings.
 var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 13;
 
 /**
+ * Represents additional horizontal space to put between accidentals
+ * when auto-positioning them.
+ * 
+ * (Increases the width of the accidental bounding box)
+ * 
  * The smaller the number, the more tightly packed accidental symbols
  * are when auto-positioning accidentals.
+ * 
+ * Number is in spatium units.
  */
-var ACC_SPACE = 0.3;
+var ACC_SPACE = 0.1;
+
+/**
+ * Represents additional horizontal space to put between the notehead
+ * and the accidental when auto-positioning accidentals.
+ * 
+ * Number is in spatium units.
+ */
+var ACC_NOTESPACE = 0.2;
 
 /**
  * 
@@ -3020,7 +3035,7 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
         // console.log('noteline: ' + note.line);
         positionedElemsBbox.push(
             {
-                left: note.pagePos.x + note.bbox.left,
+                left: note.pagePos.x + note.bbox.left - ACC_NOTESPACE,
                 right: note.pagePos.x + note.bbox.right,
                 top: note.pagePos.y + note.bbox.top,
                 bottom: note.pagePos.y + note.bbox.bottom
