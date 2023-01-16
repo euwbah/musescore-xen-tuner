@@ -25,7 +25,7 @@ MuseScore {
       Directions: 1 (up), 0 (enharmonic cycle), -1 (down)
       */
       property var stepwiseDirection: -1
-      property var stepwiseAux: 0
+      property var stepwiseAux: 5
       
       onRun: {
         console.log("Xen Down");
