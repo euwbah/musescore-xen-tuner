@@ -118,6 +118,23 @@ This plugin enables an **infinite** number of notation systems by giving you fre
 
 ## How to: key signatures
 
+## Updating plugin / Troubleshooting
+
+This plugin is very experimental, so make sure you're always using the most updated version of this plugin as bugs are always being fixed.
+This plugin does not update automatically. Redownload the code from here, and replace the files.
+
+> ⚠️ **IMPORTANT**: When updating the plugin, make sure you reopen MuseScore for changes to take effect. To be very certain that the newer files are being used, you can click the **Reload Plugins** button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins) to force reload all plugins, though you will need to re-enable and reconfigure keyboard shortcuts again.
+
+Now, if there are still issues with the plugin, first, try to reset the tuning cache of the score using the **Clear Tuning Cache** plugin. It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
+
+If that still doesn't work, you will need to [file an issue here](https://github.com/euwbah/musescore-ji-rtt-plugin/issues). Please include the following information:
+
+- Version of MuseScore
+- Version of plugin
+- Operating system
+- Debug logs
+  - To find this, open the **Plugin Creator** (Plugins > Plugin Creator), and you will see some console logs at the bottom of the window. Usually if an error occurs, you should be able to see the error message at the bottom of the log. Copy and paste as much as you can, **making sure that you include the error message** at the bottom.
+
 ## How to: exporting MIDI/MPE
 
 MPE is a specification building on top of the MIDI 1.0 standard which allows for polyphonic pitch bend, which this plugin relies on to export microtonal pitch offsets of up to 15 notes per staff.

@@ -10,7 +10,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.1.0"
+      version: "0.1.1"
       description: "Retune selection/score to annotated tuning system(s)"
       menuPath: "Plugins.xen.Tune"
 
@@ -26,7 +26,7 @@ MuseScore {
         console.log('Xen Tune');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."));
+        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
         console.log(Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')

@@ -11,7 +11,7 @@ import QtQuick.Dialogs 1.1
 import FileIO 3.0
 
 MuseScore {
-      version: "0.1.0"
+      version: "0.1.1"
       description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
           + "script to generate one MPE midi file per staff."
       menuPath: "Plugins.xen.Export MIDI"
@@ -37,7 +37,7 @@ MuseScore {
         console.log('Xen Export MIDI CSV');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."));
+        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
         console.log(Qt.resolvedUrl("."));
 
 

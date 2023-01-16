@@ -11,6 +11,7 @@ var Ms = null;
 var SymId = null; // WARNING: SymId has a long loading time.
 var fileIO;
 var pluginHomePath = '';
+var _curScore = null; // don't clash with namespace
 
 /**
  * The default tuning config in case tunings/default.txt is invalid or not found.
@@ -111,7 +112,7 @@ var ACC_NOTESPACE = 0.2;
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
  */
-function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs, MSFileIO, homePath) {
+function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs, MSFileIO, homePath, MSCurScore) {
     Lookup = ImportLookup();
     // console.log(JSON.stringify(Lookup));
     Accidental = MSAccidental;
@@ -121,6 +122,7 @@ function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs, MSFileIO, home
     Element = MSElement;
     fileIO = MSFileIO;
     pluginHomePath = homePath;
+    _curScore = MSCurScore;
     console.log("Initialized! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
 }
 
@@ -395,9 +397,33 @@ function createXenHash(nominal, accidentals) {
 }
 
 /**
- * Tests system/staff text to see if it is a tuning config.
+ * Clears the tuning config cache from the current score.
  * 
- * If it is, parses it and creates a TuningConfig object.
+ * Be sure to run this time to time, especially if you're experimenting
+ * with many tuning configs in one score.
+ * 
+ * (Tell the user to run this if they are creating/experimenting with different tuning configs,
+ * then deleting them, and are currently not using most of them)
+ * 
+ * Otherwise, the cache text will contain too many tuning configs and it will become
+ * pointless to use the cache as the JSON parsing will take longer than just generating
+ * the tuning config.
+ */
+function clearTuningConfigCache() {
+    _curScore.setMetaTag('tuningconfigs', '');
+}
+
+/**
+ * Tests if a certain text/tuning file is a tuning config.
+ * 
+ * First it will look up cached TuningConfigs so it won't
+ * have to parse the text again.
+ * 
+ * The cache will contain strings (either entire texts or references to .txt files) 
+ * that generated a TuningConfig, and maps it to TuningConfig objects.
+ * 
+ * If a cached TuningConfig is not found, parses the text/tuning file
+ * and creates a TuningConfig object.
  * 
  * Example tuning config text:
  * 
@@ -426,6 +452,21 @@ function parseTuningConfig(textOrPath, isNotPath) {
     // in that file.
     var text = '';
     var textOrPath = textOrPath.trim();
+
+    // First, chech the cache if this tuning already exists.
+
+    var tuningCacheStr = _curScore.metaTag('tuningconfigs');
+    var tuningCache = {};
+    if (tuningCacheStr && tuningCacheStr.length && tuningCacheStr.length > 0) {
+        tuningCache = JSON.parse(tuningCacheStr);
+        var maybeCached = tuningCache[textOrPath];
+        if (maybeCached != undefined) {
+            // Cached tuning config found. Use it!
+            console.log('Using cached tuning config:\n' + textOrPath + '\n' +
+                maybeCached.notesTable.length + ' notes/equave, ' + maybeCached.equaveSize + 'c equave');
+            return maybeCached;
+        }
+    }
 
     if (!isNotPath) {
 
@@ -1195,6 +1236,13 @@ function parseTuningConfig(textOrPath, isNotPath) {
     }
 
     // DONE!
+
+    // Make sure to save it to the cache.
+
+    tuningCache[textOrPath] = tuningConfig;
+    _curScore.setMetaTag('tuningconfigs', JSON.stringify(tuningCache));
+
+    console.log('Saved tuning to cache.');
 
     return tuningConfig;
 }
