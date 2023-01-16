@@ -4,17 +4,23 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 ## Features/Goals
 
-- [x] (60%, needs [data entry](#help-needed)) The user should not need to manually retune cents offset of notes. Support for many tuning systems as possible while allowing maximum flexibility of choice of accidentals.
+- [x] Support for many tuning systems with flexibility of choice of accidentals. (60%, data entry [help needed!](#help-needed))
 
-- [x] (90%, needs testing) The user should not need to open up the symbols palette and manually search for the accidental the user needs. Every unique accidental and note in the equave should be accessible with just up/down arrows and 'J' to cycle through enharmonics.
+- [x] Automated tuning & auto-positioning of multiple accidentals.
 
-- [x] In large tuning systems, the user should not need to press the up arrow one [gongulus](https://googology.fandom.com/wiki/Gongulus) times to get to the desired note. An auxiliary up/down operation should be provided that transposes to the next note that considers a smaller subset of accidentals and leaves the other accidentals unchanged.
+- [x] Every unique accidental/note within an octave/equave is accessible with up/down arrows and 'J' to cycle through enharmonics, no matter how large the tuning.
 
-- [x] (80%, needs testing) Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol.
+- [x] Configurable auxiliary up/down operations that limit stepwise transpositions to certain accidentals/nominals. (E.g. Move by diatonic steps only, or diatonic + 11-commas only)
+
+- [x] Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol
+
+- [x] Use of fingerings to input complex accidentals in large tuning systems
+
+- [x] JI ratios in fingerings, cent offsets in fingerings.
 
 - [ ] Proper transposition by any interval of choice for all regular mappings.
 
-- [x] (50%. Files are generated, but no way of importing MPE directly to a DAW) MIDI/MPE export with channel pitch bend support.
+- [x] MIDI/MPE export with channel pitch bend support. (WIP. MIDI files containing MPE data are generated, but no workflow exists to import these directly to a DAW)
 
 
 ## Quick Start
@@ -36,7 +42,7 @@ Remove the following default keyboard shortcuts in [MuseScore's shortcut prefere
 - Pitch up/down or move text/articulation up/down  (`Up/Down` arrow keys)
 - Change enharmonic spelling (current mode) (`Ctrl+J`) (optional)
 
-If you wish to use the auxiliary up/down stepwise feature where you can choose exactly which sets/chains of accidentals to change/keep same when transposing, you can also remove/replace these default shortcuts which opens them up to be assigned to the plugin:
+You can also clear these default shortcuts as you may find better uses for these later on:
 
 - Go to higher/lower pitched note in chord (`Alt+Up/Down`)
 - Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
@@ -49,6 +55,8 @@ If you wish to use the auxiliary up/down stepwise feature where you can choose e
 - `tune` &rarr; `Alt+R`
 - `up/down aux1.qml` &rarr; `Alt+Up/Down`. (Optional, if using aux1)
 - `up/down aux2.qml` &rarr; `Ctrl+Alt+Up/Down`. (Optional, if using aux2)
+
+Also, if you're going to use the fingering accidentals/tuning feature a lot, it's recommended to change `Ctrl+F` from "Find / Go to" to "Add fingering".
 
 Once you have set all those up, you will need to specify configurations used in your score, such as the [tuning system](#how-to-tuning-configuration), [key signatures](#how-to-key-signatures) (if any), or whether to always use explicit accidentals.
 
@@ -78,9 +86,10 @@ Though, if you don't want to repeatedly download the plugin files to update the 
 
 Note that if you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code of symbols may change and is unstable.
 
-## How to understand this plugin
+## Introduction
 
-> 🟢 To use this plugin to its full potential, we first need to know how this plugin conceptualizes & represents accidentals. If you are lazy to read, skip to [here](#how-to-tuning-configuration) to see tuning configuration examples. Though, it is highly recommended that you read this section first.
+> 🟢 To use this plugin to its full potential, we first need to know how this plugin conceptualizes & represents accidentals. You can skip to [here](#how-to-tuning-configuration) to go straight to examples.
+> Though, it is highly recommended that you read this section first.
 
 A **symbol code** represents a visually unique symbol, which could have multiple different IDs under the hood. For the purposes of this plugin, all similar-looking symbols are considered the same symbol.
 
