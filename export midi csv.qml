@@ -232,6 +232,12 @@ MuseScore {
                   console.log('Found dynamic: ' + annotation.text + ', velo: ' + annotation.velocity);
                   velo = annotation.velocity;
                 }
+                if (annotation.name == 'Tempo' && staff == startStaff && voice == 0) {
+                  var bpm = annotation.tempo * 60; // the tempo is in bps
+                  console.log('Found tempo: ' + bpm + 'bpm');
+                  // staff -2 denotes special info for tempo
+                  midiText += '-2, ' + bpm + ', ' + cursor.tick + '\n';
+                }
               }
 
               // Tune the note!

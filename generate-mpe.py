@@ -35,6 +35,8 @@ try:
         # Dict of staff to list of notes
         staff_notes: Dict[int, List[List[Union[int, float]]]] = {}
         
+        tempos = []
+        
         max_staff = -1
         
         first_tick = 1e9
@@ -47,6 +49,12 @@ try:
             
             if tick < first_tick:
                 first_tick = tick
+                
+            if staff == -2:
+                # Tempo signal
+                # row[1] is bpm, row[2] is tick.
+                tempos.append([float(row[1]), tick])
+                continue
             
             if staff_notes.get(staff) is None:
                 staff_notes[staff] = []
@@ -59,7 +67,7 @@ try:
         
         mpe = midiutil.MIDIFile(
             max_staff + 1, 
-            file_format=1, 
+            file_format=2, # use format 2 (corresponds to midi type 1, separate tracks in one file)
             ticks_per_quarternote=ticks_per_quarter, 
             eventtime_is_ticks=True,
             adjust_origin=True)
@@ -73,6 +81,11 @@ try:
             # Time order = True
             mpe.makeRPNCall(track, 15, first_tick, 0x00, 0x06, 0x0F, None, True)
             channel = 1 # round robin, channels 0-14 (15 is reserved for MPE zone messages)
+            
+            # send tempo changes
+            for t in tempos:
+                mpe.addTempo(track, t[1], t[0])
+            
             for [pitch, start, duration, velocity, cents] in notes:
                 if velocity < 0:
                     velocity = 0

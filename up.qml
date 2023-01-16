@@ -228,14 +228,14 @@ MuseScore {
               // Remove unnecessary accidentals just for this bar.
 
               Fns.removeUnnecessaryAccidentals(
-                tick, tick, parms.currKeySig, parms.bars, cursor, newElement);
+                tick, tick, parms, cursor, newElement);
 
               curScore.endCmd();              
               curScore.startCmd();
               
               // Auto position accidentals in this bar.
               Fns.autoPositionAccidentals(
-                tick, tick, parms.bars, cursor
+                tick, tick, parms, cursor
               );
               curScore.endCmd();              
               
@@ -281,7 +281,7 @@ MuseScore {
                 if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
                   // At the end of every bar, remove unnecessary accidentals.
                   Fns.removeUnnecessaryAccidentals(
-                    tickOfThisBar, tickOfThisBar, parms.currKeySig, parms.bars, cursor, newElement);
+                    tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
                   
                   // We can't do this one-shot at the end, because the unnecessary accidentals
                   // dependins on tuning config & key sig, which may be different for each
@@ -351,7 +351,7 @@ MuseScore {
 
               if (tickOfLastModified != -1) {
                 Fns.removeUnnecessaryAccidentals(
-                  tickOfLastModified, tickOfLastModified, parms.currKeySig, parms.bars, 
+                  tickOfLastModified, tickOfLastModified, parms, 
                   cursor, newElement);
               }
 
@@ -365,7 +365,7 @@ MuseScore {
             // After processing all voices in a staff, 
             // auto position accidentals in this staff in the selection range
             Fns.autoPositionAccidentals(
-              startTick, endTick, parms.bars, cursor
+              startTick, endTick, parms, cursor
             );
             curScore.endCmd();
           }

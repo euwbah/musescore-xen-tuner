@@ -259,6 +259,40 @@ function tokenizeNote(note) {
 }
 
 /**
+ * Filters accidentalHash to remove symbols that aren't used by the tuning config.
+ * 
+ * **WARNING:** If the resulting accidentalHash is empty, returns `null`.
+ * In some accidentalHash use cases, '' is required instead of null. 
+ * Make sure to check what is required.
+ * 
+ * @param {string} accHash Accidental Hash to remove unused symbols from.
+ * @param {TuningConfig} tuningConfig
+ * @returns {string} 
+ *  Accidental Hash with unused symbols removed.
+ * 
+ */
+function removeUnusedSymbols(accHash, tuningConfig) {
+    if (!accHash) return null;
+    var accHashWords = accHash.split(' ');
+    var usedSymbols = tuningConfig.usedSymbols || {};
+    var newAccHashWords = [];
+
+    for (var i = 0; i < accHashWords.length; i++) {
+        var symCode = accHashWords[i];
+
+        if (usedSymbols[symCode]) {
+            // If symbol is used by tuning config, add to hash.
+            newAccHashWords.push(symCode); // add the sym code
+            newAccHashWords.push(accHashWords[++i]);// add the num of symbols
+        }
+    }
+
+    if (newAccHashWords.length == 0) return null;
+
+    return newAccHashWords.join(' ');
+}
+
+/**
  * 
  * Hashes the accidental symbols attached to a note.
  * 
@@ -417,6 +451,12 @@ function parseTuningConfig(textOrPath, isNotPath) {
         tuningNote: null,
         tuningNominal: null,
         tuningFreq: null,
+        // lookup of symbols used in tuning config.
+        // anything not included should be ignored.
+        usedSymbols: {
+            // Natural symbol should always be included.
+            2: true
+        },
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -531,7 +571,7 @@ function parseTuningConfig(textOrPath, isNotPath) {
             var word = accChainStr[j];
 
             var matchIncrement = word.match(/^\((.+)\)$/);
-            
+
             if (matchIncrement) {
                 var maybeIncrement;
                 if (matchIncrement[1].endsWith('c')) {
@@ -574,6 +614,7 @@ function parseTuningConfig(textOrPath, isNotPath) {
                     if (code == null) hasInvalid = true;
 
                     symbolsLookup[code] = true;
+                    tuningConfig.usedSymbols[code] = true;
                     return code;
                 });
 
@@ -693,6 +734,7 @@ function parseTuningConfig(textOrPath, isNotPath) {
                 .map(function (x) {
                     var code = readSymbolCode(x);
                     if (code == null) hasInvalid = true;
+                    usedSymbols[code] = true;
                     return code;
                 });
 
@@ -733,13 +775,13 @@ function parseTuningConfig(textOrPath, isNotPath) {
         hasInvalid = false;
         var accChainIndices = match[1]
             .split(',')
-            .filter(function(x) {return x.trim().length > 0})
+            .filter(function (x) { return x.trim().length > 0 })
             .map(function (x) {
                 var n = parseInt(x);
                 if (isNaN(n) || n < 1) hasInvalid = true;
                 return n - 1;
             });
-        
+
         if (hasInvalid) {
             console.error('TUNING CONFIG ERROR: Invalid aux declaration: ' + line);
             return null;
@@ -752,7 +794,7 @@ function parseTuningConfig(textOrPath, isNotPath) {
             // should maintain at the same degree.
             if (accChainIndices.indexOf(accChainIdx) != -1)
                 continue;
-            
+
             accChainsToCheckSame.push(accChainIdx);
         }
 
@@ -957,7 +999,7 @@ function parseTuningConfig(textOrPath, isNotPath) {
 
                 // These values will contain the ligatured spelling of the accidental.
                 // Only used when a ligature match is found.
-                var ligaturedSymbols = {}; 
+                var ligaturedSymbols = {};
                 for (var k in accidentalSymbols) {
                     ligaturedSymbols[k] = accidentalSymbols[k];
                 } // shallow copy;
@@ -1349,10 +1391,6 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
     var nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
 
-    // graceChord will contain the chord this note belongs to if the current note
-    // is a grace note.
-    var graceChord = findGraceChord(msNote.internalNote);
-
     var accidentalsHash = getAccidental(
         cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0, null, reusedBarState);
 
@@ -1373,6 +1411,9 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
             accidentalsHash = null;
         }
     }
+
+    // Remove unused symbols from the hash.
+    accidentalsHash = removeUnusedSymbols(accidentalsHash, tuningConfig);
 
     // Create hash manually.
     // Don't use the createXenHash function, that works on the AccidentalSymbols object
@@ -1493,8 +1534,8 @@ function calcCentsOffset(noteData, tuningConfig) {
  *  is usually set to an offset relative to the part velocity.
  * @returns {string} MIDI CSV string to append to the midi csv file.
  */
-function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor, 
-        reusedBarState, returnMidiCSV, partVelocity) {
+function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor,
+    reusedBarState, returnMidiCSV, partVelocity) {
 
     var noteData = parseNote(note, tuningConfig, keySig,
         tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
@@ -1546,7 +1587,12 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
     for (var i = 0; i < note.playEvents.length; i++) {
         var pev = note.playEvents[i];
         var pitch = note.pitch + pev.pitch; // midi pitch, to nearest semitone
-        var ontime = noteData.ms.tick + pev.ontime;
+
+        // Actual default duration information is tied to the Chord.actualDuration.ticks
+        // property.
+        var duration = noteData.ms.internalNote.parent.actualDuration.ticks;
+        var ontime = noteData.ms.tick + (pev.ontime / 1000 * duration);
+        var len = pev.len / 1000 * duration;
 
         var midiOffset = Math.round(centsOffset / 100);
 
@@ -1555,11 +1601,11 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         var tuning = centsOffset - midiOffset * 100;
         tuning = tuning.toFixed(5); // don't put too many decimal places
 
-        console.log('registered: staff: ' + staffIdx + ', pitch: ' + pitch + ', ontime: ' + ontime 
-            + ', len: ' + pev.len + ', vel: ' + velo + ', cents: ' + tuning);
+        console.log('registered: staff: ' + staffIdx + ', pitch: ' + pitch + ', ontime: ' + ontime
+            + ', len: ' + len + ', vel: ' + velo + ', cents: ' + tuning);
         console.log('veloType: ' + note.veloType);
-        
-        midiText += staffIdx + ', ' + pitch + ', ' + ontime + ', ' + pev.len + ', ' 
+
+        midiText += staffIdx + ', ' + pitch + ', ' + ontime + ', ' + len + ', '
             + velo + ', ' + tuning + '\n';
     }
 
@@ -1944,6 +1990,8 @@ function chooseNextNote(direction, accChainsToCheckSame, note, keySig,
                 priorAcc = keySigAcc;
             }
         }
+
+        priorAcc = removeUnusedSymbols(priorAcc, tuningConfig);
 
         var optionAV = tuningConfig.avTable[option];
 
@@ -2377,8 +2425,11 @@ function getAccidental(cursor, note, tickOfThisBar,
  * 
  *  `null` or `[]` to remove all accidentals.
  * @param {Function} newElement reference to the `PluginAPI.newElement()` function
+ * @param {Object.<string, boolean>?} usedSymbols
+ *  If provided, any accidentals symbols that are not included in the tuning config
+ *  will not be altered/removed by this function.
  */
-function setAccidental(note, orderedSymbols, newElement) {
+function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
 
     var elements = note.elements;
     var elemsToRemove = [];
@@ -2387,8 +2438,8 @@ function setAccidental(note, orderedSymbols, newElement) {
 
     for (var i = 0; i < elements.length; i++) {
         if (elements[i].symbol) {
-            var symIdLookup = Lookup.LABELS_TO_CODE[elements[i].symbol.toString()];
-            if (symIdLookup) {
+            var symCode = Lookup.LABELS_TO_CODE[elements[i].symbol.toString()];
+            if (symCode && (!usedSymbols || usedSymbols[symCode])) {
                 // This element is an accidental symbol, remove it.
                 elemsToRemove.push(elements[i]);
             }
@@ -2428,10 +2479,10 @@ function setAccidental(note, orderedSymbols, newElement) {
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
     if (noteData.xen.accidentals != null) {
-        setAccidental(note, noteData.xen.orderedSymbols, newElement);
+        setAccidental(note, noteData.xen.orderedSymbols, newElement, tuningConfig.usedSymbols);
     } else {
         // If no accidentals, also make the natural accidental explicit.
-        setAccidental(note, [2], newElement);
+        setAccidental(note, [2], newElement, tuningConfig.usedSymbols);
     }
 }
 
@@ -2443,7 +2494,7 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * @param {[SymbolCode]} orderedSymbols Ordered accidental symbols as per XenNote.orderedSymbols.
  * @param {*} newElement 
  */
-function modifyNote(note, lineOffset, orderedSymbols, newElement) {
+function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
     console.log('modifyNote(' + (note.line + lineOffset) + ', ' + JSON.stringify(orderedSymbols) + ')');
     var newLine = note.line + lineOffset;
 
@@ -2461,7 +2512,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement) {
 
     note.line = newLine; // Finally...
 
-    setAccidental(note, orderedSymbols, newElement);
+    setAccidental(note, orderedSymbols, newElement, usedSymbols);
 }
 
 /**
@@ -2601,7 +2652,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         accSymbols = [2];
     }
 
-    modifyNote(note, nextNote.lineOffset, accSymbols, newElement);
+    modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig.usedSymbols);
 
     //
     // STEP 4
@@ -2627,12 +2678,14 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
  * @param {number} endBarTick 
  *  Any tick pos within ending bar (or end of selection).
  *  If -1, performs the operation till the end of the score.
- * @param {KeySig} keySig Key signature object
- * @param {[number]} bars List of bars' ticks
+ * @param {parms} parms Global `parms` object.
  * @param {*} cursor Cursor object
  * @param {*} newElement Reference to the `PluginAPI.newElement()` function
  */
-function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cursor, newElement) {
+function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, newElement) {
+
+    var staff = cursor.staffIdx;
+    var bars = parms.bars;
 
     var lastBarTickIndex = -1; // if -1, means its the last bar of score
     var firstBarTickIndex = -1;
@@ -2692,6 +2745,25 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
 
         var lines = Object.keys(barState);
 
+        // Don't modify parms. Create a fake parms to store current
+        // configs applied at this bar.
+        var fakeParms = {};
+        resetParms(fakeParms);
+
+        for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
+            var config = parms.staffConfigs[staff][i];
+            if (config.tick <= tickOfThisBar) {
+                var configKeys = Object.keys(config.config);
+                for (var j = 0; j < configKeys.length; j++) {
+                    var key = configKeys[j];
+                    fakeParms[key] = config.config[key];
+                }
+            }
+        }
+
+        var tuningConfig = fakeParms.currTuning;
+        var keySig = fakeParms.currKeySig;
+
         for (var lineIdx = 0; lineIdx < lines.length; lineIdx++) {
             var lineNum = lines[lineIdx]; // staff line number
             var lineTickVoices = barState[lineNum]; // tick to voices mappings.
@@ -2741,6 +2813,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                         var proceed = true;
                         for (var noteIdx = 0; noteIdx < msNotes.length; noteIdx++) {
                             var accHash = accidentalsHash(msNotes[noteIdx].accidentals);
+                            accHash = removeUnusedSymbols(accHash, tuningConfig) || '';
 
                             if (accHash != '') {
                                 if (prevExplicitAcc == null) {
@@ -2760,6 +2833,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                             var msNote = msNotes[noteIdx];
 
                             var accHash = accidentalsHash(msNote.accidentals);
+                            accHash = removeUnusedSymbols(accHash, tuningConfig) || '';
                             var accHashWords = accHash.split(' ');
                             var isNatural = accHashWords.length == 2 && accHashWords[0] == '2';
 
@@ -2774,18 +2848,21 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, keySig, bars, cu
                                     // accidental state and this note, this note's
                                     // accidental is redundant. Remove it.
 
-                                    setAccidental(msNote.internalNote, null, newElement);
-                                } else if (!currAccState && keySig && keySig[lineNum] == accHash) {
+                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                } else if (!currAccState && keySig) {
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
                                     // is also redundant. Remove.
-
-                                    setAccidental(msNote.internalNote, null, newElement);
+                                    
+                                    var realKeySig = removeUnusedSymbols(keySig[lineNum], tuningConfig) || '';
+                                    if (realKeySig == accHash) {
+                                        setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                    }
                                 } else if (isNatural && !currAccState && (!keySig || !keySig[lineNum])) {
                                     // This note has a natural accidental, but it is not
                                     // needed, since the prior accidental state/key sig is natural.
 
-                                    setAccidental(msNote.internalNote, null, newElement);
+                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
                                 } else {
                                     // Otherwise, if we find an explicit accidental
                                     // that is necessary, update the accidental state.
@@ -2903,9 +2980,12 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
  * grace chords be pushed back.
  * 
  * @param {[Note]} chord Notes from all voices at a single tick & vertical-chord position.
+ * @param {Object.<string, boolean>} usedSymbols 
+ *  Contains SymbolCodes that are currently used by the tuning config.
+ *  Any symbols found that are not inside this object will be removed.
  * @returns {number} most negative distance between left-most symbol and left-most notehead.
  */
-function positionAccSymbolsOfChord(chord) {
+function positionAccSymbolsOfChord(chord, usedSymbols) {
 
     // First, we need to sort the chord by increasing line number. (top-to-bottom)
     chord.sort(function (a, b) { return a.line - b.line });
@@ -2978,7 +3058,7 @@ function positionAccSymbolsOfChord(chord) {
             // console.log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
-                if (symCode) {
+                if (symCode && (!usedSymbols || usedSymbols[symCode])) {
                     accSymbolsRTL.push(elem);
                 }
             }
@@ -3100,7 +3180,10 @@ function positionAccSymbolsOfChord(chord) {
  * @param {[number]} bars List of ticks of bars.
  * @param {*} cursor MuseScore cursor object
  */
-function autoPositionAccidentals(startTick, endTick, bars, cursor) {
+function autoPositionAccidentals(startTick, endTick, parms, cursor) {
+    var bars = parms.bars;
+    var staff = cursor.staffIdx;
+
     var lastBarTickIndex = -1; // if -1, means its the last bar of score
     var firstBarTickIndex = -1;
 
@@ -3134,6 +3217,22 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
             tickOfNextBar = -1;
         } else {
             tickOfNextBar = bars[barIdx + 1];
+        }
+
+        // Don't modify parms. Create a fake parms to store current
+        // configs applied at this bar.
+        var fakeParms = {};
+        resetParms(fakeParms);
+
+        for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
+            var config = parms.staffConfigs[staff][i];
+            if (config.tick <= tickOfThisBar) {
+                var configKeys = Object.keys(config.config);
+                for (var j = 0; j < configKeys.length; j++) {
+                    var key = configKeys[j];
+                    fakeParms[key] = config.config[key];
+                }
+            }
         }
 
         // mapping of ticks to Chords object of all chords present at that tick.
@@ -3216,7 +3315,7 @@ function autoPositionAccidentals(startTick, endTick, bars, cursor) {
                 // Now, we have all notes that should be vertically aligned.
                 // Position symbols for this vert stack.
                 // console.log(vertStack.length);
-                var biggestXOffset = positionAccSymbolsOfChord(vertStack);
+                var biggestXOffset = positionAccSymbolsOfChord(vertStack, fakeParms.currTuning.usedSymbols);
 
                 graceOffset += biggestXOffset;
 

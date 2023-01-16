@@ -1138,6 +1138,12 @@ Represents a ligature declaration.
   tuningNominal: number, // tuning note number of 12edo nominals from A4.
   tuningFreq: number, // Hz of tuning note.
   auxList: [[number]], // List of list of indices of accidental chains.
+  usedSymbols: {
+    // lookup of all symbols used in this tuning config.
+    // anything not in here should be ignored by the plugin.
+    SymbolCode: true,
+    ...
+  }
 }
 ```
 
