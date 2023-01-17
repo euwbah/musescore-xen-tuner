@@ -14,6 +14,7 @@ MuseScore {
       description: "Retune selection/score to annotated tuning system(s)"
       menuPath: "Plugins.xen.Tune"
 
+
       FileIO {
         id: fileIO
         source: "./"
@@ -27,7 +28,7 @@ MuseScore {
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
         Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
-        console.log(Qt.resolvedUrl("."));
+        console.log('present working dir: ' + Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')
               Qt.quit();
@@ -264,6 +265,6 @@ MuseScore {
           curScore.endCmd();
         }
 
-        Qt.quit();
+        // Qt.quit();
       }
 }

@@ -4,13 +4,13 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 ## Features/Goals
 
-- [x] Support for many tuning systems with flexibility of choice of accidentals. (60%, data entry [help needed!](#help-needed))
+- [x] Support for infinitely many tuning systems with flexibility of choice of accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), whatever... (60%, data entry [help needed!](#help-needed))
 
 - [x] Automated tuning & auto-positioning of multiple accidentals.
 
 - [x] Every unique accidental/note within an octave/equave is accessible with up/down arrows and 'J' to cycle through enharmonics, no matter how large the tuning.
 
-- [x] Configurable auxiliary up/down operations that limit stepwise transpositions to certain accidentals/nominals. (E.g. Move by diatonic steps only, or diatonic + 11-commas only)
+- [x] Configurable auxiliary up/down operations that limit stepwise transpositions to certain accidentals/nominals. (E.g. Move by diatonic steps only, 11-commas only, or both)
 
 - [x] Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol
 
@@ -93,15 +93,13 @@ Note that if you have been using Symbol Code numbers to refer to your accidental
 > 🟢 To use this plugin to its full potential, we first need to know how this plugin conceptualizes & represents accidentals. You can skip to [here](#how-to-tuning-configuration) to go straight to examples.
 > Though, it is highly recommended that you read this section first.
 
-A **symbol code** represents a visually unique symbol, which could have multiple different IDs under the hood. For the purposes of this plugin, all similar-looking symbols are considered the same symbol.
+A **symbol code** represents a visually/semantically unique symbol, which may have multiple IDs under the hood. For the purposes of this plugin, all similar-looking/meaning symbols are considered the same symbol.
 
-This plugin only uses accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). This is because, you can only have one Official Accidental&trade; per note, but you can attach multiple 'Symbols' to visually convey multiple accidentals on a note.
+This plugin only uses accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). This is the tradeoff for being able to attach multiple accidental 'Symbols' per note.
 
-To refer to a symbol when keying in tuning/key signature configuration texts, you can either use the Symbol Code number (the 'Symbol Code' column of the [spreadsheet](#list-of-supported-symbols)), or by the Text Code representation (in the 'Text Code' column).
+To refer to a symbol when keying in tuning/key signature configuration texts, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation (in the _Text Code_ column).
 
 > When entering symbols, both `#` and `5` both refer to the same sharp symbol.
-
-All this while, those who wish to write in notation systems where multiple accidentals can belong to a single notehead have been manually formatting/drag-dropping/tuning each accidental, with no easy way of simply pressing up/down to cycle through the different accidentals/pitches required. This includes composers who write in [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), etc...
 
 However, most, if not all, notation systems have one thing in common: an accidental always refers to the same-sized interval offset. A sharp always affects a note by the same amount no matter what other accidentals may be on the note, and no matter what note in the octave/equave it is.
 
@@ -109,7 +107,7 @@ Now, when we say "sharps and flats", these accidentals represents a chain of acc
 
 In 12edo, each degree along the sharps/flats chain represents a 100 cent increment, so `bb` represents -200 cents. We can theoretically extend this chain indefinitely to include as many sharps and flats as we want. However, there aren't any symbols available for more than 3 sharps/flats.
 
-With this plugin, that is not an issue as you can compose different symbols together to form a degree. To do this, connect the Text Codes or Symbol Codes with a period (`.`).
+In this plugin, you can compose different symbols together to form a degree. To do this, connect the Text Codes or Symbol Codes with a period (`.`).
 
 > If you need degree -5 on your sharps-flats accidental chain &mdash; i.e. a 5-flats accidental &mdash; you can specify `bbb.bb` (Text Codes) or `8.7` (Symbol Codes). The order which you specify the symbols will affect which symbol is on the left or right. In this case, the triple flat is on the left, and double flat on the right.
 
@@ -138,23 +136,6 @@ This plugin enables an **infinite** number of notation systems by giving you fre
 ## How to: tuning configuration
 
 ## How to: key signatures
-
-## Updating plugin / Troubleshooting
-
-This plugin is very experimental, so make sure you're always using the most updated version of this plugin as bugs are always being fixed.
-This plugin does not update automatically. Redownload the code from here, and replace the files.
-
-> ⚠️ **IMPORTANT**: When updating the plugin, make sure you reopen MuseScore for changes to take effect. To be very certain that the newer files are being used, you can click the **Reload Plugins** button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins) to force reload all plugins, though you will need to re-enable and reconfigure keyboard shortcuts again.
-
-Now, if there are still issues with the plugin, first, try to reset the tuning cache of the score using the **Clear Tuning Cache** plugin. It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
-
-If that still doesn't work, you will need to [file an issue here](https://github.com/euwbah/musescore-ji-rtt-plugin/issues). Please include the following information:
-
-- Version of MuseScore
-- Version of plugin
-- Operating system
-- Debug logs
-  - To find this, open the **Plugin Creator** (Plugins > Plugin Creator), and you will see some console logs at the bottom of the window. Usually if an error occurs, you should be able to see the error message at the bottom of the log. Copy and paste as much as you can, **making sure that you include the error message** at the bottom.
 
 ## How to: exporting MIDI/MPE
 
@@ -191,6 +172,28 @@ python3 generate-mpe.py path/to/score.mid.csv
 
 This will generate a .mid file at `path/to/score.mid`.
 
+-----
+
+## Updating plugin / Troubleshooting
+
+This plugin is very experimental, so make sure you're always using the most updated version of this plugin as bugs are always being fixed.
+This plugin does not update automatically. Redownload the code from here, and replace the files.
+
+> ⚠️ **IMPORTANT**: When updating the plugin, make sure you reopen MuseScore for changes to take effect. To be very certain that the newer files are being used, you can click the **Reload Plugins** button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins) to force reload all plugins, though you will need to re-enable and reconfigure keyboard shortcuts again.
+
+### If the plugin is lagging/tuning isn't correct
+
+Try to reset the tuning cache of the score using the **Clear Tuning Cache** plugin. It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
+
+### Reporting an issue
+
+If none of the above remedies work, you will need to [file an issue here](https://github.com/euwbah/musescore-ji-rtt-plugin/issues). Please include the following information:
+
+- Version of MuseScore
+- Version of plugin
+- Operating system
+- Debug logs
+  - To find this, open the **Plugin Creator** (Plugins > Plugin Creator), and you will see some console logs at the bottom of the window. Usually if an error occurs, you should be able to see the error message at the bottom of the log. Copy and paste as much as you can, **making sure that you include the error message** at the bottom.
 
 ## HELP NEEDED!
 
@@ -706,7 +709,13 @@ When creating/managing accidentals during up/down operations, this plugin favour
 
 -----
 
+## Docking plugin
 
+In order to prevent recalculating/reparsing tuning config data, the plugin has to be persistent so that cached data live in memory.
+
+See [this forum post](https://musescore.org/en/node/314928) about application-level shortcuts working in a `pluginType: "dock"` plugin.
+
+-----
 
 
 ## Auto-positioning & layout

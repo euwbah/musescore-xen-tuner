@@ -14,7 +14,7 @@ MuseScore {
       description: "The tuning cache contains cached data about tunings used in the score.\n" +
         "If you've experimented with many different tunings within a score, but aren't currently using most of them," +
         "it is highly recommended to clear the Tuning Config cache."
-      menuPath: "Plugins.xen.Clear Tuning Cache"
+      menuPath: "Plugins.Xen Tuner.Clear Tuning Cache"
 
       FileIO {
         id: fileIO
@@ -25,7 +25,7 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Xen Tune');
+        console.log('Xenharmonic Clear Tuning Cache');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
         Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);

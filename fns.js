@@ -14,6 +14,29 @@ var pluginHomePath = '';
 var _curScore = null; // don't clash with namespace
 
 /**
+ * If true, the plugin will allow `cmd('pitch-up')` and `cmd('pitch-down')` to be
+ * sent when the selection doesn't include notes and up/down operations are being sent.
+ * 
+ * Set this to false when the user is editing text elements, so that the user can
+ * press up/down to navigate the text without being interrupted.
+ */
+var fallthroughUpDownCommand = true;
+
+/**
+ * Cached mapping of tuning config strings to `TuningConfig` objects that the string
+ * refers to.
+ * 
+ * This object is dynamically created and populated as tuning configs are loaded.
+ * 
+ * If the `'tuningconfig'` metaTag exists in the score, populate from there as well.
+ * 
+ * The `'tuningconfig'` metaTag can be set by the Save Tuning Cache plugin.
+ * 
+ * @type {Object.<string, TuningConfig>}
+ */
+var tuningConfigCache = {};
+
+/**
  * The default tuning config in case tunings/default.txt is invalid or not found.
  */
 var DEFAULT_TUNING_CONFIG = "   \n\
@@ -317,13 +340,13 @@ function removeUnusedSymbols(accHash, tuningConfig) {
     var usedSymbols = tuningConfig.usedSymbols || {};
     var newAccHashWords = [];
 
-    for (var i = 0; i < accHashWords.length; i++) {
+    for (var i = 0; i < accHashWords.length; i += 2) {
         var symCode = accHashWords[i];
 
         if (usedSymbols[symCode]) {
             // If symbol is used by tuning config, add to hash.
             newAccHashWords.push(symCode); // add the sym code
-            newAccHashWords.push(accHashWords[++i]);// add the num of symbols
+            newAccHashWords.push(accHashWords[i + 1]);// add the num of symbols
         }
     }
 
@@ -420,10 +443,27 @@ function createXenHash(nominal, accidentals) {
 }
 
 /**
- * Clears the tuning config cache from the current score.
+ * Saves the current `tuningConfigCache` as a metaTag in the current score.
+ * 
+ * This is very slow, run this function very sparsely.
+ */
+function saveMetaTagCache() {
+    var toSave = {};
+
+    Object.keys(tuningConfigCache).forEach(function (tuningConfigStr) {
+        // don't save tuning configs with more than 1000 steps. MuseScore will crash.
+        if (tuningConfigCache[tuningConfigStr].stepsList.length < 1000) {
+            toSave[tuningConfigStr] = tuningConfigCache[tuningConfigStr];
+        } 
+    });
+    _curScore.setMetaTag('tuningconfigs', JSON.stringify(toSave));
+}
+
+/**
+ * Clears runtime & metaTag tuning config caches from the current score.
  * 
  * Be sure to run this time to time, especially if you're experimenting
- * with many tuning configs in one score.
+ * with many tuning configs in one score. This will force the plugin to repopulate
  * 
  * (Tell the user to run this if they are creating/experimenting with different tuning configs,
  * then deleting them, and are currently not using most of them)
@@ -432,7 +472,8 @@ function createXenHash(nominal, accidentals) {
  * pointless to use the cache as the JSON parsing will take longer than just generating
  * the tuning config.
  */
-function clearTuningConfigCache() {
+function clearTuningConfigCaches() {
+    tuningConfigCache = {};
     _curScore.setMetaTag('tuningconfigs', '');
 }
 
@@ -479,20 +520,34 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     var text = '';
     var textOrPath = textOrPath.trim();
 
-    // First, chech the cache if this tuning already exists.
+    // First, chech the runtime tuning config cache if this tuning already exists.
+
+    if (tuningConfigCache[textOrPath]) {
+        if (!silent) {
+            console.log('Using cached tuning config:\n' + textOrPath + '\n' +
+                tuningConfigCache[textOrPath].stepsList.length + ' notes/equave, ' + tuningConfigCache[textOrPath].equaveSize + 'c equave');
+        }
+
+        return tuningConfigCache[textOrPath];
+    }
+
+    // Otherwise, check the metaTag cache.
 
     if (_curScore) {
         var tuningCacheStr = _curScore.metaTag('tuningconfigs');
-        var tuningCache = {};
         if (tuningCacheStr && tuningCacheStr.length && tuningCacheStr.length > 0) {
-            tuningCache = JSON.parse(tuningCacheStr);
-            var maybeCached = tuningCache[textOrPath];
-            if (maybeCached != undefined) {
+            var tuningCache = JSON.parse(tuningCacheStr);
+            var maybeCached = tuningCache && tuningCache[textOrPath];
+            if (maybeCached) {
                 // Cached tuning config found. Use it!
                 if (!silent) {
                     console.log('Using cached tuning config:\n' + textOrPath + '\n' +
                         maybeCached.stepsList.length + ' notes/equave, ' + maybeCached.equaveSize + 'c equave');
                 }
+
+                // Update runtime cache with the cached tuning config.
+
+                tuningConfigCache[textOrPath] = maybeCached;
 
                 return maybeCached;
             }
@@ -1282,13 +1337,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     // DONE!
 
-    // Make sure to save it to the cache.
+    // Make sure to save the new tuning to the runtime and metaTag caches.
 
     if (_curScore) {
-        tuningCache[textOrPath] = tuningConfig;
-        _curScore.setMetaTag('tuningconfigs', JSON.stringify(tuningCache));
+        tuningConfigCache[textOrPath] = tuningConfig;
+        saveMetaTagCache();
 
-        console.log('Saved tuning to cache.');
+        console.log('Saved tuning to runtime & metaTag cache.');
     }
 
     return tuningConfig;
@@ -1619,21 +1674,21 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
     msNote.internalNote.remove(elemToRemove);
 
     var orderedSymbols = [];
-    
+
     // Loop from left most (last) acc chain to right most acc chain.
-    for(var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
+    for (var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
         var accChain = tuningConfig.accChains[accChainIdx];
         var deg = av[accChainIdx];
         if (deg != 0) {
             var degIdx = deg + accChain.centralIdx;
-            var symCodes  = accChain.degreesSymbols[degIdx]; // left-to-right
+            var symCodes = accChain.degreesSymbols[degIdx]; // left-to-right
             orderedSymbols = orderedSymbols.concat(symCodes);
         }
     }
 
     console.log('Set accidental from fingering: ' + orderedSymbols);
 
-    setAccidental(msNote.internalNote, orderedSymbols, 
+    setAccidental(msNote.internalNote, orderedSymbols,
         newElement, tuningConfig.usedSymbols);
 
     return tokenizeNote(msNote.internalNote);
@@ -1697,7 +1752,7 @@ function calcCentsOffset(noteData, tuningConfig) {
     // 
     // 2. The fingering cents offset simply offsets tuning by the specified
     //    amount of cents.
-    
+
     var fingeringCentsOffset = 0;
     var fingeringJIOffset = null; // this is in cents
 
@@ -3600,5 +3655,635 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
         });
 
         tickOfThisBar = tickOfNextBar;
+    }
+}
+
+/**
+ * Set whether or not to allow up/down fallthrough.
+ * 
+ * If Element.STAFF_TEXT or Element.SYSTEM_TEXT is selected
+ * 
+ * @param {boolean} allowFallthrough Whether or not `cmd('pitch-up/down')` should be sent
+ */
+function setUpDownFallthrough(allowFallthrough) {
+    fallthroughUpDownCommand = allowFallthrough;
+}
+
+/*
+==============================================================================================
+
+
+
+ ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ █████╗ ███╗   ██╗██████╗ ███████╗
+██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝
+██║     ██║   ██║██╔████╔██║██╔████╔██║███████║██╔██╗ ██║██║  ██║███████╗
+██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██║╚██╗██║██║  ██║╚════██║
+╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║██████╔╝███████║
+ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝
+                                                                         
+                                                                        
+The main plugin functions are moved here.
+
+Instead of having one plugin per operation, the plugin is now one single dockable window
+that runs in the background. This plugin detects shortcuts according to the shortcut
+settings in xen tuner.qml.
+
+================================================================================================
+*/
+
+function operationTune() {
+    console.log('Running Xen Tune');
+    if (typeof _curScore === 'undefined')
+        return;
+
+    var parms = {};
+    _curScore.createPlayEvents();
+
+    var cursor = _curScore.newCursor();
+    cursor.rewind(1);
+    var startStaff;
+    var endStaff;
+    var startTick = cursor.tick;
+    var endTick;
+    var fullScore = false;
+    if (!cursor.segment) { // no selection
+        fullScore = true;
+        startStaff = 0; // start with 1st staff
+        endStaff = _curScore.nstaves - 1; // and end with last
+        endTick = _curScore.lastSegment.tick + 1;
+    } else {
+        startStaff = cursor.staffIdx;
+        cursor.rewind(2);
+        if (cursor.tick == 0) {
+            // this happens when the selection includes
+            // the last measure of the score.
+            // rewind(2) goes behind the last segment (where
+            // there's none) and sets tick=0
+            endTick = _curScore.lastSegment.tick + 1;
+        } else {
+            endTick = cursor.tick;
+        }
+        endStaff = cursor.staffIdx;
+    }
+    console.log("startStaff: " + startStaff + ", endStaff: " + endStaff + ", endTick: " + endTick);
+
+    //
+    //
+    //
+    // -------------- Actual thing here -----------------------
+    //
+    //
+    //
+
+    // Set parms' defaults.
+
+    // mapping of staffIdx to [ConfigUpdateEvent]
+    parms.staffConfigs = {};
+    // contains list of bars' ticks in order.
+    parms.bars = [];
+
+
+    // these aren't really necessary as they'll be configured & updated
+    // on a per-staff basis.
+    // parms.currKeySig = null;
+    // parms.currTuning = null;
+
+
+    // First, populate ConfigUpdateEvents for each staff.
+
+    for (var staff = startStaff; staff <= endStaff; staff++) {
+
+        // Contains [ConfigUpdateEvent]s for curr staff
+        var configs = [];
+
+        // Search each voice and populate `ConfigUpdateEvent`s in this staff.
+        for (var voice = 0; voice < 4; voice++) {
+
+            // NOTE: THIS IS THE ONLY RIGHT WAY (TM) TO REWIND THE CURSOR TO THE START OF THE SCORE.
+            //       ANY OTHER METHOD WOULD RESULT IN CATASTROPHIC FAILURE FOR WHATEVER REASON.
+            cursor.rewind(1);
+            cursor.voice = voice;
+            cursor.staffIdx = staff;
+            cursor.rewind(0);
+
+            var measureCount = 0;
+            console.log("Populating configs. staff: " + staff + ", voice: " + voice);
+
+            while (true) {
+                // loop from first segment to last segment of this staff+voice.
+                if (cursor.segment) {
+                    for (var i = 0; i < cursor.segment.annotations.length; i++) {
+                        var annotation = cursor.segment.annotations[i];
+                        console.log("found annotation type: " + annotation.name);
+                        if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
+                            (annotation.name == 'SystemText')) {
+                            var maybeConfigUpdateEvent = Fns.parsePossibleConfigs(annotation.text, cursor.tick);
+
+                            if (maybeConfigUpdateEvent != null) {
+                                configs.push(maybeConfigUpdateEvent);
+                            }
+                        }
+                    }
+
+                    if (cursor.segment.tick == cursor.measure.firstSegment.tick &&
+                        voice === 0 && staff == startStaff) {
+                        // For the first staff/voice, store tick positions of the start of each bar.
+                        // this is used for accidental calculations.
+
+                        parms.bars.push(cursor.segment.tick);
+                        measureCount++;
+                        console.log("New bar - " + measureCount);
+                    }
+                }
+
+                if (!cursor.next())
+                    break;
+            }
+        }
+
+        parms.staffConfigs[staff] = configs.sort(function (a, b) {
+            return a.tick - b.tick;
+        });
+    }
+
+    // Staff configs have been populated!
+
+    // Go through each staff + voice to start tuning notes.
+
+    for (var staff = startStaff; staff <= endStaff; staff++) {
+
+        _curScore.startCmd();
+
+        for (var voice = 0; voice < 4; voice++) {
+            // After each voice & rewind, 
+            // reset all configs back to default
+            Fns.resetParms(parms);
+
+            // NOTE: FOR WHATEVER REASON, rewind(1) must be called BEFORE assigning voice and staffIdx,
+            //       and rewind(0) MUST be called AFTER rewind(1), AND AFTER assigning voice and staffIdx.
+            cursor.rewind(1);
+            cursor.voice = voice; //voice has to be set after goTo
+            cursor.staffIdx = staff;
+            cursor.rewind(0);
+
+            // 0-indexed bar counter.
+            // Used to keep track of bar boundaries efficiently.
+            var currBar = parms.bars.length - 1;
+            for (var i = 0; i < parms.bars.length; i++) {
+                if (parms.bars[i] > cursor.tick) {
+                    currBar = i - 1;
+                    break;
+                }
+            }
+
+            var tickOfThisBar = parms.bars[currBar];
+            var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
+
+            console.log("Tuning. staff: " + staff + ", voice: " + voice);
+            // console.log("Starting bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
+
+            // Tuning doesn't affect note/accidental state,
+            // we can reuse bar states per bar to prevent unnecessary
+            // computation.
+            var reusedBarState = {};
+            var tickOfLastModified = -1;
+
+            // Loop elements of a voice
+            while (cursor.segment && (fullScore || cursor.tick < endTick)) {
+                if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
+                    Fns.removeUnnecessaryAccidentals(
+                        tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
+                    // Update bar boundaries.
+                    currBar++;
+                    tickOfThisBar = tickOfNextBar;
+                    tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
+                    // console.log("Next bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
+                    // reset bar state.
+                    reusedBarState = {};
+                }
+
+                // Apply all declared configs up to current cursor position.
+
+                for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
+                    var config = parms.staffConfigs[staff][i];
+                    if (config.tick <= cursor.tick) {
+                        var configKeys = Object.keys(config.config);
+                        for (var j = 0; j < configKeys.length; j++) {
+                            var key = configKeys[j];
+                            parms[key] = config.config[key];
+                            // console.log('Applied config: ' + key + ' = eqvSize: ' + config.config[key].equaveSize +
+                            //   ', staff: ' + staff + ', voice: ' + voice + ', config tick: ' + config.tick
+                            //   + ', cursor tick: ' + cursor.tick);
+                        }
+                    }
+                }
+
+                // Tune the note!
+
+                if (cursor.element) {
+                    if (cursor.element.type == Ms.CHORD) {
+                        var graceChords = cursor.element.graceNotes;
+                        for (var i = 0; i < graceChords.length; i++) {
+                            // iterate through all grace chords
+                            var notes = graceChords[i].notes;
+                            for (var j = 0; j < notes.length; j++) {
+                                Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning,
+                                    tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
+                            }
+                        }
+                        var notes = cursor.element.notes;
+                        for (var i = 0; i < notes.length; i++) {
+                            Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning,
+                                tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
+
+                            // REMOVE AFTER TESTING
+                            // this is how find other symbols (aux accidentals) attached to the note
+                            // for (var j = 0; j < note.elements.length; j++) {
+                            //   if (note.elements[j].symbol)
+                            //     console.log(note.elements[j].symbol);
+                            // }
+                        }
+
+                        tickOfLastModified = cursor.tick;
+                    }
+                }
+                cursor.next();
+            }
+
+            if (tickOfLastModified != -1) {
+                Fns.removeUnnecessaryAccidentals(
+                    tickOfLastModified, tickOfLastModified, parms,
+                    cursor, newElement);
+            }
+        } // end of voice loop
+
+        _curScore.endCmd();
+
+        _curScore.startCmd();
+
+        Fns.autoPositionAccidentals(
+            startTick, endTick, parms, cursor
+        );
+
+        _curScore.endCmd();
+    }
+}
+
+/**
+ * Operation to transpose according to specified direction & aux
+ * 
+ * @param {number} stepwiseDirection
+ *  1: up
+ *  0: cycle enharmonics
+ *  -1: down
+ * @param {number} stepwiseAux
+ *  This number represents the 1-index Nth user-declared auxiliary operation.
+ *  0 represents no aux, step through all notes.
+ *  
+ *  Auxiliary operations allow the user to declare whether
+ *  the nominals, or specified accidental chains, should maintain 
+ *  the same nominal/degree during the transpose up/down operation.
+ */
+function operationTranspose(stepwiseDirection, stepwiseAux) {
+    console.log("Xen Up");
+
+    if (typeof curScore === 'undefined')
+        return;
+
+    Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
+    console.log(Qt.resolvedUrl("."));
+    var parms = {};
+    curScore.createPlayEvents();
+
+    var cursor = curScore.newCursor();
+    cursor.rewind(1);
+    var startStaff;
+    var endStaff;
+    var startTick = cursor.tick;
+    var endTick;
+    var noPhraseSelection = false;
+    if (!cursor.segment) { // no selection
+        // no action if no selection.
+        console.log('no phrase selection');
+        noPhraseSelection = true;
+    } else {
+        startStaff = cursor.staffIdx;
+        cursor.rewind(2);
+        if (cursor.tick == 0) {
+            // this happens when the selection includes
+            // the last measure of the score.
+            // rewind(2) goes behind the last segment (where
+            // there's none) and sets tick=0
+            endTick = curScore.lastSegment.tick + 1;
+        } else {
+            endTick = cursor.tick;
+        }
+        endStaff = cursor.staffIdx;
+    }
+    console.log(startStaff + " - " + endStaff + " - " + endTick)
+
+    parms.staffConfigs = {};
+    parms.bars = [];
+
+    // populate configs for all staves.
+
+    for (var staff = 0; staff < curScore.nstaves; staff++) {
+        var configs = [];
+
+        for (var voice = 0; voice < 4; voice++) {
+            cursor.rewind(1);
+            cursor.staffIdx = staff;
+            cursor.voice = voice;
+            cursor.rewind(0);
+
+            var measureCount = 0;
+            console.log("Populating configs. staff: " + staff + ", voice: " + voice);
+
+            while (true) {
+                if (cursor.segment) {
+                    // scan edo & tuning center first. key signature parsing is dependant on edo used.
+                    for (var i = 0; i < cursor.segment.annotations.length; i++) {
+                        var annotation = cursor.segment.annotations[i];
+                        console.log("found annotation type: " + annotation.name);
+                        if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
+                            (annotation.name == 'SystemText')) {
+                            var maybeConfigUpdateEvent = Fns.parsePossibleConfigs(annotation.text, cursor.tick);
+
+                            if (maybeConfigUpdateEvent != null) {
+                                configs.push(maybeConfigUpdateEvent);
+                            }
+                        }
+                    }
+
+                    if (cursor.segment.tick == cursor.measure.firstSegment.tick
+                        && voice === 0 && staff === 0) {
+                        if (!parms.bars)
+                            parms.bars = [];
+
+                        parms.bars.push(cursor.segment.tick);
+                        measureCount++;
+                        console.log("New bar - " + measureCount + ", tick: " + cursor.segment.tick);
+                    }
+                }
+
+                if (!cursor.next())
+                    break;
+            }
+        }
+
+        parms.staffConfigs[staff] = configs.sort(function (a, b) {
+            return a.tick - b.tick;
+        });
+    }
+
+    // End of config population.
+    //
+    //
+    //
+    // Begin pitch modification impl
+
+
+    if (noPhraseSelection) {
+        // No phrase/range selection mode.
+        //
+        // User selects individual note heads to modify.
+
+        // - No-op if curScore.selection.elements.length == 0.
+        // - If selection doesn't contain a single element that has Element.type == Element.NOTE,
+        //   default to cmd('pitch-up') or cmd('pitch-down') so MuseScore can handle moving other Elements.
+        //   This allows users to use this plugin in place of the 'pitch-up' and 'pitch-down' shortcuts (up/down arrow keys)
+        //   without losing any of the other functions that the up or down arrow keys originally provides.
+        // - If selection contains individual notes, transpose them.
+
+        if (curScore.selection.elements.length == 0) {
+            console.log('no individual selection. quitting.');
+            return;
+        } else {
+            var selectedNotes = [];
+            for (var i = 0; i < curScore.selection.elements.length; i++) {
+                if (curScore.selection.elements[i].type == Element.NOTE) {
+                    selectedNotes.push(curScore.selection.elements[i]);
+                }
+            }
+
+            // for debugging
+            // for (var i = 0; i < selectedNotes.length; i ++) {
+            //   selectedNotes[i].color = 'red';
+            // }
+
+            if (selectedNotes.length == 0 && fallthroughUpDownCommand) {
+                console.log('no selected note elements, defaulting to pitch-up/pitch-down shortcuts');
+                if (stepwiseDirection == 1)
+                    cmd('pitch-up');
+                else if (stepwiseDirection == -1)
+                    cmd('pitch-down');
+                return;
+            }
+
+            // Run transpose operation on all selected note elements.
+
+            // contains list of notes that have already been transposed
+            // this is to prevent repeat transposition in the event that
+            // 2 notes tied to each other are individually selected.
+            var affected = [];
+
+            for (var i = 0; i < selectedNotes.length; i++) {
+                var note = selectedNotes[i];
+                var voice = note.track % 4;
+                var staffIdx = Math.floor(note.track / 4);
+                var tick = Fns.getTick(note);
+
+                // handle transposing the firstTiedNote in the event that a non-first tied note
+                // is selected.
+                note = note.firstTiedNote;
+
+                var alreadyTrans = false;
+                for (var j = 0; j < affected.length; j++) {
+                    if (affected[j].is(note)) {
+                        alreadyTrans = true;
+                        break;
+                    }
+                }
+
+                if (alreadyTrans)
+                    continue;
+
+                affected.push(note);
+
+                Fns.setCursorToPosition(cursor, tick, voice, staffIdx);
+
+                console.log('indiv note: line: ' + note.line + ', voice: ' + cursor.voice
+                    + ', staff: ' + cursor.staffIdx + ', tick: ' + tick);
+
+
+                // Reset & populate configs for each note,
+                // since we're uncertain which note belongs to which bar.
+
+                Fns.resetParms(parms);
+
+                for (var j = 0; j < parms.staffConfigs[Math.floor(note.track / 4)].length; j++) {
+                    var config = parms.staffConfigs[cursor.staffIdx][j];
+                    if (config.tick <= cursor.tick) {
+                        var configKeys = Object.keys(config.config);
+                        for (var k = 0; k < configKeys.length; k++) {
+                            var key = configKeys[k];
+                            parms[key] = config.config[key];
+                        }
+                    }
+                }
+
+                var barBoundaries = Fns.getBarBoundaries(tick, parms.bars);
+
+                // Modify pitch.
+
+                curScore.startCmd();
+
+                // direction: 1: up, -1 = down, 0: enharmonic cycle.
+                var barState = Fns.executeTranspose(note, stepwiseDirection,
+                    stepwiseAux, parms, newElement, cursor);
+
+                // Remove unnecessary accidentals just for this bar.
+
+                Fns.removeUnnecessaryAccidentals(
+                    tick, tick, parms, cursor, newElement);
+
+                curScore.endCmd();
+                curScore.startCmd();
+
+                // Auto position accidentals in this bar.
+                Fns.autoPositionAccidentals(
+                    tick, tick, parms, cursor
+                );
+                curScore.endCmd();
+
+
+            }
+        }
+    } // End of no-phrase selection impl
+    else {
+        // Standard implementation for phrase selection.
+        for (var staff = startStaff; staff <= endStaff; staff++) {
+            curScore.startCmd();
+            for (var voice = 0; voice < 4; voice++) {
+
+                // reset curr configs
+
+                Fns.resetParms(parms);
+
+                cursor.rewind(1); // goes to start of selection, will reset voice to 0
+
+                // 0-indexed bar counter.
+                // Used to keep track of bar boundaries efficiently.
+                var currBar = parms.bars.length - 1;
+                for (var i = 0; i < parms.bars.length; i++) {
+                    if (parms.bars[i] > cursor.tick) {
+                        currBar = i - 1;
+                        break;
+                    }
+                }
+
+                var tickOfThisBar = parms.bars[currBar];
+                var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
+
+                cursor.staffIdx = staff;
+                cursor.voice = voice;
+
+                console.log('processing:' + cursor.tick + ', voice: ' + cursor.voice + ', staffIdx: ' + cursor.staffIdx);
+
+                var tickOfLastModified = -1;
+
+                // Loop elements of a voice
+                while (cursor.segment && (cursor.tick < endTick)) {
+                    if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
+                        // At the end of every bar, remove unnecessary accidentals.
+                        Fns.removeUnnecessaryAccidentals(
+                            tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
+
+                        // We can't do this one-shot at the end, because the unnecessary accidentals
+                        // dependins on tuning config & key sig, which may be different for each
+                        // bar.
+
+                        // However, a more efficient method would be to store the last tick when
+                        // key sig/tuning config was changed, and when config is changed
+                        // again, we remove unnecessary accidentals, then proceed.
+                        // This would be more efficient than re-running this function every bar.
+                        // 
+                        // TODO: improve efficiency of removeUnnecessaryAccidentals call
+                        // (Only if performance improvements are necessary)
+
+                        // Update bar boundaries.
+                        currBar++;
+                        tickOfThisBar = tickOfNextBar;
+                        tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
+                    }
+
+                    for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
+                        var config = parms.staffConfigs[staff][i];
+                        if (config.tick <= cursor.tick) {
+                            var configKeys = Object.keys(config.config);
+                            for (var j = 0; j < configKeys.length; j++) {
+                                var key = configKeys[j];
+                                parms[key] = config.config[key];
+                            }
+                        }
+                    }
+
+                    if (cursor.element) {
+                        if (cursor.element.type == Ms.CHORD) {
+                            var graceChords = cursor.element.graceNotes;
+                            for (var i = 0; i < graceChords.length; i++) {
+                                // iterate through all grace chords
+                                var notes = graceChords[i].notes;
+                                for (var j = 0; j < notes.length; j++) {
+                                    var note = notes[j];
+
+                                    // skip notes that are tied to previous notes.
+                                    if (note.tieBack)
+                                        continue;
+
+                                    // Modify pitch.
+                                    Fns.executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
+                                }
+                            }
+                            var notes = cursor.element.notes;
+                            for (var i = 0; i < notes.length; i++) {
+                                var note = notes[i];
+
+                                // skip notes that are tied to previous notes.
+                                if (note.tieBack)
+                                    continue;
+
+                                // Modify pitch.
+                                Fns.executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
+                            }
+                            tickOfLastModified = cursor.tick;
+                        }
+                    }
+                    cursor.next();
+                }
+
+                // Don't forget to remove unnecessary accidentals for the last bit of 
+                // the selection that wasn't included in the loop above.
+
+                if (tickOfLastModified != -1) {
+                    Fns.removeUnnecessaryAccidentals(
+                        tickOfLastModified, tickOfLastModified, parms,
+                        cursor, newElement);
+                }
+
+                // Also don't forget to auto position accidentals for the last bar.
+            } // end of voices
+
+            curScore.endCmd();
+
+            curScore.startCmd();
+
+            // After processing all voices in a staff, 
+            // auto position accidentals in this staff in the selection range
+            Fns.autoPositionAccidentals(
+                startTick, endTick, parms, cursor
+            );
+            curScore.endCmd();
+        }
     }
 }

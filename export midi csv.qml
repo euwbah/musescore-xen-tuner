@@ -14,7 +14,7 @@ MuseScore {
       version: "0.1.1"
       description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
           + "script to generate one MPE midi file per staff."
-      menuPath: "Plugins.xen.Export MIDI"
+      menuPath: "Plugins.Xen Tuner.Export MIDI CSV"
 
       FileIO {
         id: fileIO
@@ -34,7 +34,7 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Xen Export MIDI CSV');
+        console.log('Xenharmonic Export MIDI CSV');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
         Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
