@@ -395,7 +395,7 @@ The note's tuning will be automatically octave-reduced/expanded to match the oct
 
 E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of the reference pitch. You can also use JavaScript expressions like `Math.sqrt(19).` to cut that exactly into half. The 19th harmonic will automatically be octave-reduced be as close as possible to the original tuning of the written note.
 
-> 🟠 If you regularly use this feature and do not require normal fingerings on your scores, you can set `var REQUIRE_PERIOD_AFTER_FINGERING_RATIO = false;` at around line 80 of `fns.js`. This will make all fingering text function as a JI ratio/harmonic by default, without the need for a period at the end &mdash; making your scores slightly neater.
+> 🟠 If you regularly use this feature and do not require normal fingerings on your scores, you can set `var REQUIRE_PERIOD_AFTER_FINGERING_RATIO = false;` at around line 100 of `fns.js`. This will make all fingering text function as a JI ratio/harmonic by default, without the need for a period at the end &mdash; making your scores slightly neater.
 >
 > Of course, this will also make normal fingering numbers act as otonal harmonics, so you should be careful.
 
