@@ -162,7 +162,7 @@ MuseScore {
 
       onScoreStateChanged: {
         if (state.selectionChanged && curScore) {
-            var elems curScore.selection.elements;
+            var elems = curScore.selection.elements;
             var el = elems[0];
             var name = el ? el.name : null;
             if (elems.length == 1 && 
