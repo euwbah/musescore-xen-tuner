@@ -4,4 +4,4 @@ These scripts are not part of the plugin, but they are here to help make the dev
 
 These skripz are designed to run from the context of the project root.
 
-That is, `pwd` should point to the `musescore-ji-rtt-plugin/` folder, instead of the `scripts/` folder.
+That is, `pwd` should point to the `musescore-xen-tuner/` folder, instead of the `scripts/` folder.

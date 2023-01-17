@@ -729,7 +729,7 @@ NOTE: There doesn't seem to be a use case for an inverse mapping of this yet. Ho
 
 Lookup table for the tuning of `XenNote`s. Entries do not need to be sorted in any particular order as the indexing for pitch sorting is done in `StepwiseList`.
 
-See [2.3.5 JI tuning table.csv](https://github.com/euwbah/musescore-ji-rtt-plugin/blob/master/2.3.5%20JI%20tuning%20table%20example.csv) for an example.
+See [2.3.5 JI tuning table.csv](https://github.com/euwbah/musescore-xen-tuner/blob/master/2.3.5%20JI%20tuning%20table%20example.csv) for an example.
 
 `cents`: the number of cents this note is from tuning note modulo the equave.
 

@@ -86,7 +86,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 
 While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-plugin--troubleshooting).
 
-Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `tabulate_accidentals.py` python script yourself with Python 3.
+Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `scripts/tabulate_accidentals.py` python script yourself with Python 3. This will sync the plugin's accidental Symbol Codes to the "CSV Export" sheet on the spreadsheet.
 
 If you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes numbers still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code index may change and is unstable.
 
@@ -469,7 +469,7 @@ Here are some ways to tackle the slow initialization/loading of tuning configs.
 
 ### 1. Pre-compute the tuning config
 
-Instead of writing the tuning config into the score/into a .txt file, you can go to this link: https://euwbah.github.io/musescore-ji-rtt-plugin/ to convert your tuning configuration into a .json file. In a nutshell, you're pre-computing the tuning configuration, so that you don't need to do it within MuseScore.
+Instead of writing the tuning config into the score/into a .txt file, you can go to this link: https://euwbah.github.io/musescore-xen-tuner/ to convert your tuning configuration into a .json file. In a nutshell, you're pre-computing the tuning configuration, so that you don't need to do it within MuseScore.
 
 Once you have the .json file (which you can rename to `whatever.json`, as long as it still has the `.json` extension), you can save it into the `tunings/` folder together with all the other .txt files.
 
@@ -524,7 +524,7 @@ python3 -m pip install python-rtmidi
 To run the midi generator script:
 
 ```bash
-cd path/to/musescore-ji-rtt-plugin
+cd path/to/musescore-xen-tuner
 python3 generate-mpe.py path/to/score.mid.csv
 ```
 
@@ -545,7 +545,7 @@ Try to reset the tuning cache of the score using the **Clear Tuning Cache** plug
 
 ### Reporting an issue
 
-If none of the above remedies work, you will need to [file an issue here](https://github.com/euwbah/musescore-ji-rtt-plugin/issues). Please include the following information:
+If none of the above remedies work, you will need to [file an issue here](https://github.com/euwbah/musescore-xen-tuner/issues). Please include the following information:
 
 - Version of MuseScore
 - Version of plugin
