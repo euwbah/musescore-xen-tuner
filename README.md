@@ -210,7 +210,7 @@ bbb bb b (2187/2048) # x #x
 ```
 
 > 🟢 Every ratio/cents interval can be specified as a math/JavaScript expression.
-> To differentiate ratio from cents, cents must end with a 'c'.
+> To differentiate ratios from cents, cents must end with a 'c'.
 
 We're now setting the reference note C4 to a just-intonated 3-limit major sixth below A4. Because of that, we can now specify our nominals starting from C, which makes it a little easier to calculate the ratios.
 
