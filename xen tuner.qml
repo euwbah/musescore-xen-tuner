@@ -161,11 +161,12 @@ MuseScore {
       }
 
       onScoreStateChanged: {
-        console.log(JSON.stringify(state));
-        if (state.selectionChanged) {
-            var el = curScore ? curScore.selection.elements[0] : null;
+        if (state.selectionChanged && curScore) {
+            var elems curScore.selection.elements;
+            var el = elems[0];
             var name = el ? el.name : null;
-            if (name == "SystemText" || name == "StaffText" || name == "TBox" || name == "Text") {
+            if (elems.length == 1 && 
+                (name == "SystemText" || name == "StaffText" || name == "TBox" || name == "Text")) {
                 // allow the user to use up/down arrow keys to navigate text
                 Fns.setUpDownFallthrough(false);
                 upShortcut.enabled = false;
