@@ -371,11 +371,35 @@ keysig #.+ 0 bbb.bbb.bb 0 17.bv2 0 x.#x.#x
 
 ## How to: fingering annotations
 
-> 🟢 If you're using this feature, it is recommended to change the default MuseScore shortcut of `Ctrl+F` from _Find / Go to_ to _Add fingering_. This will make note entry much more efficient.
+> 🟢 If you're using this feature, it is recommended to change the default MuseScore shortcut of `Ctrl+F` from _"Find / Go to"_ to _"Add fingering"_. This will make note entry much more efficient.
 
-Fingerings are a handy way of attaching text directly to a single note, plus you can press space/tab to navigate between adjacent fingerings which allows you to edit them efficiently.
+Fingerings are a handy way of attaching text directly to a single note. You can press space/tab to navigate between adjacent fingerings which allows you to edit them efficiently.
 
+### 1. Fingerings to enter accidentals
 
+If you're dealing with a really large tuning system and can't reasonably access the accidental you need with just up/down & auxiliary operations, you can use fingerings to help you enter accidentals.
+
+Create a fingering, type 'a', followed by comma-separated degrees of the [accidental vector](#accidental-vectors).
+
+For example, the fingering `a-1,1,2` corresponds to the accidental symbols required to notate going down 1 step of the first accidental chain, up 1 step of the second chain, and up 2 steps of the third chain. The actual symbols that this corresponds to will depend on the Tuning Configuration being applied on that note.
+
+Then, simply tune the note/score (or do some other operation) and the accidental symbols required to denote the accidental vector _-1,1,2_ will magically appear.
+
+This is especially helpful for huge tunings with many accidental chains.
+
+### 2. Fingerings to denote JI intervals
+
+You can tune any note to a just intonation interval relative to the reference note by attaching a fingering of the ratio/math expression followed by a period.
+
+The note's tuning will be automatically octave-reduced/expanded to match the octave that it is written in (in accordance to the Tuning Config), so you can use JI fingering annotations to supplement your existing tuning.
+
+E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of the reference pitch. You can also use JavaScript expressions like `Math.sqrt(19).` to cut that exactly into half. The 19th harmonic will automatically be octave-reduced be as close as possible to the original tuning of the written note.
+
+### 3. Fingerings to denote cent offsets
+
+You can apply an additional cent offset to a note (on top of its standard tuning) by prefixing the fingering with a `+` or `-` sign.
+
+E.g., `+5` on a note will make the note tune 5 cents higher than normal.
 
 ## How to: change shortcuts
 
