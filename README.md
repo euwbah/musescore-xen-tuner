@@ -403,9 +403,61 @@ E.g., `+5` on a note will make the note tune 5 cents higher than normal.
 
 ## How to: change shortcuts
 
+You can change the keystrokes that this plugin listens to by editing `xen tuner.qml` directly. The syntax is pretty straightforward.
+
+This is what the 'Tune' keybinding declaration looks like:
+
+```qml
+Shortcut {
+  sequence: "Alt+R"
+  context: Qt.ApplicationShortcut
+  onActivated: {
+      infoText.text = "Tuning score/selection...";
+      Fns.operationTune();
+      showWindow();
+  }
+}
+```
+
+If you want to change the keybinding to `Home` instead of `Alt+R` you can just modify the `sequence:` line:
+
+```qml
+Shortcut {
+  sequence: "Home"
+  context: ...
+```
+
+The strings of text that specifies a shortcut should be straightforward, but if you want to do anything fancy, you can refer to [the QT docs](https://doc.qt.io/qt-5/qkeysequence.html#details)
+
+### More auxiliary operations
+
+In the same `xen tuner.qml` file, you can specify/enable more auxiliary operations.
+
+The default file contains this empty template:
+
+```qml
+Shortcut {
+  sequence: "End"
+  enabled: false // set to true to enable
+  context: Qt.ApplicationShortcut
+  onActivated: {
+      infoText.text = "Moving note(s) up aux 5";
+      Fns.operationTranspose(1, 5);
+      showWindow();
+  }
+}
+```
+
+You can set `enabled: true` (or delete that line), then change `sequence` to a keybinding of your choice.
+
+To control which Nth auxiliary operation this keybinding is for, simply set the second number of `Fns.operationTranspose(1, 5)` to the desired auxiliary operation number. E.g. the 10th auxiliary operation would be `Fns.operationTranspose(1, 10)`.
+
+
 ## How to: huge tunings
 
 ## How to: exporting MIDI/MPE
+
+> ⚠️ This feature is still a work in progress. The generated microtonal .mid file does contain proper MPE MIDI messages and plays back correctly when imported directly into Pianoteq standalone. However, I haven't found a nice simple way to import this MPE MIDI data directly into a DAW. It seems like DAWs don't implement MPE import/export.
 
 MPE is a specification building on top of the MIDI 1.0 standard which allows for polyphonic pitch bend, which this plugin relies on to export microtonal pitch offsets of up to 15 notes per staff.
 

@@ -557,17 +557,41 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     }
 
     if (!isNotPath && fileIO) {
+        // read from a file
 
         if (textOrPath.length == 0) {
             // console.log('not tuning config: empty text');
             return null;
         }
 
+        var filePath = textOrPath;
+        
         if (textOrPath.endsWith('.txt')) {
-            textOrPath = textOrPath.slice(0, textOrPath.length - 4);
+            filePath = textOrPath.slice(0, textOrPath.length - 4);
+        } else if (textOrPath.endsWith('.json')) {
+            filePath = textOrPath.slice(0, textOrPath.length - 5);
         }
 
-        fileIO.source = pluginHomePath + 'tunings/' + textOrPath + '.txt';
+        // Try read from .json first.
+
+        fileIO.source = pluginHomePath + 'tunings/' + filePath + '.json';
+
+        text = fileIO.read().trim();
+        
+        try {
+            var jsonTuningConfig = JSON.parse(text);
+
+            if (jsonTuningConfig.nominals) {
+                tuningConfigCache[textOrPath] = jsonTuningConfig;
+                console.log('Loaded JSON tuning config from ' + fileIO.source + ':\n');
+                return jsonTuningConfig;
+            }
+        } catch (e) {
+        }
+
+        // Otherwise, try read .txt
+        
+        fileIO.source = pluginHomePath + 'tunings/' + filePath + '.txt';
 
         text = fileIO.read().trim();
     }

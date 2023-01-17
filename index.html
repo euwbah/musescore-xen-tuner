@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Xen Tuner Tuning Config Generator</title>
+    </head>
+    <style type="text/css">
+        body {
+            background-color: black;
+            font-family: monospace;
+            color: white;
+        }
+        textarea {
+            width: 100%;
+            height: 70vh;
+            background-color: #333;
+            color: white;
+            font-size: 16px;
+            border: none;
+            resize: none;
+        }
+        button {
+            width: 18rem;
+            height: 5rem;
+            background-color: #333;
+            color: white;
+            font-family: monospace;
+            font-size: 16px;
+            border: none;
+            resize: none;
+        }
+        #errormsg {
+            color: #f84;
+            font-size: 16px;
+        }
+    </style>
+    <body>
+        <h2>Tuning config .json generator for large tuning configs</h2>
+        <textarea placeholder="Enter tuning config text..." id="tcinput"></textarea>
+        <button onclick="generateTuningConfigJSON()">Generate .json</button>
+        <div id="errormsg"></div>
+        <script type="text/javascript" src="./generated-tables.js"></script>
+        <script type="text/javascript" src="./lookup-tables.js"></script>
+        <script type="text/javascript" src="./fns.js"></script>
+        <script src="./main.js"></script>
+    </body>
+</html>

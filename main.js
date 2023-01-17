@@ -1,3 +1,8 @@
+/**
+ * @file Simple code for generating/downloading tuning config as JSON and
+ *       testing the tuning config parser.
+ */
+
 var Lookup = ImportLookup();
 
 window.testTuning = `
@@ -15,6 +20,31 @@ A4: 440
 lig(1,2)
 1 1 #^
 `;
+
+function download(content, filename, contentType)
+{
+    if(!contentType) contentType = 'application/octet-stream';
+    var a = document.createElement('a');
+    var blob = new Blob([content], { 'type': contentType });
+    a.href = window.URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+}
+
+function generateTuningConfigJSON() {
+    var tuningConfigStr = document.getElementById('tcinput').value.trim();
+    var tuningConfig = parseTuningConfig(tuningConfigStr);
+
+    if (!tuningConfig) {
+        document.getElementById('errormsg').innerText = 
+            'Error parsing tuning config! See browser console for details.';
+        return;
+    }
+    document.getElementById('errormsg').innerText = '';
+
+    var tuningConfigJSON = JSON.stringify(tuningConfig);
+    download(tuningConfigJSON, 'tuningconfig.json', 'text/plain');
+}
 
 /**
  * Create a fake MuseScore Note QObject for testing purposes.
