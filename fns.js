@@ -1420,6 +1420,8 @@ function parseKeySig(text) {
         }
     });
 
+    console.log('Parsed keySig: ' + JSON.stringify(keySig));
+
     return keySig;
 }
 

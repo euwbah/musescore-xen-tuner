@@ -18,7 +18,7 @@ MuseScore {
         "This will open a small docked panel to the side.\n\nIMPORTANT: Do not close the window.\n"+
         "Make sure you only have 1 instance of this plugin running at a time."
       menuPath: "Plugins.Xen Tuner.Start Xen Tuner"
-      implicitHeight: 100
+      implicitHeight: 80
       implicitWidth: 200
       id: pluginId
 

@@ -1,10 +1,10 @@
-# Microtonal/Xenharmonic MuseScore plugin suite
+# Xen Tuner: Microtonal MuseScore Plugin Suite
 
 A plugin to give first-class support as many microtonal/xen notation systems as possible by introducing multiple accidentals per note.
 
 ## Features/Goals
 
-- [x] Support for infinitely many tuning systems with flexibility of choice of accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), whatever... (60%, data entry [help needed!](#help-needed))
+- [x] Support for infinitely many tuning systems with flexibility of choice of accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), whatever... (20%, data entry [help needed!](#help-needed))
 
 - [x] Automated tuning & auto-positioning of multiple accidentals.
 
@@ -32,35 +32,28 @@ Download the project as .zip (the green "Code" button on top right of the projec
 Extract files to plugins folder and activate all the following plugins (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
 
 - _clear tuning cache_
-- _down_ & _down aux1_ & _down aux2_ etc...
-- _up_ & _up aux1_ & _up aux2_ etc...
-- _enharmonic_
-- _tune_
+- _xen tuner_
+- _export midi csv_
 
-Remove the following default keyboard shortcuts in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
+This plugin is designed to replace MuseScore's default shortcuts. You will need to **remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
 - Pitch up/down or move text/articulation up/down  (`Up/Down` arrow keys)
 - Change enharmonic spelling (current mode) (`Ctrl+J`) (optional)
-
-You can also clear these default shortcuts as you may find better uses for these later on:
-
+- Diatonic up/down (`Shift+Alt+Up/Down`)
 - Go to higher/lower pitched note in chord (`Alt+Up/Down`)
 - Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
 
-**:warning: IMPORTANT:** Assign the following shortcuts using the "Define Shortcut" button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins). Having these shortcuts makes up 99.9% of the benefits of this plugin:
- 
-- `up.qml` & `down.qml` &rarr; `Up/Down` arrow keys
-- `enharmonic.qml`&rarr; `Ctrl+J` or `Alt+J`.
-  - :warning: If you use `J` as a plugin shortcut, you won't be able to type 'J' when editing text. This is a known issue with MuseScore plugin shortcuts.
-- `tune` &rarr; `Alt+R`
-- `up/down aux1.qml` &rarr; `Alt+Up/Down`. (Optional, if using aux1)
-- `up/down aux2.qml` &rarr; `Ctrl+Alt+Up/Down`. (Optional, if using aux2)
+Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-fingering-annotations) a lot, it's recommended to change the default `Ctrl+F` from "Find / Go to" to "Add fingering".
 
-Also, if you're going to use the fingering accidentals/tuning feature a lot, it's recommended to change `Ctrl+F` from "Find / Go to" to "Add fingering".
+Once you have activated the plugins & replaced the shortcuts, you can start the plugin in **Plugins > Xen Tuner > Start Xen Tuner**.
+
+> :warning: You only need to run this once! Starting the plugin will open a small docked panel on the bottom left. If you close this panel, you will need to restart Xen Tuner.
+>
+> The first time you start Xen Tuner after opening MuseScore, MuseScore will freeze for about 5 seconds while it loads. This is normal.
 
 Once you have set all those up, you will need to specify configurations used in your score, such as the [tuning system](#how-to-tuning-configuration), [key signatures](#how-to-key-signatures) (if any), or whether to always use explicit accidentals.
 
-You can configure these by adding a System Text or Staff Text element containing configuration text. These texts don't have to be visible (you can press `V` to toggle visibility).
+You can configure these by adding a System Text or Staff Text element containing the configuration text itself. You can also enter the name/path of a `.txt` file in the `tunings/` folder to refer to a configuration from a `.txt` file. These texts don't have to be visible (you can press `V` to toggle visibility).
 
 A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on.
 
@@ -137,6 +130,10 @@ This plugin enables an **infinite** number of notation systems by giving you fre
 
 ## How to: key signatures
 
+
+## How to: fingering annotations
+
+
 ## How to: exporting MIDI/MPE
 
 MPE is a specification building on top of the MIDI 1.0 standard which allows for polyphonic pitch bend, which this plugin relies on to export microtonal pitch offsets of up to 15 notes per staff.
@@ -193,7 +190,11 @@ If none of the above remedies work, you will need to [file an issue here](https:
 - Version of plugin
 - Operating system
 - Debug logs
-  - To find this, open the **Plugin Creator** (Plugins > Plugin Creator), and you will see some console logs at the bottom of the window. Usually if an error occurs, you should be able to see the error message at the bottom of the log. Copy and paste as much as you can, **making sure that you include the error message** at the bottom.
+  - Open the **Plugin Creator** (Plugins > Plugin Creator).
+  - Open the plugin's .qml file (but don't run it).
+  - Repeat the action you did that caused the issue.
+  - Usually if an error occurs, you should be able to see the error message at the bottom of the log.
+  - Copy and paste as much of the debug log as you can, **making sure that you include the error message** at the bottom.
 
 ## HELP NEEDED!
 
