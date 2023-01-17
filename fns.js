@@ -1503,6 +1503,19 @@ function resetParms(parms) {
 }
 
 /**
+ * Use this function if you need to get the xen nominal of a note, but don't need
+ * any other information.
+ * 
+ * @param {MSNote} msNote Tokenized musescore Note object
+ * @param {TuningConfig} tuningConfig 
+ */
+function getNominal(msNote, tuningConfig) {
+    var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
+
+    return mod(nominalsFromTuningNote, tuningConfig.numNominals);
+}
+
+/**
  * 
  * Uses TuningConfig and cursor to read XenNote data from a tokenized musescore note.
  * 
@@ -1565,10 +1578,10 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
     if (accidentalsHash == null && keySig && keySig[nominal] != null
         // Check if KeySig has a valid number of nominals.
-        && keySig[nominal].length == tuningConfig.numNominals) {
+        && keySig.length == tuningConfig.numNominals) {
         // If no prior accidentals found within the bar,
         // look to key signature.
-        accidentalsHash = keySig;
+        accidentalsHash = keySig[nominal];
     }
 
     if (accidentalsHash != null) {
@@ -2276,8 +2289,6 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
         return null;
     }
 
-    console.log('validOptions: ' + JSON.stringify(validOptions));
-
     var currAV = tuningConfig.avTable[noteData.xen.hash];
 
     // Returns the XenNote hash option so far.
@@ -2827,7 +2838,7 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * @param {*} newElement 
  */
 function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
-    console.log('modifyNote(' + (note.line + lineOffset) + ', ' + JSON.stringify(orderedSymbols) + ')');
+    console.log('modifyNote(' + (note.line + lineOffset) + ')');
     var newLine = note.line + lineOffset;
 
     // This is the easiest hacky solution to move a note's line.
@@ -3126,6 +3137,8 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                 return tokenizeNote(note);
                             }
                         );
+                        // All these notes are on the same line => all have the same nominal.
+                        var nominal = getNominal(msNotes[0], tuningConfig);
 
                         // Before we proceed, make sure that all explicit accidentals 
                         // attached to notes within this same chord & line
@@ -3176,6 +3189,9 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                                 var currAccState = accidentalState[lineNum];
 
+                                console.log('currAccState: ' + currAccState + ', accHash: ' + accHash 
+                                    + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
+
                                 if (currAccState && currAccState == accHash) {
                                     // if the exact same accidental hash is found on the
                                     // accidental state and this note, this note's
@@ -3187,11 +3203,12 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     // this note matches KeySig, this note's acc
                                     // is also redundant. Remove.
 
-                                    var realKeySig = removeUnusedSymbols(keySig[lineNum], tuningConfig) || '';
+                                    var realKeySig = removeUnusedSymbols(keySig[nominal], tuningConfig) || '';
+                                    console.log('realKeySig: ' + realKeySig);
                                     if (realKeySig == accHash) {
                                         setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
                                     }
-                                } else if (isNatural && !currAccState && (!keySig || !keySig[lineNum])) {
+                                } else if (isNatural && !currAccState && (!keySig || !keySig[nominal])) {
                                     // This note has a natural accidental, but it is not
                                     // needed, since the prior accidental state/key sig is natural.
 
@@ -3779,7 +3796,7 @@ function operationTune() {
                         console.log("found annotation type: " + annotation.name);
                         if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
                             (annotation.name == 'SystemText')) {
-                            var maybeConfigUpdateEvent = Fns.parsePossibleConfigs(annotation.text, cursor.tick);
+                            var maybeConfigUpdateEvent = parsePossibleConfigs(annotation.text, cursor.tick);
 
                             if (maybeConfigUpdateEvent != null) {
                                 configs.push(maybeConfigUpdateEvent);
@@ -3819,7 +3836,7 @@ function operationTune() {
         for (var voice = 0; voice < 4; voice++) {
             // After each voice & rewind, 
             // reset all configs back to default
-            Fns.resetParms(parms);
+            resetParms(parms);
 
             // NOTE: FOR WHATEVER REASON, rewind(1) must be called BEFORE assigning voice and staffIdx,
             //       and rewind(0) MUST be called AFTER rewind(1), AND AFTER assigning voice and staffIdx.
@@ -3853,7 +3870,7 @@ function operationTune() {
             // Loop elements of a voice
             while (cursor.segment && (fullScore || cursor.tick < endTick)) {
                 if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
-                    Fns.removeUnnecessaryAccidentals(
+                    removeUnnecessaryAccidentals(
                         tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
                     // Update bar boundaries.
                     currBar++;
@@ -3889,13 +3906,13 @@ function operationTune() {
                             // iterate through all grace chords
                             var notes = graceChords[i].notes;
                             for (var j = 0; j < notes.length; j++) {
-                                Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning,
+                                tuneNote(notes[j], parms.currKeySig, parms.currTuning,
                                     tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
                             }
                         }
                         var notes = cursor.element.notes;
                         for (var i = 0; i < notes.length; i++) {
-                            Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning,
+                            tuneNote(notes[i], parms.currKeySig, parms.currTuning,
                                 tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
 
                             // REMOVE AFTER TESTING
@@ -3913,7 +3930,7 @@ function operationTune() {
             }
 
             if (tickOfLastModified != -1) {
-                Fns.removeUnnecessaryAccidentals(
+                removeUnnecessaryAccidentals(
                     tickOfLastModified, tickOfLastModified, parms,
                     cursor, newElement);
             }
@@ -3923,7 +3940,7 @@ function operationTune() {
 
         _curScore.startCmd();
 
-        Fns.autoPositionAccidentals(
+        autoPositionAccidentals(
             startTick, endTick, parms, cursor
         );
 
@@ -3952,7 +3969,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
     if (typeof curScore === 'undefined')
         return;
 
-    Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
+    init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
     console.log(Qt.resolvedUrl("."));
     var parms = {};
     curScore.createPlayEvents();
@@ -4009,7 +4026,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                         console.log("found annotation type: " + annotation.name);
                         if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
                             (annotation.name == 'SystemText')) {
-                            var maybeConfigUpdateEvent = Fns.parsePossibleConfigs(annotation.text, cursor.tick);
+                            var maybeConfigUpdateEvent = parsePossibleConfigs(annotation.text, cursor.tick);
 
                             if (maybeConfigUpdateEvent != null) {
                                 configs.push(maybeConfigUpdateEvent);
@@ -4093,7 +4110,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 var note = selectedNotes[i];
                 var voice = note.track % 4;
                 var staffIdx = Math.floor(note.track / 4);
-                var tick = Fns.getTick(note);
+                var tick = getTick(note);
 
                 // handle transposing the firstTiedNote in the event that a non-first tied note
                 // is selected.
@@ -4112,7 +4129,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                 affected.push(note);
 
-                Fns.setCursorToPosition(cursor, tick, voice, staffIdx);
+                setCursorToPosition(cursor, tick, voice, staffIdx);
 
                 console.log('indiv note: line: ' + note.line + ', voice: ' + cursor.voice
                     + ', staff: ' + cursor.staffIdx + ', tick: ' + tick);
@@ -4121,7 +4138,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 // Reset & populate configs for each note,
                 // since we're uncertain which note belongs to which bar.
 
-                Fns.resetParms(parms);
+                resetParms(parms);
 
                 for (var j = 0; j < parms.staffConfigs[Math.floor(note.track / 4)].length; j++) {
                     var config = parms.staffConfigs[cursor.staffIdx][j];
@@ -4134,26 +4151,26 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                     }
                 }
 
-                var barBoundaries = Fns.getBarBoundaries(tick, parms.bars);
+                var barBoundaries = getBarBoundaries(tick, parms.bars);
 
                 // Modify pitch.
 
                 curScore.startCmd();
 
                 // direction: 1: up, -1 = down, 0: enharmonic cycle.
-                var barState = Fns.executeTranspose(note, stepwiseDirection,
+                var barState = executeTranspose(note, stepwiseDirection,
                     stepwiseAux, parms, newElement, cursor);
 
                 // Remove unnecessary accidentals just for this bar.
 
-                Fns.removeUnnecessaryAccidentals(
+                removeUnnecessaryAccidentals(
                     tick, tick, parms, cursor, newElement);
 
                 curScore.endCmd();
                 curScore.startCmd();
 
                 // Auto position accidentals in this bar.
-                Fns.autoPositionAccidentals(
+                autoPositionAccidentals(
                     tick, tick, parms, cursor
                 );
                 curScore.endCmd();
@@ -4170,7 +4187,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                 // reset curr configs
 
-                Fns.resetParms(parms);
+                resetParms(parms);
 
                 cursor.rewind(1); // goes to start of selection, will reset voice to 0
 
@@ -4198,7 +4215,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 while (cursor.segment && (cursor.tick < endTick)) {
                     if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
                         // At the end of every bar, remove unnecessary accidentals.
-                        Fns.removeUnnecessaryAccidentals(
+                        removeUnnecessaryAccidentals(
                             tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
 
                         // We can't do this one-shot at the end, because the unnecessary accidentals
@@ -4244,7 +4261,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                                         continue;
 
                                     // Modify pitch.
-                                    Fns.executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
+                                    executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
                                 }
                             }
                             var notes = cursor.element.notes;
@@ -4256,7 +4273,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                                     continue;
 
                                 // Modify pitch.
-                                Fns.executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
+                                executeTranspose(note, stepwiseDirection, stepwiseAux, parms, newElement, cursor);
                             }
                             tickOfLastModified = cursor.tick;
                         }
@@ -4268,7 +4285,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 // the selection that wasn't included in the loop above.
 
                 if (tickOfLastModified != -1) {
-                    Fns.removeUnnecessaryAccidentals(
+                    removeUnnecessaryAccidentals(
                         tickOfLastModified, tickOfLastModified, parms,
                         cursor, newElement);
                 }
@@ -4282,7 +4299,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
             // After processing all voices in a staff, 
             // auto position accidentals in this staff in the selection range
-            Fns.autoPositionAccidentals(
+            autoPositionAccidentals(
                 startTick, endTick, parms, cursor
             );
             curScore.endCmd();

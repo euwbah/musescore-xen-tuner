@@ -39,6 +39,16 @@ MuseScore {
             font.pointSize: 8
             color: "white"
         }
+        Button {
+            text: "Quit"
+            width: 40
+            height: 20
+            font.pointSize: 8
+            onClicked: {
+                infoText.text = "Quitting...";
+                Qt.quit();
+            }
+        }
       }
 
       Shortcut {
