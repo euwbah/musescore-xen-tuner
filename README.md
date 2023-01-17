@@ -61,9 +61,20 @@ A configuration is only applied to notes from that bar onwards.
 
 You can place configuration texts over multiple staves and bars to write a piece where different parts use different tunings/notation systems, and each part can change tuning/notation system at any bar.
 
-After entering new notes, remember to press `Alt+R` to tune notes to the correct pitch. If you use up/down/J keys, the modified notes will also be tuned.
+Now you can enter notes as per normal. The plugin defaults to the following shortcuts ([which you can change](#how-to-change-shortcuts)):
 
-Copy & read the [example tuning configuration](#case-studyexample).
+- `Alt+R`: Tune score/selection
+- `Up/Down`: Move note up/down to the next nearest step
+- `J`: Cycle through enharmonics of the note
+
+There's also shortcuts for **auxiliary up/down operations**:
+
+- `Alt+Up/Down`: up/down auxiliary operation 1
+- `Ctrl+Alt+Up/Down`: up/down auxiliary operation 2
+- `Alt+Shift+Up/Down`: up/down auxiliary operation 3
+- `Ctrl+Alt+Shift+Up/Down`: up/down auxiliary operation 4
+
+Remember to tune (`Alt+R`) to update newly entered notes to the correct pitch. This will also help you format & organize accidental symbols. If you apply the up/down/enharmonic operations, the modified notes will also be tuned.
 
 Read [how the plugin conceptualizes tunings & accidentals](#introduction) to make your own tuning configurations.
 
@@ -77,14 +88,25 @@ While the accidental data entry project is in progress, the new accidentals will
 
 Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `tabulate_accidentals.py` python script yourself with Python 3.
 
-Note that if you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code of symbols may change and is unstable.
+If you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes numbers still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code index may change and is unstable.
 
 -----
 
 ## Introduction
 
-> 🟢 To use this plugin to its full potential, we first need to know how this plugin conceptualizes & represents accidentals. You can skip to [here](#how-to-tuning-configuration) to go straight to examples.
-> Though, it is highly recommended that you read this section first.
+> 🟢 This section introduces important terminology. It is recommended to read this section before the rest of the guide.
+
+### Nominals & Equave
+
+The **nominals** are the 'musical alphabet'. In 12edo terms, we call them the 'white keys'. That is, the notes without any accidentals attached to them.
+
+Normally there are only 7 nominals (letters A to G), and the distance between two of the same nominals is called an octave. 
+
+However, in Xen Tuner, you're free to declare as many nominals as you want, as long as you have more than 2. The distance between two of the same nominals is called an **equave**. You can set the equave to whatever interval you want.
+
+This means, you can construct notation systems like the chromatic staff, with 12 nominal 'alphabets', one for each semitone. You can even write using the negative treble clef (negative harmony) by setting the equave to negative `-1200c`. Then, notes that are visually going up will sound like they're going down.
+
+### Symbol Codes, Text Codes
 
 A **symbol code** represents a visually/semantically unique symbol, which may have multiple IDs under the hood. For the purposes of this plugin, all similar-looking/meaning symbols are considered the same symbol.
 
@@ -92,9 +114,11 @@ This plugin only uses accidental symbols from the 'Symbols' category in the Mast
 
 To refer to a symbol when keying in tuning/key signature configuration texts, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation (in the _Text Code_ column).
 
-> When entering symbols, both `#` and `5` both refer to the same sharp symbol.
+> E.g. both `#` and `5` can be used to refer to the sharp symbol.
+> 
+> Code `17` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `17`.
 
-However, most, if not all, notation systems have one thing in common: an accidental always refers to the same-sized interval offset. A sharp always affects a note by the same amount no matter what other accidentals may be on the note, and no matter what note in the octave/equave it is.
+### Accidental chains & degrees
 
 Now, when we say "sharps and flats", these accidentals represents a chain of accidentals along a spectrum. For the purpose of this plugin, let's call it the **accidental chain**. Each successive item in this chain of sharps and flats refer to a constant-sized pitch increment. The number of increments of the unit interval is called the **degree** of the **chain**. `#` (sharp) is "degree 1", and `bb` (double flat) is "degree -2" of the sharps-flats chain.
 
@@ -106,33 +130,256 @@ In this plugin, you can compose different symbols together to form a degree. To 
 
 You can't attach two accidental degrees from the same accidental chain on to a single note (like how it wouldn't make sense to call a note "C-sharp-double-flat-triple-natural"). The plugin will simply just not work.
 
-If you want to combine accidentals, they have to be from different accidental chains. You can specify as many accidental chains as you need in this plugin, as long as the symbols used in each accidental chain are mutually exclusive.
+### Accidental vectors
 
-> E.g. in Helmholtz-Ellis Just Intonation notation, our pure classic major thirds (5:4) have to be notated as a 'ditone' (81:64) that is lowered by a syntonic comma (81:80) to arrive at a classic major third (5:4). 
-> The interval between D and F# is a ditone. This means, if we want the (5:4) interval between D and F, we need to spell it as `F#\` (F sharp syntonic comma-down)
->
-> Here, we are combining accidentals from two different accidental chains. The +1 degree from the sharps-flats chain, and the -1 degree from the syntonic commas chain (which we usually use up/down arrows to denote).
->
-> To support this 5-limit HEJI notation, we simply need to declare 2 accidental chains. One for sharps-flats for the apotome (2187:2048), and one for arrow ups/downs for the syntonic commas (81:80)
+You can combine different accidental degrees from different accidental chains. The degrees of each accidental chain forms a list of numbers called the **accidental vector**. This is a unique representation of all the accidentals attached to one notehead.
 
-This plugin enables an **infinite** number of notation systems by giving you free-reign over declaring:
-
-- Any number of accidental chains with regular or irregular step sizes between each degree
-- Accidentals (that can be composed of any number of symbols) that represent a single degree on an accidental chain.
-- The tunings of the nominals (A, B, C, D, etc...)
-- The number of nominals within an octave/equave (you can notate Bohlen-Pierce & other systems with less/more than 7 'alphabets')
-- The interval of the 'equave' (you can have stretched octave/tritave/etc... tunings, or even _negative-sized equaves_ to notate negative clefs for avant-garde 21st century negative harmony stuff)
-- Accidental ligatures --- where a single symbol (or multiple) can represent & substitute for a combination of accidentals from differing accidental chains (useful for HEJI & Sagittal)
+> E.g. in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**. 
+> 
+> First, the chain of sharps and flats, where each step in the 'sharp' direction corresponds to the apotome interval (2187/2048). These accidentals allow us to access 3-limit just intonation.
+> 
+> Next, the chain of syntonic commas, where each step up is equal to the syntonic comma (81/80). These accidentals give access to 5-limit just intonation.
+> 
+> Now, we can notate the classic major third (5/4) of `D` as `F#v` (F-sharp-down). `F#v` is 1 step up in the 'sharp' direction, and 1 step down in the 'syntonic comma' direction. Thus, we can represent this note as having the accidental vector of `1, -1`.
 
 -----
 
 ## How to: tuning configuration
 
+To declare a tuning system, we need to enter the **Tuning Configuration** into the score. These can be entered as text in **System Text** or **Staff Text** elements.
+
+System Text elements will apply to all staves from that bar onwards, whereas Staff Text will only apply to the staff it is attached to.
+
+You do not need to write the entire tuning configuration within a staff text. E.g. if you frequently use a tuning with rather lengthy configuration text, you can create a `.txt` file inside the included `tunings/` folder.
+
+If you do this, you can declare a tuning system by entering the `.txt` file path (without the .txt) into Staff/System Text, and it will reference the tuning system as written in the `.txt` file.
+
+> E.g. to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
+
+Now lets dive into how we can create our own tuning/notation systems.
+
+### Simple example
+
+Let's start of with the simplest example: Just the white keys of the piano:
+
+```txt
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 1200c
+```
+
+`A4: 440` specifies the reference note and tuning in Hertz, which sets the note A4 to 440hz.
+
+`0c 200c 300c 500c 700c 800c 1000c` specifies, in cents, the tunings of each of the 7 nominals starting from the reference note A4. This means that B4 will be 200c higher than A4, C5 will be 300c higher than A4, etc... Each entry must be separated by a space.
+
+The last interval size, `1200c`, specifies the equave size. The equaves are referenced in terms of the nominals defined, rather than the standard 12edo octave. E.g., if you only declare 2 nominals, then the next equave up from A4 will start at C5 instead of A5.
+
+### Adding accidentals
+
+Now let's add the usual 12edo accidentals to complete the 12edo tuning system.
+
+```txt
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+```
+
+The last line adds a chain of accidentals ranging from double flat to double sharp. You can specify the accidental symbols as Symbol Codes or Text Codes, each degree of the accidental chain must be separated by space, and the `(100c)` in the middle means that increasing the degree on this chain by 1 will result in a 100 cent pitch increase.
+
+### Adding too many accidentals
+
+Sometimes, scores call for triple sharps and flats. Why not go all the way and add 6?
+
+```txt
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 1200c
+bbb.bbb bb.bbb bb.bb bbb bb b (100c) # x #x x.x #x.x #x.#x
+```
+
+As shown above, a single degree on an accidental chain can be composed of multiple symbols. To combine symbols, join Symbol Codes/Text Codes with a period. E.g. `bb.bbb` means that degree -5 of the chain is notated as a double flat followed by a triple flat.
+
+Now's a good time to play with enharmonic cycling (`J` key).
+
+### Just Intonation (JI)
+
+Now, let's convert what we have into 3-limit just intonation (and also tone down on the accidentals)
+
+```txt
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2
+bbb bb b (2187/2048) # x #x
+```
+
+> 🟢 Every ratio/cents interval can be specified as a math/JavaScript expression.
+> To differentiate ratio from cents, cents must end with a 'c'.
+
+We're now setting the reference note C4 to a just-intonated 3-limit major sixth below A4. Because of that, we can now specify our nominals starting from C, which makes it a little easier to calculate the ratios.
+
+Our nominals are now all 3-limit ratios built of a chain of pure fifths from F to B, which are the standard nominals used in JI notations (unless you're writing in Ben Johnston's system).
+
+### More accidental chains: 5-limit JI
+
+```txt
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2
+bbb bb b (2187/2048) # x #x
+\.\ \ (81/80) / /./
+```
+
+We can add more accidental chains by appending each one on a new line.
+
+Here, we use the up and down arrow symbols to represent the syntonic comma. To get 2 arrows we combine the symbols with a period.
+
+We now have access to those 'sweeter' 5:4 major thirds like `C-E\` instead of `C-E`.
+
+### Accidental ligatures: "Real" HEJI
+
+If we want to notate in HEJI, those arrows aren't the right symbol for the syntonic comma.
+
+In HEJI, the accidentals in the syntonic comma chain and sharps-and-flats chain combine to form a single accidental with the up/down arrows being attached to the sharp/flat symbol.
+
+To add support for notation systems where different accidentals in different chains are replaced with other symbols, we can declare a **ligature**. You can think of it as a list of "search-and-replace" conditions.
+
+```txt
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2
+bbb bb b (2187/2048) # x #x
+\ (81/80) /
+lig(1,2)
+-2 -2 bbv2
+-2 -1 bbv
+-2 1 bb^
+-2 2 bb^2
+-1 -2 bv2
+-1 -1 bv
+-1 1 b^
+-1 2 b^2
+0 -2 v2
+0 -1 v
+0 1 ^
+0 2 ^2
+1 -2 #v2
+1 -1 #v
+1 1 #^
+1 2 #^2
+2 -2 xv2
+2 -1 xv
+2 1 x^
+2 2 x^2
+```
+
+We start declaring a ligature with `lig(1,2)`. The numbers `1,2` represent the Nth accidental chains that this ligature applies to. This means that if we add more accidental chains later on, the ligature will only search-and-replace symbols regarding these two chains, and will not affect the others.
+
+After that, we declare each search-and-replace condition on a new line.
+
+`-2 -1 bbv` means that if the 1st accidental chain is on degree -2 (double flat), and the second accidental chain is on degree -1 (down arrow), then we replace it with the single symbol `bbv`.
+
+> ⚠️ IMPORTANT: The degrees `-2 -1` **must be specified in the same order as the ligature's chain declaration**.
+> 
+> For example, if we declared `lig(2,1)` instead, with the second accidental chain on the left, then you would need to write the search-and-replace condition as `-1 -2 bbv`, since now the left number refers to the second accidental chain.
+>
+> ⚠️ Ligatured symbols **must not contain symbols that are already used as part of an accidental chain.**
+
+You only specify the degrees of chains that are declared as part of the ligature, in the order which you specified the chains.
+
+The ligatured symbols can be constructed with multiple symbols. Just like before, you can join symbols with periods.
+
+You can also specify more than one ligature declaration, regarding different chains. The ligatures will be search-and-replaced in the order which they are declared, so you can make some pretty complicated conditional ligaturing, if you must.
+
+### Auxiliary operations
+
+You may realize that it is rather inefficient to just use the up/down arrows to get the note/accidental you need. We already have 245 unique notes within an equave!
+
+We can make use of auxiliary up/down actions to have more control over how the note moves when being transposed.
+
+> :warning: **Ligature declarations must be written before auxiliary declarations**.
+
+```txt
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2
+bbb bb b (2187/2048) # x #x
+\ (81/80) /
+lig(1,2)
+...blah blah
+aux(0)
+aux(1)
+aux(2)
+aux(0,1)
+```
+
+Each auxiliary operation is declared on a new line. The first declaration correspond to the 'aux 1 up/down' commands, second declaration for aux 2, and so on.
+
+`aux(0)` means that only the [nominal](#nominals--equave) is allowed to change when transposing notes. Any accidentals attached must remain the same. This corresponds to MuseScore's 'Diatonic pitch up/down (keep degree alterations)' function. This behaviour will be assigned to the action of the 'aux 1 up/down' commands (default shortcut: `Alt+Up/Down`)
+
+`aux(1)` means that only the first accidental chain's degree is allowed to change when transposing notes. The note's nominal and other accidental chains must remain the same. In other words, you can use this to adjust the number of flats and sharps on the note. This behaviour will be assigned to the action of the 'aux 2 up/down' commands (default: `Ctrl+Alt+Up/Down`)
+
+Similarly, `aux(2)` means only the second chain's degree can change. This adjusts the number of syntonic up/down accidentals on the note. This behaviour will be assigned to the 'aux 3 up/down' commands (default: `Shift+Alt+Up/Down`)
+
+Finally, `aux(0,1)` means both the nominal and the first accidental chain's degree can change. This behaviour will be assigned to the 'aux 4 up/down' commands (default: `Ctrl+Shift+Alt+Up/Down`)
+
+You can specify whatever combination of nominal/chains within the parentheses that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
+
+### Irregularly sized accidental chains
+
+Within an accidental chain, you can specify additional offsets to be applied to each accidental degree like so:
+
+```txt
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 1200c
+bb b(15c) (100c) #(-3c) x(8/9)
+```
+
+The additional offset on the degree is written in parentheses right after the accidental symbol code(s), **without a space** between the symbol and the parentheses.
+
+- `b(15c)` will make degree -1 (flat) equal to -85c instead of -100c
+- `#(-3c)` will make degree 1 (sharp) equal to 97c instead of 100c
+- `x(8/9)` will make degree 2 flatter by the 9/8 Just Intonation interval, making it only &approx;3.9c
+
+If you have very irregular interval sizes between accidentals, it might be better to set the accidental size to 0 and specify the offset of each degree individually. For example:
+
+```txt
+bb(8/9) b(15/16) (0) #(17/16) x(8/7)
+```
+
+-----
+
+You're encouraged to contribute your tuning systems to the project! You can file a pull request adding files to the `tunings/` folder.
+
 ## How to: key signatures
 
+Regardless of whether you're using standard or custom key signatures, you will need to declare key signatures using System/Staff text for this plugin to work with key signatures properly.
+
+Just like the tuning config, System Text will apply the key signature for all staves from that bar onwards, whereas Staff Text will only apply to the staff it is written on.
+
+The key signature text should start with `keysig`, followed by a space, followed by space-separated symbols codes that should apply to each nominal starting from the reference note.
+
+E.g. if the tuning config specifies A4 as the reference note, and you have 7 nominals in your tuning, then:
+
+```txt
+keysig 0 0 # 0 0 # 0
+```
+
+...specifies that the nominals C and F should have the `#` symbol applied to them by default. `0` is used to mean natural/no symbol.
+
+As per normal, if you require multiple symbols on a nominal, you can join them with periods, e.g.:
+
+
+```txt
+keysig #.+ 0 bbb.bbb.bb 0 17.bv2 0 x.#x.#x
+```
+
+...also specifies a (rather extreme) key signature for 7 nominals.
 
 ## How to: fingering annotations
 
+> 🟢 If you're using this feature, it is recommended to change the default MuseScore shortcut of `Ctrl+F` from _Find / Go to_ to _Add fingering_. This will make note entry much more efficient.
+
+Fingerings are a handy way of attaching text directly to a single note, plus you can press space/tab to navigate between adjacent fingerings which allows you to edit them efficiently.
+
+
+
+## How to: change shortcuts
+
+## How to: huge tunings
 
 ## How to: exporting MIDI/MPE
 
@@ -370,9 +617,9 @@ This tuning system/staff text specifies a 315-note subset of 2.3.5 JI:
 
 ```txt
 A4: 440
-0 203.910 294.130 498.045 701.955 792.180 996.090 1200
-bb.bb 7 bb b (113.685) # x 2 x.x
-\.\ \ (21.506) / /./
+0 203.910c 294.130c 498.045c 3/2 792.180c 16/9 2/1
+bb.bb 7 bb b (2187/2048) # x 2 x.x
+\.\ \ (21.506c) / /./
 ```
 
 - `A4: 440`
@@ -381,6 +628,7 @@ bb.bb 7 bb b (113.685) # x 2 x.x
   - **Do not suffix this line with 'hz'**
 - `0 203.91 294.13 498.04 701.96 792.18 996.09 1200`
   - Sets a cycle of 7 nominals extending upwards/downwards from A4.
+  - Can specify ratios or cents (suffixed by c). Numbers can be javascript expressions.
   - Tunes 7 nominals to 203.91cents, 294.13c, 498.04c, 701.96c, etc... respectively, representing the note names A, B, C, etc... (3-limit JI)
   - The last number sets equave to 1200c.
 - `bb.bb 7 bb b (113.685) # x 2 x.x`
@@ -428,7 +676,14 @@ This produces the following `TuningConfig`:
   equaveSize: 1200,
   tuningNote: 69, // A4
   tuningNominal: 0, // number of 12edo nominals from A4.
-  tuningFreq: 440 // Hz
+  tuningFreq: 440, // Hz
+  usedSymbols: {
+    // if a Symbol Code appears in this lookup, it is used by the tuning config.
+    7: true,
+    8: true,
+    6: true,
+    ...
+  }
 }
 ```
 

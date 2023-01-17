@@ -116,6 +116,26 @@ MuseScore {
         }
       }
       Shortcut {
+        sequence: "End"
+        enabled: false // set to true to enable
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            infoText.text = "Moving note(s) up aux 5";
+            Fns.operationTranspose(1, 5);
+            showWindow();
+        }
+      }
+      Shortcut {
+        sequence: "End"
+        enabled: false
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            infoText.text = "Moving note(s) up aux 6";
+            Fns.operationTranspose(1, 6);
+            showWindow();
+        }
+      }
+      Shortcut {
         sequence: "Down"
         context: Qt.ApplicationShortcut
         id: downShortcut
@@ -158,6 +178,26 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 4";
             Fns.operationTranspose(-1, 4);
+            showWindow();
+        }
+      }
+      Shortcut {
+        sequence: "Home"
+        enabled: false
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            infoText.text = "Moving note(s) down aux 5";
+            Fns.operationTranspose(-1, 5);
+            showWindow();
+        }
+      }
+      Shortcut {
+        sequence: "Home"
+        enabled: false
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            infoText.text = "Moving note(s) down aux 5";
+            Fns.operationTranspose(-1, 5);
             showWindow();
         }
       }
