@@ -612,4 +612,10 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
 
 -----
 
+## Clarifications
+
+- The use of the term _accidental chain_ in this readme is not related to ["Nominal-Accidental Chains"](https://en.xen.wiki/w/Nominal-accidental_chain). The former represents a sequence of accidentals where two adjacent accidentals differ by a more-or-less consistent interval size. The latter is a more general descriptor of the phenomenon where most western-centric notation systems involve one nominal and some accidentals which can generate a sequence of notes.
+
+- The "Xen Tuner" name is unrelated to [Keenan Pepper's MuseScore Xentuner pluging](https://github.com/keenanpepper/musescore-xentuner). This naming coincidence I only realized after naming the project.
+
 ## [Dev Notes](/DEVELOPMENT.md)
