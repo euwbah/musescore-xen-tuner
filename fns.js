@@ -16,6 +16,7 @@
 // along with Xen Tuner.  If not, see <http://www.gnu.org/licenses/>.
 
 // MUST USE ES5 SYNTAX FOR MSCORE COMPAT.
+
 var Lookup = ImportLookup();
 
 /**
@@ -1467,6 +1468,68 @@ function parseKeySig(text) {
 }
 
 /**
+ * The user can specify just the reference tuning (e.g. `A4: 405`)
+ * to update the Tuning Config's reference note & frequency
+ * without having to recalculate the whole tuning config.
+ * 
+ * This saves a lot of loading time for large JI systems with
+ * comma shifts implemented as reference tuning changes, or
+ * when the user wants to write for transposing instruments.
+ * 
+ * @param {string} text reference tuning text
+ */
+function parseChangeReferenceTuning(text) {
+
+    var text = text.trim();
+
+    // The change reference tuning should be on 1 line.
+    // Otherwise, it should be parsed as a new tuning config.
+    if (text.indexOf("\n") != -1)
+        return null;
+
+    // PARSE TUNING NOTE.
+    //
+    //
+
+    var referenceTuning = text.split(':').map(function (x) { return x.trim() });
+
+    if (referenceTuning.length != 2) {
+        // console.log(text + ' is not a reference tuning');
+        return null;
+    }
+
+    var referenceLetter = referenceTuning[0][0].toLowerCase();
+    var referenceOctave = parseInt(referenceTuning[0].slice(1));
+
+    var nominalsFromA4 = (referenceOctave - 4) * 7;
+    var lettersNominal = Lookup.LETTERS_TO_NOMINAL[referenceLetter];
+
+    if (lettersNominal == undefined) {
+        // console.log("Invalid reference note specified: " + referenceLetter);
+        return null;
+    }
+
+    nominalsFromA4 += lettersNominal;
+
+    // Since the written octave resets at C, but we need to convert it
+    // such that the octave resets at A4, we need to subtract one octave
+    // if the nominal is within C to G.
+    if (lettersNominal >= 2)
+        nominalsFromA4 -= 7;
+
+    var changeReferenceNote = {};
+    changeReferenceNote.tuningNominal = nominalsFromA4;
+    changeReferenceNote.tuningNote = Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
+    changeReferenceNote.tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
+
+    if (isNaN(tuningConfig.tuningFreq)) {
+        return null;
+    }
+
+    return changeReferenceNote;
+}
+
+/**
  * Removes formatting code from System/Staff text.
  * 
  * Make sure formatting code is removed before parsing System/Staff text!
@@ -1487,6 +1550,8 @@ function removeFormattingCode(str) {
  * If a config is found, returns a `ConfigUpdateEvent` object to be added to
  * the `parms.staffConfigs[]` list.
  * 
+ * `ConfigUpdateEvent`s can modify the parms object.
+ * 
  * @param {string} text System/Staff Text contents
  * @param {number} tick Current tick position
  * @returns {ConfigUpdateEvent?} 
@@ -1501,7 +1566,30 @@ function parsePossibleConfigs(text, tick) {
 
     var text = removeFormattingCode(text);
 
-    var maybeConfig = parseTuningConfig(text);
+    /** @type {ConfigUpdateEvent} */
+    var maybeConfig;
+
+    // First, check for reference tuning changes.
+
+    maybeConfig = parseChangeReferenceTuning(text);
+
+    if (maybeConfig != null) {
+        console.log("Found reference tuning change:\n" + text);
+        // reference tuning change found.
+
+        return { // ConfigUpdateEvent
+            tick: tick,
+            config: function(parms) {
+                parms.currTuning.tuningNominal = maybeConfig.tuningNominal;
+                parms.currTuning.tuningNote = maybeConfig.tuningNote;
+                parms.currTuning.tuningFreq = maybeConfig.tuningFreq;
+            }
+        };
+    }
+
+    // Then, check for Tuning Config declarations.
+
+    maybeConfig = parseTuningConfig(text);
 
     if (maybeConfig != null) {
         var numSteps = maybeConfig.stepsList.length;
@@ -1509,9 +1597,15 @@ function parsePossibleConfigs(text, tick) {
         // tuning config found.
 
         return { // ConfigUpdateEvent
-            tick: tick,
-            config: {
-                currTuning: maybeConfig
+            // Spoofing 1 tick earlier, because any TuningConfigs should
+            // should be applied before a ChangeReferenceTuning event.
+            // 
+            // This way, a System Text TuningConfig can be used to apply to
+            // all staves, while individual staves can use ChangeReferenceTuning
+            // to emulate transposing instruments.
+            tick: tick - 1,
+            config: function(parms) {
+                parms.currTuning = maybeConfig;
             }
         };
     }
@@ -1524,8 +1618,8 @@ function parsePossibleConfigs(text, tick) {
 
         return { // ConfigUpdateEvent
             tick: tick,
-            config: {
-                currKeySig: maybeConfig
+            config: function(parms) {
+                parms.currKeySig = maybeConfig;
             }
         }
     }
@@ -3138,11 +3232,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
         for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
             var config = parms.staffConfigs[staff][i];
             if (config.tick <= tickOfThisBar) {
-                var configKeys = Object.keys(config.config);
-                for (var j = 0; j < configKeys.length; j++) {
-                    var key = configKeys[j];
-                    fakeParms[key] = config.config[key];
-                }
+                config.config(fakeParms);
             }
         }
 
@@ -3618,11 +3708,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
         for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
             var config = parms.staffConfigs[staff][i];
             if (config.tick <= tickOfThisBar) {
-                var configKeys = Object.keys(config.config);
-                for (var j = 0; j < configKeys.length; j++) {
-                    var key = configKeys[j];
-                    fakeParms[key] = config.config[key];
-                }
+                config.config(fakeParms);
             }
         }
 
@@ -3803,12 +3889,6 @@ function operationTune() {
     parms.bars = [];
 
 
-    // these aren't really necessary as they'll be configured & updated
-    // on a per-staff basis.
-    // parms.currKeySig = null;
-    // parms.currTuning = null;
-
-
     // First, populate ConfigUpdateEvents for each staff.
 
     for (var staff = startStaff; staff <= endStaff; staff++) {
@@ -3927,14 +4007,7 @@ function operationTune() {
                 for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
                     var config = parms.staffConfigs[staff][i];
                     if (config.tick <= cursor.tick) {
-                        var configKeys = Object.keys(config.config);
-                        for (var j = 0; j < configKeys.length; j++) {
-                            var key = configKeys[j];
-                            parms[key] = config.config[key];
-                            // console.log('Applied config: ' + key + ' = eqvSize: ' + config.config[key].equaveSize +
-                            //   ', staff: ' + staff + ', voice: ' + voice + ', config tick: ' + config.tick
-                            //   + ', cursor tick: ' + cursor.tick);
-                        }
+                        config.config(parms);
                     }
                 }
 
@@ -4184,11 +4257,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 for (var j = 0; j < parms.staffConfigs[Math.floor(note.track / 4)].length; j++) {
                     var config = parms.staffConfigs[cursor.staffIdx][j];
                     if (config.tick <= cursor.tick) {
-                        var configKeys = Object.keys(config.config);
-                        for (var k = 0; k < configKeys.length; k++) {
-                            var key = configKeys[k];
-                            parms[key] = config.config[key];
-                        }
+                        config.config(parms);
                     }
                 }
 
@@ -4280,11 +4349,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                     for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
                         var config = parms.staffConfigs[staff][i];
                         if (config.tick <= cursor.tick) {
-                            var configKeys = Object.keys(config.config);
-                            for (var j = 0; j < configKeys.length; j++) {
-                                var key = configKeys[j];
-                                parms[key] = config.config[key];
-                            }
+                            config.config(parms);
                         }
                     }
 
