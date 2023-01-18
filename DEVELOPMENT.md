@@ -1,15 +1,12 @@
 # Dev Notes
-### Feature target (for now)
 
-- Multiple accidental symbols (using symbols attached to a note) functioning as a single accidental.
-- any number of nominals + custom nominal tuning
-- equave stretching (1 equave = 1 cycle of nominals)
-- custom accidental tuning
-- declare a finite number of accidental permutations using chains of accidentals to support rank-N tunings & JI subgroups. (up to 1 accidental per chain can be present on a note).
-- Allow irregular step sizes within a single accidental chain.
-- transpose up/down to the nearest pitch
-- enharmonic respell
-- a list of copyable tuning configs of commonly used tunings for beginner users.
+## How to dev
+
+- Use an editor/IDE with JSDoc support. Makes autocomplete much better and reduces the chances of typos/null pointers. (VSCode was used)
+
+- Update `types.js` if there are any changes to the data structures of objects.
+
+- Almost everything is in one file: `fns.js`
 
 ## Case Study/Example
 
