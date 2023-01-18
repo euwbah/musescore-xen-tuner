@@ -29,6 +29,7 @@ var Ms = null;
 var SymId = null; // WARNING: SymId has a long loading time.
 var fileIO;
 var pluginHomePath = '';
+/** @type {PluginAPIScore} */
 var _curScore = null; // don't clash with namespace
 
 /**
@@ -65,6 +66,8 @@ bb b (100) # x                  \n\
 
 /**
  * Returns the default tuning config to apply when none is specified
+ * 
+ * @returns {TuningConfig}
  */
 function generateDefaultTuningConfig() {
     fileIO.source = pluginHomePath + "tunings/default.txt";
@@ -382,7 +385,7 @@ function removeUnusedSymbols(accHash, tuningConfig) {
  * You can also specify a list of unsorted `SymbolCode`s that are present.
  * (useful for hashing accidentals from user-input)
  * 
- * @param {AccidentalSymbols|[SymbolCode]} accidentals 
+ * @param {AccidentalSymbols|SymbolCode[]} accidentals 
  *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
  * @returns {string} AccidentalSymbols hash string.
  */
@@ -1966,7 +1969,7 @@ function calcCentsOffset(noteData, tuningConfig) {
  * tempered with, and a note may seemingly play back with the wrong pitch if
  * the tune function isn't run again.
  * 
- * **Make sure curScore.createPlayEvents() is called** so that play events
+ * **Make sure _curScore.createPlayEvents() is called** so that play events
  * are populated & modifiable from the plugin API!
  * 
  * This function also generates MIDI CSV entries for PlayEvents of the note
@@ -2898,7 +2901,7 @@ function getAccidental(cursor, note, tickOfThisBar,
  * and is performed for all 4 voices at the same time.
  * 
  * @param {*} note `PluginAPI::Note`
- * @param {[SymbolCode]?} orderedSymbols 
+ * @param {SymbolCode[]?} orderedSymbols 
  *  A list of `SymbolCode`s representing accidental symbols in left-to-right order.
  * 
  *  `null` or `[]` to remove all accidentals.
@@ -2969,7 +2972,7 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * 
  * @param {*} note `PluginAPI::Note` to set pitch, tuning & accidentals of
  * @param {number} lineOffset Nominals offset from current note's pitch
- * @param {[SymbolCode]} orderedSymbols Ordered accidental symbols as per XenNote.orderedSymbols.
+ * @param {SymbolCode[]} orderedSymbols Ordered accidental symbols as per XenNote.orderedSymbols.
  * @param {*} newElement 
  */
 function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
@@ -3460,7 +3463,7 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
  * it is attached to. This returned value will decide how much should
  * grace chords be pushed back.
  * 
- * @param {[Note]} chord Notes from all voices at a single tick & vertical-chord position.
+ * @param {PluginAPINote[]} chord Notes from all voices at a single tick & vertical-chord position.
  * @param {Object.<string, boolean>} usedSymbols 
  *  Contains SymbolCodes that are currently used by the tuning config.
  *  Any symbols found that are not inside this object will be removed.
@@ -4080,15 +4083,14 @@ function operationTune() {
 function operationTranspose(stepwiseDirection, stepwiseAux) {
     console.log("Xen Up");
 
-    if (typeof curScore === 'undefined')
+    if (typeof _curScore === 'undefined')
         return;
 
-    init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
     console.log(Qt.resolvedUrl("."));
     var parms = {};
-    curScore.createPlayEvents();
+    _curScore.createPlayEvents();
 
-    var cursor = curScore.newCursor();
+    var cursor = _curScore.newCursor();
     cursor.rewind(1);
     var startStaff;
     var endStaff;
@@ -4107,7 +4109,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
             // the last measure of the score.
             // rewind(2) goes behind the last segment (where
             // there's none) and sets tick=0
-            endTick = curScore.lastSegment.tick + 1;
+            endTick = _curScore.lastSegment.tick + 1;
         } else {
             endTick = cursor.tick;
         }
@@ -4120,7 +4122,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
     // populate configs for all staves.
 
-    for (var staff = 0; staff < curScore.nstaves; staff++) {
+    for (var staff = 0; staff < _curScore.nstaves; staff++) {
         var configs = [];
 
         for (var voice = 0; voice < 4; voice++) {
@@ -4181,7 +4183,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
         //
         // User selects individual note heads to modify.
 
-        // - No-op if curScore.selection.elements.length == 0.
+        // - No-op if _curScore.selection.elements.length == 0.
         // - If selection doesn't contain a single element that has Element.type == Element.NOTE,
         //   default to cmd('pitch-up') or cmd('pitch-down') so MuseScore can handle moving other Elements.
         //   This allows users to use this plugin in place of the 'pitch-up' and 'pitch-down' shortcuts (up/down arrow keys)
@@ -4193,7 +4195,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
             return;
         } else {
             var selectedNotes = [];
-            for (var i = 0; i < curScore.selection.elements.length; i++) {
+            for (var i = 0; i < _curScore.selection.elements.length; i++) {
                 if (curScore.selection.elements[i].type == Element.NOTE) {
                     selectedNotes.push(curScore.selection.elements[i]);
                 }
@@ -4265,7 +4267,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                 // Modify pitch.
 
-                curScore.startCmd();
+                _curScore.startCmd();
 
                 // direction: 1: up, -1 = down, 0: enharmonic cycle.
                 var barState = executeTranspose(note, stepwiseDirection,
@@ -4276,14 +4278,14 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 removeUnnecessaryAccidentals(
                     tick, tick, parms, cursor, newElement);
 
-                curScore.endCmd();
-                curScore.startCmd();
+                _curScore.endCmd();
+                _curScore.startCmd();
 
                 // Auto position accidentals in this bar.
                 autoPositionAccidentals(
                     tick, tick, parms, cursor
                 );
-                curScore.endCmd();
+                _curScore.endCmd();
 
 
             }
@@ -4292,7 +4294,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
     else {
         // Standard implementation for phrase selection.
         for (var staff = startStaff; staff <= endStaff; staff++) {
-            curScore.startCmd();
+            _curScore.startCmd();
             for (var voice = 0; voice < 4; voice++) {
 
                 // reset curr configs
@@ -4399,16 +4401,16 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 // Also don't forget to auto position accidentals for the last bar.
             } // end of voices
 
-            curScore.endCmd();
+            _curScore.endCmd();
 
-            curScore.startCmd();
+            _curScore.startCmd();
 
             // After processing all voices in a staff, 
             // auto position accidentals in this staff in the selection range
             autoPositionAccidentals(
                 startTick, endTick, parms, cursor
             );
-            curScore.endCmd();
+            _curScore.endCmd();
         }
     }
 }
