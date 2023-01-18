@@ -19,36 +19,15 @@
 
 // Export function to be retrieved by Qt.include()
 // MuseScore plugin api is a mess...
+
 function ImportLookup() {
 
     var Generated = ImportGenerated();
 
-    /**
-    Lookup table for mapping SymbolCode number to 
-    musescore's internal accidental names and accidental symbol names.
-    
-    Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
-    that look alike but have different internal representations. This plugin
-    should treat identical looking accidentals all the same.
-    
-    All caps are accidental names (the string value of Note.accidentalType)
-    Non caps are symbol names (string value of Element.symbol)
-    
-    E.g. CODE_TO_LABELS[2] contains all the possible accidental names/symbol names
-    that represent the sesquisharp (#+) accidental.
-    
-    Whenever 'accidentalID' is used in code, it refers to the index of the
-    accidental in this array.
-    
-    To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
-    */
+
     var CODE_TO_LABELS = Generated.CODE_TO_LABELS;
 
-    /**
-     * The inverse many-to-one mapping of the above CODE_TO_LABELS array.
-     * 
-     * Maps internal labels/IDs to SymbolCode number.
-     */
+
     var LABELS_TO_CODE = (function () {
         var mapping = {};
         // start from 1. 0 is null.
@@ -60,19 +39,9 @@ function ImportLookup() {
         return mapping;
     })();
 
-    /**
-     * Mapping of Text Codes to SymbolCode.
-     * 
-     * To be kept updated with https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
-     * 
-     * (For inputting symbols via text representation)
-     */
-
     var TEXT_TO_CODE = Generated.TEXT_TO_CODE;
 
-    /**
-     * Mapping of 12EDO note letters to nominals from A.
-     */
+    
     var LETTERS_TO_NOMINAL = {
         'a': 0,
         'b': 1,
@@ -90,10 +59,6 @@ function ImportLookup() {
      */
     var SYMBOL_LAYOUT = Generated.SYMBOL_LAYOUT;
 
-    /**
-     * Mapping of 12EDO note letters to semitones from A.
-     * (A is the reference note which the octave is based on).
-     */
     var LETTERS_TO_SEMITONES = {
         'a': 0,
         'b': 2,
@@ -104,23 +69,6 @@ function ImportLookup() {
         'g': -2
     };
 
-    /**
-     * Mapping from 12edo TPCs to a [nominals, midiOctaveOffset] tuple.
-     * 
-     * Used in conjuction with Note.pitch to calculate `nominalsFromA4` 
-     * property of MSNote.
-     * 
-     * nominals: 
-     *      0-6, representing A, B, C, ...
-     * 
-     * midiOctaveOffset: 
-     *      represents the number of octaves to add/sub when calculating octaves
-     *      using its MIDI note because the MIDI pitch of this TPC will appear
-     *      to be in a different octave if it has accidentals.
-     *      
-     *      In these calculations, the 12edo octave is considered to reset
-     *      on the note A. (A4 = 0th octave, G4 = -1st octave)
-     */
     var TPC_TO_NOMINAL = (function () {
         var x = {};
         x[-8] = [5, 0]; // Fbbb
@@ -183,11 +131,76 @@ function ImportLookup() {
 
 
     return {
+        /**
+        Lookup table for mapping SymbolCode number to 
+        musescore's internal accidental names and accidental symbol names.
+
+        Index of element in array = SymbolCode number.
+        
+        Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
+        that look alike but have different internal representations. This plugin
+        should treat identical looking accidentals all the same.
+        
+        All caps are accidental names (the string value of Note.accidentalType)
+        Non caps are symbol names (string value of Element.symbol)
+        
+        E.g. CODE_TO_LABELS[2] contains all the possible accidental names/symbol names
+        that represent the sesquisharp (#+) accidental.
+        
+        Whenever 'accidentalID' is used in code, it refers to the index of the
+        accidental in this array.
+        
+        To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+
+        @type {Array.<Array.<string>>}
+        */
         CODE_TO_LABELS: CODE_TO_LABELS,
+        /**
+         * The inverse many-to-one mapping of the above CODE_TO_LABELS array.
+         * 
+         * Maps internal labels/IDs to SymbolCode number.
+         * 
+         * @type {Object.<string, number>}
+         */
         LABELS_TO_CODE: LABELS_TO_CODE,
+        /**
+         * Mapping of Text Codes to SymbolCode.
+         * 
+         * To be kept updated with https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+         * 
+         * (For inputting symbols via text representation)
+         * 
+         * @type {Object.<string, number>}
+         */
         TEXT_TO_CODE: TEXT_TO_CODE,
+        /**
+         * Mapping of 12EDO note letters to number of nominals from A.
+         * 
+         * Nominals reset at the note A.
+         */
         LETTERS_TO_NOMINAL: LETTERS_TO_NOMINAL,
+        /**
+         * Mapping of 12EDO note letters to semitones from A.
+         * (A is the reference note which the octave is based on).
+         */
         LETTERS_TO_SEMITONES: LETTERS_TO_SEMITONES,
+        /**
+         * Mapping from 12edo TPCs to a [nominals, midiOctaveOffset] tuple.
+         * 
+         * Used in conjuction with Note.pitch to calculate `nominalsFromA4` 
+         * property of MSNote.
+         * 
+         * nominals: 
+         *      0-6, representing A, B, C, ...
+         * 
+         * midiOctaveOffset: 
+         *      represents the number of octaves to add/sub when calculating octaves
+         *      using its MIDI note because the MIDI pitch of this TPC will appear
+         *      to be in a different octave if it has accidentals.
+         *      
+         *      In these calculations, the 12edo octave is considered to reset
+         *      on the note A. (A4 = 0th octave, G4 = -1st octave)
+         */
         TPC_TO_NOMINAL: TPC_TO_NOMINAL,
     };
 }

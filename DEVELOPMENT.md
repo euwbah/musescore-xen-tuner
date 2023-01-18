@@ -901,17 +901,25 @@ If no accidental is to be applied on the nominal, the entry should be null.
 
 **The list is to contain N hash/null entries at all times.** However, because it is impossible to validate whether a `KeySig` declaration has the right number of nominals, validation checks have to be done before attempts to look up the `KeySig`.
 
+#### `ChangeReferenceTuning`
+
+```js
+{
+  tuningNominal: number, // number of 12edo nominals from A4
+  tuningNote: number, // MIDI note of reference note
+  tuningFreq: number, // Hz of reference note
+}
+```
+
+Represents a pseudo-tuning config object which is used to change the reference note/tuning of the current tuning system without recalculating the entire `TuningConfig`.
+
 #### `ConfigUpdateEvent`
 
 ```js
 {
   tick: number, // MScore tick, when the config is to be applied
-  config: {
-    // key-value pairs that will be assigned to the `parms` object
-    // when the cursor passes/reaches the given `tick`
-    "<keyName1>": value1,
-    "<keyName2>": value2,
-    ...
+  config: function(parms) {
+    // Callback that modifies `parms` object.
   }
 }
 ```
