@@ -2248,7 +2248,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  *   This ensures that accidentals used will stay roughly within the same
  *   ball park.
  * 
- * - Otherwise, if two options have very similar AV distances, choose the one with
+ * - Otherwise, if two options have very similar {@link AccidentalVector} distances, choose the one with
  *   lesser accidental symbols. This ensures that ligatures will always take effect.
  * 
  * - Otherwise, we should pick the enharmonic spelling that 
@@ -2903,8 +2903,8 @@ function getAccidental(cursor, note, tickOfThisBar,
 }
 
 /**
- * Attach given accidentalSymbols to a note (clears existing accidentals)
- * or clears existing accidentals.
+ * Attach given {@link SymbolCode}s to a note (clears existing accidentals),
+ * clearing prior accidentals.
  * 
  * Assigns z-index (stacking order) from 1000 onwards, acting as
  * metadata which the layout algorithm will use to maintain the
@@ -3180,10 +3180,10 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
  * 
  * This function assumes that the accidental state is always valid.
  * 
- * Valid as in: `getAccidental()` will always return the correct effective
+ * Valid as in: {@link getAccidental()} will always return the correct effective
  * accidental on every single note in this bar.
  * 
- * **IMPORTANT:** `cursor.staffIdx` must be set to the staff to operate on.
+ * **IMPORTANT:** {@link Cursor.staffIdx} must be set to the staff to operate on.
  * 
  * @param {number} startBarTick Any tick position within the starting bar (or start of selection)
  * @param {number} endBarTick 
@@ -3414,9 +3414,9 @@ function intervalOverlap(a1, a2, b1, b2) {
 
 
 /**
- * Reads notes in a Bar according to `Chords` structure.
+ * Reads notes in a Bar according to {@link Chords} structure.
  * 
- * Each `Chords` object represents the chords (+ grace chords) available
+ * Each {@link Chords} object represents the chords (+ grace chords) available
  * at a given tick for all voices.
  * 
  * @param {number} tickOfThisBar
