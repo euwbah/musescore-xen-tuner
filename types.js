@@ -87,6 +87,296 @@ class MSNote {
     fingerings;
 }
 
+/**
+ * Represents a single abstract composite accidental being applied to a note, 
+ * represented by the degrees of each accidental chain.
+ * 
+ * For example, in a tuning system with two accidental chains in this order: 
+ * sharps/flats, up/down — the AccidentalVector of [2, -3] represents the degree 
+ * 2 of the sharps/flat chain (double sharp) and degree -3 of the arrows chain 
+ * (three down arrows). 
+ * 
+ * The n-th number represents the degree of the n-th accidental chain.
+ * The order of which the accidental chains are declared/stored determines 
+ * which number corresponds to which accidental chain.
+ * @typedef {number[]} AccidentalVector
+ */
+
+/**
+Think of this as the xen version of ‘tonal pitch class’.
+
+This is how the plugin represents a ‘microtonal’ note, 
+containing data pertaining to how the note should be 
+spelt/represented microtonally.
+
+The accidentals object is not sorted. When creating/displaying an 
+accidental, use orderedSymbols to iterate each symbol in left-to-right order.
+
+If accidentals is null, represents a nominal of the tuning system 
+(note without accidental).
+
+`<nominal> SymbolCode <degree> SymbolCode <degree> ...`
+
+The SymbolCodes in the hash string must appear in increasing order.
+
+For example, the note A bb d (1 double flat, 1 mirrored flat) 
+should have the hash string: "0 6 1 10 1".
+ */
+class XenNote {
+    /** 
+     * Number of nominals with respect to tuning note of {@link TuningConfig}
+     * @type {number}
+     */
+    nominal;
+    /** @type {SymbolCode[]} */
+    orderedSymbols;
+    /**
+     * If null, this note represents a nominal of the {@link TuningConfig}
+     * @type {AccidentalSymbols?} */
+    accidentals;
+    /**
+     * Unique ID of this {@link XenNote}
+     * @type {string}
+     */
+    hash;
+}
+
+/**
+ * Represents a semantically parsed note after {@link TuningConfig} lookup is
+ * applied to a {@link MSNote} to calculate its {@link XenNote} pitch class.
+ */
+class NoteData {
+    /**
+     * Tokenized internal 12 edo representation. 
+     * @type {MSNote} */
+    ms;
+    /**
+     * Xen pitch class. 
+     * @type {XenNote} */
+    xen;
+    /** 
+     * Number of xen equaves relative to tuning note.
+     * .@type {number} */
+    equaves;
+}
+
+/**
+ * Contains a lookup for all unique {@link XenNote}s in a tuning system.
+ * 
+ * Maps {@link XenNote.hash} to a {@link XenNote} object.
+ * 
+ * @typedef {Object.<string, XenNote>} NotesTable
+ */
+
+/**
+ * Contains a map of {@link XenNote.hash}es to their respective {@link AccidentalVector}s.
+ * 
+ * Note that this mapping is not bijective - two {@link XenNote}s can have different
+ * nominals but the same {@link AccidentalVector}.
+ * 
+ * NOTE: There doesn’t seem to be a use case for an
+ * inverse mapping of this yet. However, if it is required later down
+ * the line, that would mean a lot of the implementation has to change. Hmm.
+ * 
+ * @typedef {Object.<string, AccidentalVector>} AccidentalVectorTable
+ */
+
+/**
+ * Lookup table for the tuning of {@link XenNote}s.
+ * 
+ * Maps {@link XenNote.hash} to `[cents, equavesAdjusted]`.
+ * 
+ * Entries do not need to be sorted in any particular order as the indexing
+ * for pitch sorting is done in StepwiseList.
+ * See `2.3.5 JI tuning table.csv` for an example.
+ * 
+ * `cents`: the number of cents this note is from tuning note modulo the equave.
+ * 
+ * `equavesAdjusted`: the number of times this note has to be taken up/down an
+ * equave so that its cents mapping will fit modulo the equave.
+ * 
+ * The equave adjustment has to be kept track of so that notes are tuned with
+ *  in the correct equave, and stepwise up/down operations use the correct equave
+ *  for certain notenames.
+ * 
+ * Look at the above 2.3.5 JI subset tuning for an example. 
+ * (A4 is the tuning note & equave: 1200 cents.)
+ * 
+ * Going up stepwise from the note `Dbbbb\\` to `Gx\`, we actually need to 
+ * lower `Gx\` by one equave to actually get the correct next note up.
+ * 
+ * Similarly, going up stepwise from `Fxx\\` to `Bbb//`, we’ll need to increase
+ *  the equave by 1 so that it sounds in the correct equave.
+ * 
+ * @typedef {Object.<string, [number, number]>} TuningTable
+ */
+
+/**
+ * This list of lists indexes the {@link XenNote.hash}es in order of ascending pitch
+ * (within an equave).
+ * 
+ * Each list represents ‘enharmonically equivalent’ {@link XenNote}s.
+ * The stepwise up/down plugins uses this to determine what are the possible
+ * spellings of the next stepwise note, and it chooses the best option
+ * of enharmonic spelling based on the context (use of implicit accidentals/key
+ * signature/minimizing accidentals)
+ * @typedef {string[][]} StepwiseList
+ */
+
+/**
+ * A lookup table for the index of a {@link XenNote.hash} in the {@link StepwiseList}.
+ * 
+ * This lookup is used to determine the index of a current note, and the next
+ * note up/down is simply the enharmonically equivalent {@link XenNote}s at index + 1
+ * or index - 1 of {@link StepwiseList}.
+ * 
+ * @typedef {Object.<string, number>} StepwiseLookup
+ */
+
+/**
+A simple lookup table where {@link EnharmonicGraph}[{@link XenNote}] gives the next 
+enharmonic equivalent spelling of the note, or null if there are no other
+enharmonic equivalents.
+
+This lookup table describes a graph composed of several distinct cyclic
+directional paths. Each cyclic loop represents enharmonically equivalent notes.
+
+This structure is computed at the same time as the {@link StepwiseList}.
+
+ * @typedef {Object.<string, string>} EnharmonicGraph
+ */
+
+/**
+Represents a user declared accidental chain.
+
+Each element of {@link degreesSymbols} is a list of {@link SymbolCode}s containing the
+symbols composed together to represent one degree in the accidental chain
+(in the order of which the user declared)
+
+The actual chain degree being represented by `degreesSymbols[n]` and `tunings[n]`
+is equal to `n - centralIdx`.
+
+{@link symbolsUsed} is used to determine what symbols are used in this accidental chain.
+ */
+class AccidentalChain {
+    /**
+     * List of {@link SymbolCode}s that make up each degree in this chain.
+     * 
+     * Central element is null.
+     * 
+     * @type {(SymbolCode|null)[]}
+     */
+    degreesSymbols;
+    /**
+     * Lists all unique symbols used in this chain.
+     * 
+     * @type {SymbolCode[]}
+     */
+    symbolsUsed;
+    /**
+     * Tuning of each accidental in cents. Central element is 0.
+     * 
+     * @type {number[]}
+     */
+    tunings;
+    /** 
+     * The index of the central element.
+     * @type {number}
+     */
+    centralIdx;
+}
+
+/**
+ * Represents a ligature declaration.
+ */
+class Ligature {
+    /**
+     * Accidental chain indices (starting from 0)
+     * 
+     * An unordered set representing which n-th accidental chains to consider
+     * when searching for exact {@link AccidentalVector} matches. 
+     * 
+     * (The indices are 0-based)
+     * 
+     * @type {number[]}
+     */
+    regarding;
+    /**
+     * Search & replace mapping {@link AccidentalVector}s to {@link SymbolCode}s
+     * 
+     * `LigAccVector` is a subspace/subset of {@link AccidentalVector}(s)
+     * which corresponds to the order of {@link AccidentalChain}s specified
+     * by {@link regarding}.
+     * 
+     * @type {Object.<string: LigAccVector, SymbolCode[]>}
+     */
+    ligAvToSymbols;
+}
+
+/**
+ * Just a list of numbers which filters which next notes are valid for the
+ * current up/down aux operation.
+ * 
+ * - If 0 is in the list, the nominal must stay constant.
+ * - If 1 is in the list, the degree of the first accidental chain must stay constant.
+ * - If 2 is in the list, the degree of the second accidental chain must stay constant.
+ * - etc…
+ * @typedef {number[]} ConstantConstrictions
+ */
+
+/**
+ * Represents a tuning configuration.
+ */
+class TuningConfig {
+    /** @type {NotesTable} */
+    notesTable;
+    /** @type {TuningTable} */
+    tuningTable;
+    /** @type {AccidentalVectorTable}*/
+    avTable;
+    /** @type {StepwiseList} */
+    stepsList;
+    /** @type {StepwiseLookup} */
+    stepsLookup;
+    /** @type {EnharmonicGraph} */
+    enharmonics;
+    /** @type {AccidentalChain[]} */
+    accChains;
+    /** @type {Ligature[]} */
+    ligatures;
+    /**
+     * List of nominals within an equave in cents (including the first).
+     * 
+     * @type {number[]} */
+    nominals;
+    /**
+     * Corresponds to {@link nominals}`.length`
+     * @type {number} */
+    numNominals;
+    /**
+     * In cents. 
+     * @type {number} */
+    equaveSize;
+    /**
+     * MIDI note number of reference note.
+     * @type {number}
+     */
+    tuningNote;
+    /**
+     * How many 12edo nominals from A4 is the reference note.
+     * @type {number}
+     */
+    tuningNominal;
+    /**
+     * Hz of the reference note.
+     */
+    tuningFreq;
+    /**
+     * 
+     */
+    auxList;
+}
+
 class QRectF {
     /** @type {number} */
     top;

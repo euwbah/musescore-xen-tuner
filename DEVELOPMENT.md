@@ -852,7 +852,7 @@ Just a list of numbers which filters which next notes are valid for the current 
   ligatures: [Ligature], // In order of decl.
   nominals: [number], // List of cents from tuning note
   numNominals: number, // = nominals.length
-  equaveSize: number, // = the last cents value in nominals list
+  equaveSize: number,
   tuningNote: number, // MIDI note number of tuning note
   tuningNominal: number, // tuning note number of 12edo nominals from A4.
   tuningFreq: number, // Hz of tuning note.
