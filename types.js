@@ -369,13 +369,341 @@ class TuningConfig {
     tuningNominal;
     /**
      * Hz of the reference note.
+     * @type {number}
      */
     tuningFreq;
     /**
+     * The 0-based Nth entry of this list corresponds to the Nth auxiliary
+     * operation's {@link ConstantConstrictions} conditions on how a note
+     * can be transposed.
      * 
+     * The first item in this list must be `null`, to signify a non-auxiliary
+     * operation.
+     * 
+     * @type {ConstantConstrictions[]}
      */
     auxList;
+    /**
+     * Lookup of all the accidental symbols that affect tuning/{@link XenNote} spelling.
+     * 
+     * Any symbol not in this lookup will be ignored by the plugin.
+     * 
+     * TODO: implement cosmetic symbols &mdash; symbols that do not affect tuning or
+     * {@link XenNote} spelling but are auto-positioned/formatted as accidentals)
+     * 
+     * @type {Object.<SymbolCode, boolean>}
+     */
+    usedSymbols;
 }
+
+/**
+ * A lookup for memoized parsed {@link TuningConfig}s. Because of how the {@link Cursor} 
+ * requires each voice to be tuned separately one at a time, it will cause many
+ * unnecessary re-parsings of the same System/Staff Text element.
+ * 
+ * To prevent re-parsings, this lookup maps verbatim system/staff texts
+ * to the {@link TuningConfig} it results in when parsed.
+ * 
+ * @typedef {Object.<string, TuningConfig>} TuningConfigLookup
+ */
+
+/**
+ * Contains a list of N {@link AccidentalSymbol} hashes, where N is the
+ * number of nominals in the tuning system.
+ * 
+ * The Xth hash represents the accidental symbol(s) to be applied on the Xth nominal
+ * by the key signature. The first hash corresponds to the nominal as stated by the
+ * reference tuning note. 
+ * 
+ * E.g. if `G4: 440` is used, then `KeySig[0]` will be the accidental that applies 
+ * to G, `KeySig[1]` applies to A, etc…
+ * 
+ * If no accidental is to be applied on the nominal, the entry should be `null`.
+ * 
+ * The list is to contain N hash/null entries at all times. However, because it
+ * is impossible to validate whether a KeySig declaration has the right number
+ * of nominals, validation checks have to be done before attempts to look up the
+ * KeySig.
+ * 
+ * @typedef {(?string)[]} KeySig
+ */
+
+/**
+ * Represents a pseudo-{@link TuningConfig} object which is used to change the
+ * reference note/tuning of the current tuning system without recalculating
+ * the entire {@link TuningConfig}.
+ */
+class ChangeReferenceTuning {
+    /**
+     * MIDI note number of reference note.
+     * @type {number}
+     */
+    tuningNote;
+    /**
+     * How many 12edo nominals from A4 is the reference note.
+     * @type {number}
+     */
+    tuningNominal;
+    /**
+     * Hz of the reference note.
+     * @type {number}
+     */
+    tuningFreq;
+}
+
+/**
+ * A function that updates config properties in parms as part
+ * of the {@link ConfigUpdateEvent}
+ * 
+ * @callback configUpdateCallback
+ * @param {Parms} parms
+ */
+
+/**
+ * This object represents a single parms configuration update event that
+ * is to be executed when (or after) the cursor reaches tick position.
+ * 
+ * The purpose of the {@link ConfigUpdateEvent} is to update {@link TuningConfig}, 
+ * {@link KeySig}, and other settings on a staff-by-staff basis. 
+ * 
+ * System Text config annotations affect all staves and Staff Text annotations
+ * affect only the staff that it is on.
+ * 
+ * This allows the plugin to support multiple simultaneous & changing tuning
+ * systems and changing key signatures etc… since every config is applied
+ * according to when it is placed in the score.
+ */
+class ConfigUpdateEvent {
+    /** 
+     * When {@link Cursor} is on/passes this tick, the config should
+     * be applied.
+     * 
+     * @type {number}
+     */
+    tick;
+    /**
+     * Callback function that modifies parms object.
+     * 
+     * @type {configUpdateCallback}
+     */
+    config;
+}
+
+/**
+ * `parms` represents the global state object of the plugin.
+ * 
+ * The {@link ConfigUpdateEvent}s in {@link staffConfigs} will modify properties
+ * of parms over time to reflect the current configurations applied to the current
+ * staff ({@link Cursor.staffIdx}) to apply at current cursor position.
+ */
+class Parms {
+    /**
+     * Contains ticks of the first {@link PluginAPISegment} of each bar,
+     * sorted in increasing order.
+     * 
+     * @type {number[]}
+     */
+    bars;
+    /**
+     * Contains a mapping of each {@link Cursor.staffIdx} to a list of 
+     * {@link ConfigUpdateEvent}s that affect that stave.
+     * 
+     * @type {Object.<number, ConfigUpdateEvent[]>}
+     */
+    staffConfigs;
+    /**
+     * Current key signature being presently applied.
+     * 
+     * @type {KeySig}
+     */
+    currKeySig;
+    /**
+     * Current tuning configuration being presently applied
+     * 
+     * @type {TuningConfig}
+     */
+    currTuning;
+    // TODO implement currExplicit
+    currExplicit;
+}
+
+/**
+ * Represents a saved {@link Cursor} position created by 
+ * {@link saveCursorPosition}(Cursor)
+ * 
+ * Cursor position can be restored with 
+ * {@link restoreCursorPosition}(SavedCursorPosition)
+ */
+class SavedCursorPosition {
+    /**
+     * Saved {@link Cursor.tick}
+     * @type {number}
+     */
+    tick;
+    /**
+     * Saved {@link Cursor.staffIdx}
+     * @type {number}
+     */
+    staffIdx;
+    /**
+     * Saved {@link Cursor.voice}
+     * @type {number}
+     */
+    voice;
+}
+
+/**
+ * Return value of {@link chooseNextNote}() function. Contains info about what
+ * which note the plugin chooses to provide as the ‘next note’ during the
+ * up/down/enharmonic cycle operations.
+ */
+class NextNote {
+    /** @type {XenNote} */
+    xen;
+    /** 
+     * Xen nominal of the new note (modulo equave)
+     * @type {number} */
+    nominal;
+    /**
+     * Number of equaves from reference note.
+     * @type {number}
+     */
+    equaves;
+    /**
+     * Amount to add to {@link PluginAPINote.line} to update the nominal.
+     * @type {number}
+     */
+    lineOffset;
+    /**
+     * Whether the new note's accidental matches a prior accidental.
+     * @type {boolean}
+     */
+    matchPriorAcc;
+}
+
+/**
+ * @typedef {PluginAPINote[][]} GraceChordsAndChords
+ * 
+ * @typedef {Object.<number, GraceChordsAndChords>} TickToChords
+ * 
+ * @typedef {Object.<number, TickToChords>} LineToTickChords
+ */
+
+/**
+ * Return value of {@link readBarState()}. This object is helpful checking
+ * accidental-related things as it presents notes on a line-by-line (nominal)
+ * basis, with notes properly sorted by order of appearance.
+ * 
+ * The tick-notes mappings on each line can be sorted by tick, and each 
+ * grace chord/chord can be traversed in proper order of appearance.
+ * 
+ * E.g. data structure:
+ * 
+```js
+{
+    // on staff line 4
+    -4: {
+        // at tick 1000
+        1000: [
+            // Grace Chords + Chords in voice 0
+            [
+                [Note, Note], // grace chord 1
+                [Note], // grace chord 2
+                ...,
+                [Note] // main Chord.
+            ],
+
+            // voice 1 has no notes.
+            [],
+
+            // voice 2 has notes
+            [[Note, Note], [Note], ...],
+
+            // voice 3 has no notes
+            []
+        ],
+        // at tick 2000
+        { 
+            etc... 
+        }
+    },
+    // On staff line -1
+    -1: {
+        etc...
+    }
+}
+```
+ * 
+ * @typedef {LineToTickChords} BarState
+ */
+
+/**
+ * Represents chords/grace chords at a single given tick in one voice.
+ * @typedef {PluginAPINote[][]} ChordsRightToLeft
+ */
+
+/**
+ * Chords at a given tick for each voice. 0-based index voice.
+ * @typedef {ChordsRightToLeft[]} Voices
+ */
+
+/**
+ * Data structure for amalgamating all chords at a single given tick
+ * across all voices.
+ * 
+ * Used for auto-positioning accidental symbols.
+ * 
+ * See [Auto Positioning 1: Read chords at given tick](./DEVELOPMENT.md)
+ * 
+ * @typedef {Voices} Chords
+ */
+
+/**
+ * Represents an {@link PluginAPIElement} that has been positioned and is now fixed.
+ */
+class PositionedElement {
+    /**
+     * @type {PluginAPIElement}
+     */
+    element;
+    /**
+     * Absolute {@link PluginAPIElement.pagePos} Y coordinates of 
+     * {@link PluginAPIElement.bbox}'s `.top`.
+     * 
+     * Negative Y = higher up the screen.
+     */
+    top;
+    /**
+     * Absolute {@link PluginAPIElement.pagePos} Y coordinates of 
+     * {@link PluginAPIElement.bbox}'s `.bottom`
+     * 
+     * Negative Y = higher up the screen.
+     */
+    bottom;
+    /**
+     * Absolute {@link PluginAPIElement.pagePos} X coordinates of 
+     * {@link PluginAPIElement.bbox}'s `.left`
+     */
+    left;
+    /**
+     * Absolute {@link PluginAPIElement.pagePos} X coordinates of 
+     * {@link PluginAPIElement.bbox}'s `.right`
+     */
+    right;
+}
+
+/**
+ * An intermediate representation of the notes in a {@link TuningConfig}.
+ * 
+ * Used while it is being parsed/constructed.
+ * 
+ * @typedef XenNotesEquaves
+ * @type {object}
+ * @property {AccidentalVector} av
+ * @property {XenNote} xen
+ * @property {number} cents - Number of cents from the reference note modulo equave
+ * @property {number} equavesAdjusted - Number of equaves adjusted to get cents within equave 0
+ */
 
 class QRectF {
     /** @type {number} */
@@ -580,15 +908,19 @@ class Cursor {
     segment;
     /** @type {PluginAPIElement} */
     element;
-    prev() {}
-    next() {}
+    /** @type {number} */
+    voice;
+    /** @type {number} */
+    staffIdx;
+    prev() { }
+    next() { }
     /**
-     * 0: Rewind to start of score
-     * 1: Rewind to start of selection
-     * 2: Rewind to end of selection
+     * - 0: Rewind to start of score
+     * - 1: Rewind to start of selection
+     * - 2: Rewind to end of selection
      * @param {number} rewindMode 
      */
-    rewind(rewindMode) {}
+    rewind(rewindMode) { }
 }
 
 class PluginAPIScore {
@@ -598,32 +930,52 @@ class PluginAPIScore {
      * While modifying a score, any newly created objects'
      * properties will not be populated/set until {@link endCmd} is called.
      */
-    startCmd() {}
+    startCmd() { }
     /**
      * Signals end of a score-modifying operation.
      * 
      * New object's properties will be calculated after this call.
      */
-    endCmd() {}
+    endCmd() { }
     /**
      * Retrieve metadata attached to the score.
      * @param {string} key 
      * @returns {string}
      */
-    metaTag(key) {}
+    metaTag(key) { }
     /**
      * Assigns metadata attached to the score.
      * @param {string} key 
      * @param {string} value 
      */
-    setMetaTag(key, value) {}
+    setMetaTag(key, value) { }
     /**
      * Call this function to populate {@link PlayEvent}s for all notes in the score.
      */
-    createPlayEvents() {}
+    createPlayEvents() { }
     /**
      * Create a {@link Cursor} instance
      * @returns {Cursor}
      */
-    newCursor() {}
+    newCursor() { }
+}
+
+class FileIO {
+    /**
+     * Path to the file. Can be specified relative to the plugin home directory.
+     */
+    source;
+    /**
+     * Read entire file.
+     * 
+     * If unsuccessful, returns empty string `''`.
+     * @returns {string}
+     */
+    read() { }
+    /**
+     * Writes/overrides file with given string.
+     * 
+     * @param {string} str Content to write
+     */
+    write(str) { }
 }

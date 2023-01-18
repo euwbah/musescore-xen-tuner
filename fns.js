@@ -27,7 +27,11 @@ var NoteType = null;
 var Element = null;
 var Ms = null;
 var SymId = null; // WARNING: SymId has a long loading time.
+/** @type {FileIO} */
 var fileIO;
+/**
+ * Contains the home directory of the plugin
+ */
 var pluginHomePath = '';
 /** @type {PluginAPIScore} */
 var _curScore = null; // don't clash with namespace
@@ -51,7 +55,7 @@ var fallthroughUpDownCommand = true;
  * 
  * The `'tuningconfig'` metaTag can be set by the Save Tuning Cache plugin.
  * 
- * @type {Object.<string, TuningConfig>}
+ * @type {TuningConfigLookup}
  */
 var tuningConfigCache = {};
 
@@ -116,7 +120,7 @@ make enharmonically equivalent show up as not equivalent.
 Don't set this too high, it may cause notes that should not be
 considered enharmonically equivalent to show up as equivalent.
 */
-var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.03;
+var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.005;
 
 /*
 When in complex/non-octave tunings, certain notes can be very far off from
@@ -186,6 +190,9 @@ function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs, MSFileIO, home
 
 /**
  * Modulo function that always returns a positive number.
+ * 
+ * @param {number} x
+ * @param {number} y
  */
 function mod(x, y) {
     return ((x % y) + y) % y;
@@ -218,10 +225,10 @@ function isEnharmonicallyEquivalent(cents1, cents2) {
 }
 
 /**
- * Convert user-string input SymbolCode or Text Code into SymbolCode ID.
+ * Convert user-input {@link SymbolCode} or Text Code ({@link Lookup.TEXT_TO_CODE}) into SymbolCode ID.
  * 
  * @param {string} codeOrText
- * @returns {number?} SymbolCode number or null if invalid.
+ * @returns {SymbolCode?} {@link SymbolCode} or null if invalid.
  */
 function readSymbolCode(codeOrText) {
     var codeOrText = codeOrText.trim();
@@ -237,8 +244,8 @@ function readSymbolCode(codeOrText) {
  * 
  * Can be used on notes & grace notes.
  * 
- * @param {*} note 
- * @returns `Segment.tick` tick time-position of note.
+ * @param {PluginAPINote} note 
+ * @returns {number} tick time-position of note.
  */
 function getTick(note) {
     console.assert(note !== undefined && note !== null, "getTick called on non existent note");
@@ -251,8 +258,8 @@ function getTick(note) {
 /**
  * If note is a grace note, return the Chord it belongs to.
  * 
- * @param {*} note `PluginAPI::Note`
- * @returns {*?} Chord element containing the grace note, or null
+ * @param {PluginAPINote} note `PluginAPI::Note`
+ * @returns {PluginAPIChord?} Chord element containing the grace note, or null
  */
 function findGraceChord(note) {
     var graceChord = null;
@@ -268,9 +275,10 @@ function findGraceChord(note) {
 
 
 /**
- * Reads the Ms::PluginAPI::Note and creates a `MSNote` data structure.
+ * Reads the {@link PluginAPINote} and tokenizes it into a {@link MSNote}.
  * 
- * @param {*} note `PluginAPI::Note`
+ * @param {PluginAPINote} note `PluginAPI::Note`
+ * @returns {MSNote}
  */
 function tokenizeNote(note) {
     // 69 = MIDI A4
@@ -377,17 +385,16 @@ function removeUnusedSymbols(accHash, tuningConfig) {
 }
 
 /**
+ * Hashes the {@link AccidentalSymbols} attached to a note.
  * 
- * Hashes the accidental symbols attached to a note.
+ * The result is appended to the nominal of a note to construct a {@link XenNote}.
  * 
- * The result is appended to the nominal of a note to construct a XenNote.
- * 
- * You can also specify a list of unsorted `SymbolCode`s that are present.
+ * You can also specify a list of unsorted {@link SymbolCode}s that are present.
  * (useful for hashing accidentals from user-input)
  * 
  * @param {AccidentalSymbols|SymbolCode[]} accidentals 
  *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
- * @returns {string} AccidentalSymbols hash string.
+ * @returns {string} {@link AccidentalSymbols} hash string.
  */
 function accidentalsHash(accidentals) {
 
@@ -457,7 +464,10 @@ function accidentalsHash(accidentals) {
 }
 
 /**
- * Calculate a XenNote.hash string from its nominal and accidental object.
+ * Calculate a {@link XenNote.hash} string from its nominal and accidentals.
+ * 
+ * @param {number} nominal
+ * @param {AccidentalSymbols|SymbolCode[]} accidentals
  */
 function createXenHash(nominal, accidentals) {
     return (nominal + ' ' + accidentalsHash(accidentals)).trim();
@@ -1068,6 +1078,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         - cents (cents from nominal modulo equave)
         - equavesAdjusted (non-zero if cents was wrapped around the equave)
     */
+    
+
+    /**
+     * @type {XenNotesEquaves}
+     */
     var xenNotesEquaves = [];
 
     // Now we iterate the nominals to populate
@@ -1481,6 +1496,7 @@ function parseKeySig(text) {
  * when the user wants to write for transposing instruments.
  * 
  * @param {string} text reference tuning text
+ * @returns {ChangeReferenceTuning?}
  */
 function parseChangeReferenceTuning(text) {
 
@@ -1634,7 +1650,7 @@ function parsePossibleConfigs(text, tick) {
 /**
  * At the start of each voice, call this to reset parms to default.
  * 
- * @param {parms} parms Parms object.
+ * @param {Parms} parms Parms object.
  */
 function resetParms(parms) {
     parms.currTuning = generateDefaultTuningConfig();
@@ -1670,7 +1686,7 @@ function getNominal(msNote, tuningConfig) {
  * @param {KeySig?} keySig The current key signature applied, or null if none.
  * @param {number} tickOfThisBar Tick of first segment of this bar
  * @param {number} tickOfNextBar Tick of first seg of the next bar, or -1 if last bar
- * @param {*} MuseScore Cursor object
+ * @param {Cursor} MuseScore Cursor object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @returns {NoteData?} 
  *      The parsed note data. If the note's accidentals are not valid within the
@@ -1853,12 +1869,12 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
  * 
  * If a fingering accidental is found, it is rendered on to the note.
  * 
- * @param {*} note MuseScore Note object
+ * @param {PluginAPINote} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
  * @param {KeySig} keySig Current key signature applied.
  * @param {number} tickOfThisBar Tick of first segment of this bar
  * @param {number} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
- * @param {*} cursor MuseScore Cursor object
+ * @param {Cursor} cursor MuseScore Cursor object
  * @param {*} newElement reference to the `PluginAPI::newElement` function.
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @returns {NoteData} NoteData object
@@ -1983,12 +1999,12 @@ function calcCentsOffset(noteData, tuningConfig) {
  * a grace note, `cursor.element` must point to the Chord the grace note is
  * attached to.
  * 
- * @param {*} note MuseScore note object
+ * @param {PluginAPINote} note MuseScore note object
  * @param {KeySig} keySig 
  * @param {TuningConfig} tuningConfig 
  * @param {number} tickOfThisBar Tick of first segment of this bar
  * @param {number} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
- * @param {*} cursor MuseScore note object
+ * @param {Cursor} cursor MuseScore note object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @param {boolean} newElement Reference to the `PluginAPI::newElement` function.
  * @param {boolean} returnMidiCSV 
@@ -2119,8 +2135,8 @@ function getBarBoundaries(tick, bars) {
  * Returns cursor to original position after operation.
  * 
  * @param {number} tickOfThisBar Tick of the start of the bar
- * @param {*} tickOfNextBar 
- * @param {*} cursor 
+ * @param {number} tickOfNextBar 
+ * @param {Cursor} cursor 
  * @returns {BarState} `BarState` object
  */
 function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
@@ -2216,8 +2232,8 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
 }
 
 /**
- * Retrieve the next note up/down/enharmonic from the current `PluginAPI::Note`, and
- * returns `XenNote` and `Note.line` offset to be applied on the note.
+ * Retrieve the next note up/down/enharmonic from the current {@link PluginAPINote}, and
+ * returns {@link XenNote} and {@link PluginAPINote.line} offset to be applied on the note.
  * 
  * The returned `lineOffset` property represents change in `Note.line`.
  * This is a negated value of the change in nominal ( +pitch = -line )
@@ -2255,12 +2271,12 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * 
  *  (Only applicable if direction is `1`/`-1`. Not applicable for enharmonic)
  * 
- * @param {*} note The current `PluginAPI::Note` MuseScore note object to be modified
+ * @param {PluginAPINote} note The current `PluginAPI::Note` MuseScore note object to be modified
  * @param {KeySig} keySig Current key signature
  * @param {TuningConfig} tuningConfig Tuning Config object
  * @param {number} tickOfThisBar Tick of first segment of the bar
  * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
- * @param {*} cursor MuseScore cursor object
+ * @param {Cursor} cursor MuseScore cursor object
  * @param {BarState} reusedBarState
  * @param {*} newElement 
  *  Reference to `PluginAPI::newElement`.
@@ -2593,7 +2609,7 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
  * `tick` position, then the cursor position will be set to
  * the nearest element to the **LEFT** of specified `tick`.
  * 
- * @param {*} cursor MuseScore cursor object
+ * @param {Cursor} cursor MuseScore cursor object
  * @param {number} tick Tick to move cursor to
  * @param {number} voice Voice to move cursor to
  * @param {number} staffIdx staff index to move cursor to
@@ -2650,7 +2666,7 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
 }
 
 /**
- * Returns a SavedCursorPosition to be fed into `restoreCursorPosition()`.
+ * Returns a SavedCursorPosition to be fed into {@link restoreCursorPosition()}.
  * 
  * @returns {SavedCursorPosition}
  */
@@ -2664,6 +2680,7 @@ function saveCursorPosition(cursor) {
 }
 
 /**
+ * Restores cursor positioned to the saved position.
  * 
  * @param {SavedCursorPosition} savedPosition SavedCursorPosition object
  */
@@ -2688,8 +2705,8 @@ function restoreCursorPosition(savedPosition) {
  * Thus, only SMuFL symbols ("Symbols" category in the Master Palette)
  * are supported.
  * 
- * @param {*} cursor MuseScore Cursor object
- * @param {*} note The note to check the accidental of.
+ * @param {Cursor} cursor MuseScore Cursor object
+ * @param {PluginAPINote} note The note to check the accidental of.
  * @param {number} tickOfThisBar Tick of the first segment of the bar to check accidentals in
  * @param {number} tickOfNextBar Tick of first seg of next bar, or -1 if its the last bar.
  * @param {number?} exclude
@@ -2722,7 +2739,7 @@ function restoreCursorPosition(savedPosition) {
  * 
  * @returns {string?} 
  *  If an accidental is found, returns the accidental hash of the
- *  AccidentalSymbols object. 
+ *  {@link AccidentalSymbols} object. 
  *  
  *  If no accidentals found, returns null.
  */
@@ -2901,7 +2918,7 @@ function getAccidental(cursor, note, tickOfThisBar,
  * Layout is only done after a whole chord is processed,
  * and is performed for all 4 voices at the same time.
  * 
- * @param {*} note `PluginAPI::Note`
+ * @param {PluginAPINote} note `PluginAPI::Note`
  * @param {SymbolCode[]?} orderedSymbols 
  *  A list of `SymbolCode`s representing accidental symbols in left-to-right order.
  * 
@@ -2958,6 +2975,17 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
     }
 }
 
+/**
+ * Makes a note's accidentals explicit.
+ * 
+ * @param {PluginAPINote} note 
+ * @param {TuningConfig} tuningConfig 
+ * @param {KeySig} keySig 
+ * @param {number} tickOfThisBar 
+ * @param {number} tickOfNextBar 
+ * @param {*} newElement 
+ * @param {Cursor} cursor 
+ */
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
     if (noteData.xen.accidentals != null) {
@@ -2971,7 +2999,7 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
 /**
  * Modifies accidentals & nominal on a MuseScore note.
  * 
- * @param {*} note `PluginAPI::Note` to set pitch, tuning & accidentals of
+ * @param {PluginAPINote} note `PluginAPI::Note` to set pitch, tuning & accidentals of
  * @param {number} lineOffset Nominals offset from current note's pitch
  * @param {SymbolCode[]} orderedSymbols Ordered accidental symbols as per XenNote.orderedSymbols.
  * @param {*} newElement 
@@ -3011,16 +3039,16 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
  * This function will create some unnecessary accidentals that should be
  * removed after this bar is processed.
  * 
- * @param {*} note `PluginAPI::Note` object to modify
+ * @param {PluginAPINote} note `PluginAPI::Note` object to modify
  * @param {number} direction 1 for up, -1 for down, 0 for enharmonic cycle
  * @param {number?} aux 
  *  The Nth auxiliary operation for up/down operations. If 0/null, defaults
  *  to normal stepwise up/down. Otherwise, the Nth auxiliary operation will
  *  be performed.
  * 
- * @param {*} parms Reference to `parms` object.
+ * @param {Parms} parms Reference to `parms` object.
  * @param {*} newElement Reference to `PluginAPI.newElement()` function
- * @param {*} cursor Cursor object.
+ * @param {Cursor} cursor Cursor object.
  * 
  * @returns {BarState}
  *  Returns an updated `BarState` object which includes changes made to
@@ -3161,8 +3189,8 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
  * @param {number} endBarTick 
  *  Any tick pos within ending bar (or end of selection).
  *  If -1, performs the operation till the end of the score.
- * @param {parms} parms Global `parms` object.
- * @param {*} cursor Cursor object
+ * @param {Parms} parms Global `parms` object.
+ * @param {Cursor} cursor Cursor object
  * @param {*} newElement Reference to the `PluginAPI.newElement()` function
  */
 function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, newElement) {
@@ -3377,7 +3405,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
  * @param {number} a2 End of first interval
  * @param {number} b1 Start of second interval
  * @param {number} b2 End of second interval
- * @returns 
+ * @returns {boolean} `true` if intervals overlap, `false` otherwise.
  */
 function intervalOverlap(a1, a2, b1, b2) {
     // console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
@@ -3393,9 +3421,9 @@ function intervalOverlap(a1, a2, b1, b2) {
  * 
  * @param {number} tickOfThisBar
  * @param {number | -1 | null} tickOfNextBar
- * @param {*} cursor MuseScore cursor object
+ * @param {Cursor} cursor MuseScore cursor object
  * 
- * @returns {{number: Chords}} 
+ * @returns {Object.<number, Chords>} 
  *  A mapping of `Chords` objects indexed by tick position.
  */
 function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
@@ -3408,6 +3436,7 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
     }
 
     // mapping of ticks to Chords objects.
+    /** @type {Object.<number, Chords>} */
     var chordsPerTick = {};
 
     // Loop all 4 voices to populate notes map
@@ -3663,7 +3692,7 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
  * @param {number} endTick Tick inside last bar of selection. If -1, performs operation
  *  till the end of the score.
  * @param {number[]} bars List of ticks of bars.
- * @param {*} cursor MuseScore cursor object
+ * @param {Cursor} cursor MuseScore cursor object
  */
 function autoPositionAccidentals(startTick, endTick, parms, cursor) {
     var bars = parms.bars;
@@ -3846,6 +3875,7 @@ function operationTune() {
     if (typeof _curScore === 'undefined')
         return;
 
+    /** @type {Parms} */
     var parms = {};
     _curScore.createPlayEvents();
 
@@ -4088,6 +4118,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
         return;
 
     console.log(Qt.resolvedUrl("."));
+    /** @type {Parms} */
     var parms = {};
     _curScore.createPlayEvents();
 

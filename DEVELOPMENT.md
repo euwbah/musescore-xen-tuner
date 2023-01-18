@@ -565,6 +565,11 @@ Tempo changes are denoted by having `-2` staff index. Tempo is given in BPM, and
 
 ## Data Structures
 
+> ⚠️ **IMPORTANT** 
+> This documentation is deprecated.
+> 
+> Refer to `types.js` instead.
+
 #### `SymbolCode`
 
 ```js
