@@ -624,6 +624,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         console.log('Reading tuning config from ' + fileIO.source + ':\n' + text);
     }
 
+    /** @type {TuningConfig} */
     var tuningConfig = { // TuningConfig
         notesTable: {},
         tuningTable: {},
@@ -1525,7 +1526,7 @@ function parseChangeReferenceTuning(text) {
     changeReferenceNote.tuningNote = Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
     changeReferenceNote.tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
 
-    if (isNaN(tuningConfig.tuningFreq)) {
+    if (isNaN(changeReferenceNote.tuningFreq)) {
         return null;
     }
 
@@ -1667,8 +1668,8 @@ function getNominal(msNote, tuningConfig) {
  * @param {MSNote} msNote Representation of tokenized musescore note
  * @param {TuningConfig} tuningConfig The current tuning config applied.
  * @param {KeySig?} keySig The current key signature applied, or null if none.
- * @param {[number]} tickOfThisBar Tick of first segment of this bar
- * @param {[number]} tickOfNextBar Tick of first seg of the next bar, or -1 if last bar
+ * @param {number} tickOfThisBar Tick of first segment of this bar
+ * @param {number} tickOfNextBar Tick of first seg of the next bar, or -1 if last bar
  * @param {*} MuseScore Cursor object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @returns {NoteData?} 
@@ -1855,8 +1856,8 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
  * @param {*} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
  * @param {KeySig} keySig Current key signature applied.
- * @param {[number]} tickOfThisBar Tick of first segment of this bar
- * @param {[number]} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
+ * @param {number} tickOfThisBar Tick of first segment of this bar
+ * @param {number} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {*} cursor MuseScore Cursor object
  * @param {*} newElement reference to the `PluginAPI::newElement` function.
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
@@ -1985,8 +1986,8 @@ function calcCentsOffset(noteData, tuningConfig) {
  * @param {*} note MuseScore note object
  * @param {KeySig} keySig 
  * @param {TuningConfig} tuningConfig 
- * @param {[number]} tickOfThisBar Tick of first segment of this bar
- * @param {[number]} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
+ * @param {number} tickOfThisBar Tick of first segment of this bar
+ * @param {number} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {*} cursor MuseScore note object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @param {boolean} newElement Reference to the `PluginAPI::newElement` function.
@@ -2086,8 +2087,8 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
  * returns `-1` for the next bar tick.
  * 
  * @param {number} tick The tick position to check
- * @param {[number]} bars List of tick positions of each barline.
- * @returns {[number]} `[tickOfThisBar, tickOfNextBar]`
+ * @param {number[]} bars List of tick positions of each barline.
+ * @returns {number[]} `[tickOfThisBar, tickOfNextBar]`
  */
 function getBarBoundaries(tick, bars) {
     var tickOfNextBar = -1; // if -1, the cursor at the last bar
@@ -2245,7 +2246,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * spelling is found that matches prior accidental state.
  * 
  * @param {number} direction `1` for upwards, `0` for enharmonic cycling, `-1` for downwards.
- * @param {[number]?} constantConstrictions
+ * @param {number[]?} constantConstrictions
  *  An optional list of indices of accidental chains specifying the accidental chains
  *  that must maintain at the same degree.
  *  
@@ -3661,7 +3662,7 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
  * @param {number} startTick Tick inside first bar of selection
  * @param {number} endTick Tick inside last bar of selection. If -1, performs operation
  *  till the end of the score.
- * @param {[number]} bars List of ticks of bars.
+ * @param {number[]} bars List of ticks of bars.
  * @param {*} cursor MuseScore cursor object
  */
 function autoPositionAccidentals(startTick, endTick, parms, cursor) {
