@@ -210,7 +210,8 @@ bbb bb b (2187/2048) # x #x
 ```
 
 > 🟢 Every ratio/cents interval can be specified as a math/JavaScript expression.
-> To differentiate ratios from cents, cents must end with a 'c'.
+> 
+> **To differentiate ratios from cents, cents must end with a 'c'.**
 
 We're now setting the reference note C4 to a just-intonated 3-limit major sixth below A4. Because of that, we can now specify our nominals starting from C, which makes it a little easier to calculate the ratios.
 
@@ -538,6 +539,16 @@ This plugin is very experimental, so make sure you're always using the most upda
 This plugin does not update automatically. Redownload the code from here, and replace the files.
 
 > ⚠️ **IMPORTANT**: When updating the plugin, make sure you reopen MuseScore for changes to take effect. To be very certain that the newer files are being used, you can click the **Reload Plugins** button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins) to force reload all plugins, though you will need to re-enable and reconfigure keyboard shortcuts again.
+
+### If the tuning is wrong/off
+
+Checklist:
+
+- Suffix your cents with `c`, numbers represent ratios by default.
+- Prefix fingering cent offsets with `+`
+- Suffix fingering JI ratios with `.`
+- Clear tuning cache
+- Specify [key signature](#how-to-key-signatures)
 
 ### If the plugin is lagging/tuning isn't correct
 
