@@ -2120,7 +2120,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         // the PlayEvent.pitch property is relative
         // to the original note's pitch.
         note.playEvents[i].pitch = midiOffset;
-        console.log('play event: ' + JSON.stringify(note.playEvents[i]));
+        // console.log('play event: ' + JSON.stringify(note.playEvents[i]));
     }
 
     if (!returnMidiCSV) {
