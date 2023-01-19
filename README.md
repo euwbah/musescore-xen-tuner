@@ -559,11 +559,11 @@ If all else fails, [report an issue](#reporting-an-issue). Include the tuning co
 
 Try to reset the tuning cache of the score using the **Clear Tuning Cache** plugin. It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
 
-### Workarounds + advanced configs
+## Workarounds + advanced configs
 
 There are certain advanced configuration options at the top of the `fns.js` file, which you can modify to change certain behaviours of the plugin.
 
-#### When I select a single notehead, it doesn't play the right pitch. However, playing back the score works fine.
+### When I select a single notehead, it doesn't play the right pitch. However, playing back the score works fine.
 
 This is normal. The plugin modifies `PlayEvent`s to affect the MIDI pitch of the note, which are not reflected when you select a notehead. Modifying `PlayEvent`s to compensate for large tuning offsets reduces distortion of the note's timbre during playback. However, if you want to hear the correct pitch all the time and disregard adjusting for timbre, you can modify this line in `fns.js` (around line 150):
 
@@ -573,7 +573,7 @@ var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 1000;
 
 Set the number to like 1000 or something, and that will ensure that the playback upon selecting a notehead is mostly correct. However, when you have two notes on the same staff line, e.g. [augmented unisons](https://github.com/euwbah/musescore-xen-tuner/issues/1), the plugin will still modify the `PlayEvent` to ensure that the notes play back correctly.
 
-#### The timbre is weird when I play back the score
+### The timbre is weird when I play back the score
 
 This is the inverse problem of the above workaround. Simply set:
 
@@ -583,7 +583,7 @@ var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 0;
 
 This way, `PlayEvent`s will be aggressively modified to ensure that the `Note.tuning` offset is kept to a minimum.
 
-#### Augmented/diminished unisons in the same voice/stafff/instrument/part don't play back
+### Augmented/diminished unisons in the same voice/stafff/instrument/part don't play back
 
 This is a [known problem](https://github.com/euwbah/musescore-xen-tuner/issues/1#issuecomment-1396622359) and has to do with how MuseScore handles playback as MIDI notes. You can see how two notes on the same staff line are represented as the same note in the [piano roll](https://musescore.org/en/handbook/3/piano-roll-editor), thus making them indistinguishable to the playback engine.
 
@@ -591,7 +591,7 @@ To work around this, simply attach standard-support accidentals (those that affe
 
 Doing this will change how the note's MIDI pitch is represented internally so that they won't clash. The plugin will know how to compensate for the added accidentals, and you can use up to triple sharps/flats.
 
-#### Enharmonic equivalents aren't showing up / are incorrect
+### Enharmonic equivalents aren't showing up / are incorrect
 
 Around line 127 of `fns.js`, there is this setting:
 
@@ -604,6 +604,12 @@ This sets the threshold interval (in cents) where two notes should be considered
 If enharmonic equivalents in your ET/temperament are not showing up, try increasing this number slightly (e.g. 0.01). Floating point errors (inaccuracies in computer number-crunching) may cause enharmonically equivalent notes to have slightly different cent values. Also, make sure you specify your cent offsets to as many decimal places as possible to reduce this error.
 
 If you're working in a very large JI subset and there are no enharmonic equivalents, it's recommended to set this number smaller (or even to 0), to prevent two very similar notes being regarded as enharmonically equivalent, since there are no equivalents in JI.
+
+### Keyboard shortcuts stop working
+
+You could have started more than one instance of Xen Tuner. Close Xen Tuner and restart, or restart MuseScore.
+
+If you ran Xen Tuner from the Plugin Creator, you will need to restart MuseScore to restart Xen Tuner normally again.
 
 ## Reporting an issue
 
