@@ -494,6 +494,16 @@ If you've been experimenting with several large-sized tuning systems within the 
 - Run `Plugins > Xen Tuner > Clear Tuning Cache`
 - Restart Xen Tuner
 
+### 4. Notate comma shifts using reference pitch changes
+
+One of the culprits of requiring a huge Tuning Config is if you're writing a piece that utilizes regular comma shifts, requiring many accidentals per note throughout a particular comma-shifted section of the piece.
+
+**You can notate comma shifts by changing the reference note's frequency.** For example, if you want to shift down by 81/80 you can do this: `A4: 440 * 80/81`.
+
+You can also use standard JavaScript/math expressions to accomplish more complicated comma shifts. E.g., shifting with respect to C4 instead: `C4: 440 * 16/27 * 80/81`.
+
+or shifting up 10 syntonic commas and down 3 septimal commas: `A4: 440 * Math.pow(80/81, 10) * Math.pow(64/63, -3)`.
+
 ## How to: export MIDI/MPE
 
 > ⚠️ This feature is still a work in progress. The generated microtonal .mid file does contain proper MPE MIDI messages and plays back correctly when imported directly into Pianoteq standalone. However, I haven't found a nice simple way to import this MPE MIDI data directly into a DAW. It seems like DAWs don't implement MPE import/export.
