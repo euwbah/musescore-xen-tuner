@@ -757,7 +757,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
         var matches = line.match(/(lig|aux)\([0-9,]*\)/);
-        if (matches) {
+        if (matches != null) {
             nextDeclStartLine = i;
             break;
         }
@@ -776,7 +776,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
             var matchIncrement = word.match(/^\((.+)\)$/);
 
-            if (matchIncrement) {
+            if (matchIncrement != null) {
                 var maybeIncrement;
                 if (matchIncrement[1].endsWith('c')) {
                     // in cents
@@ -890,7 +890,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
-        if (line.match(/aux\([0-9,]+\)/)) {
+        if (line.match(/aux\([0-9,]+\)/) != null) {
             nextDeclStartLine = i;
             break;
         }
@@ -904,7 +904,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var match = line.match(/lig\(([0-9,]+)\)/);
 
-        if (!match) {
+        if (match == null) {
             console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
             return null;
         }
@@ -972,7 +972,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var match = line.match(/aux\(([0-9,]+)\)/);
 
-        if (!match) {
+        if (match == null) {
             console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting aux(x?, y?, ...), got "' + line + '" instead.');
         }
 
