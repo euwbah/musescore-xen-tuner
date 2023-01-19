@@ -146,7 +146,7 @@ number to 1.
 3 is a good midpoint for preserving selection playback for most
 standard tunings.
 */
-var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 13;
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 1;
 
 /**
  * Represents additional horizontal space to put between accidentals
@@ -2550,7 +2550,7 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             matchPriorAcc: false
         };
 
-        if (bestOptionAccDist - avDist > 0.01) {
+        if (bestOptionAccDist - avDist > 0.02) {
             // console.log('best av dist');
             bestOption = nextNoteObj;
             bestOptionAccDist = avDist;
@@ -2558,7 +2558,7 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             bestNumSymbols = 90000;
             bestLineOffset = 90000;
             bestSumOfDegree = direction == 1 ? -10000 : 10000;
-        } else if (Math.abs(avDist - bestOptionAccDist) <= 0.01) {
+        } else if (Math.abs(avDist - bestOptionAccDist) <= 0.02) {
             // If distances are very similar, choose the option with
             // lesser symbols
             var numSymbols = newXenNote.orderedSymbols.length;

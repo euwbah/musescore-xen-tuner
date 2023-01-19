@@ -38,6 +38,7 @@ MuseScore {
       implicitHeight: 80
       implicitWidth: 200
       id: pluginId
+      readonly property var window: Window.window
 
       FileIO {
         id: fileIO
@@ -80,6 +81,7 @@ MuseScore {
       Shortcut {
         sequence: "J"
         context: Qt.ApplicationShortcut
+        id: enharmonicShortcut
         onActivated: {
             infoText.text = "Cycling enharmonics";
             Fns.operationTranspose(0, 0);
@@ -238,11 +240,13 @@ MuseScore {
                 Fns.setUpDownFallthrough(false);
                 upShortcut.enabled = false;
                 downShortcut.enabled = false;
+                enharmonicShortcut.enabled = false;
             } else {
                 // If no notes are selected, allow up/down arrow keys to move elements.
                 Fns.setUpDownFallthrough(true);
                 upShortcut.enabled = true;
                 downShortcut.enabled = true;
+                enharmonicShortcut.enabled = true;
             }
         }
       }
