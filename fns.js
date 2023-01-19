@@ -756,7 +756,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux)\([0-9,]*\)/);
+        var matches = line.match(/(lig|aux)\([0-9,]+\)/);
         if (matches != null) {
             nextDeclStartLine = i;
             break;
@@ -924,12 +924,23 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var ligAvToSymbols = {};
 
+        var goToAux = false;
+
         for (var j = i + 1; j < lines.length; j++) {
             // each line represents a mapping in `ligAvToSymbols`
 
             // syntax: <chain 1 degree> <chain 2 degree> ... <dot separated acc symbols>
 
-            var words = lines[j].split(' ').map(function (x) { return x.trim() });
+            var line = lines[j].trim();
+
+            // Check for `aux(x,y,..)` declaration
+            if (line.match(/aux\([0-9,]+\)/) != null) {
+                nextDeclStartLine = j;
+                goToAux = true;
+                break;
+            }
+
+            var words = line.split(' ').map(function (x) { return x.trim() });
             var ligAv = words.slice(0, words.length - 1).map(function (x) { return parseInt(x) });
 
             hasInvalid = false;
@@ -954,6 +965,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             regarding: regarding,
             ligAvToSymbols: ligAvToSymbols,
         });
+
+        if (goToAux)
+            break;
 
         // jump to new line
         i = j + 1;
