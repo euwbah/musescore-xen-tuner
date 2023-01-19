@@ -28,7 +28,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.1.1"
+      version: "0.1.2"
       pluginType: "dock"
       dockArea: "left"
       description: "Starts the XenTuner plugin.\n\n" +
