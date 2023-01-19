@@ -4,7 +4,7 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 ## Features/Goals
 
-- [x] Support for infinitely many tuning systems with flexibility of choice of accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), whatever... (20%, data entry [help needed!](#help-needed))
+- [x] Support for infinitely many tuning systems with flexibility of choice of accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), whatever... (44%, data entry [help needed!](#help-needed))
 
 - [x] Automated tuning & auto-positioning of multiple accidentals.
 
