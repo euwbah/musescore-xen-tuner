@@ -490,9 +490,9 @@ You can still have access to all the SMuFL symbols, and you can 'trick' the plug
 
 If you've been experimenting with several large-sized tuning systems within the same score/over the current MuseScore session, this will populate a runtime & score metadata cache which may use up too much memory over time.
 
-Reloading the cache means that you will need to reload the tuning configurations again, but subsequent reloads will be faster than if the cache is full no longer used tunings.
-
-You can clear the tuning cache by going to `Plugins > Xen Tuner > Clear Tuning Cache`.
+- Quit/close the Xen Tuner plugin panel/window
+- Run `Plugins > Xen Tuner > Clear Tuning Cache`
+- Restart Xen Tuner
 
 ## How to: export MIDI/MPE
 
@@ -547,7 +547,8 @@ Checklist:
 - Suffix your cents with `c`, numbers represent ratios by default.
 - Prefix fingering cent offsets with `+`
 - Suffix fingering JI ratios with `.`
-- Clear tuning cache
+- [Clear tuning cache](#3-clear-the-tuning-cache)
+  - ⚠️ If you modify a tuning from a `.txt` or `.json` file, you will need to clear the tuning cache for the changes to take effect.
 - Specify [key signature](#how-to-key-signatures)
 
 ### If the plugin is lagging/tuning isn't correct
