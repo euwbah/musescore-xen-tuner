@@ -76,6 +76,7 @@ bb b (100) # x                  \n\
 function generateDefaultTuningConfig() {
     fileIO.source = pluginHomePath + "tunings/default.txt";
     var defaultTxt = fileIO.read();
+    /** @type {TuningConfig} */
     var tuningConfig;
     if (defaultTxt.length == 0) {
         console.log("default.txt not found, generating default tuning config...");
@@ -88,6 +89,9 @@ function generateDefaultTuningConfig() {
             tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
         }
     }
+
+    console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote + 
+        ', nominal: ' + tuningConfig.tuningNominal);
 
     return tuningConfig;
 }
@@ -146,7 +150,7 @@ number to 1.
 3 is a good midpoint for preserving selection playback for most
 standard tunings.
 */
-var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 1;
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
 
 /**
  * Represents additional horizontal space to put between accidentals
@@ -3877,7 +3881,7 @@ function operationTune() {
 
     /** @type {Parms} */
     var parms = {};
-    _curScore.createPlayEvents();
+    // _curScore.createPlayEvents();
 
     var cursor = _curScore.newCursor();
     cursor.rewind(1);
@@ -4120,7 +4124,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
     console.log(Qt.resolvedUrl("."));
     /** @type {Parms} */
     var parms = {};
-    _curScore.createPlayEvents();
+    // _curScore.createPlayEvents();
 
     var cursor = _curScore.newCursor();
     cursor.rewind(1);

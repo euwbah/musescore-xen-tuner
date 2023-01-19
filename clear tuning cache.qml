@@ -51,7 +51,7 @@ MuseScore {
         if (typeof curScore === 'undefined')
               Qt.quit();
 
-        Fns.clearTuningConfigCache();
+        Fns.clearTuningConfigCaches();
 
         Qt.quit();
       }
