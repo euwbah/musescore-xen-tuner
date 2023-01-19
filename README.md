@@ -559,6 +559,8 @@ If all else fails, [report an issue](#reporting-an-issue). Include the tuning co
 
 Try to reset the tuning cache of the score using the **Clear Tuning Cache** plugin. It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
 
+If you're dealing with many notes per equave, see [how to deal with huge tunings](#writing-in-huge-tunings)
+
 ## Workarounds + advanced configs
 
 There are certain advanced configuration options at the top of the `fns.js` file, which you can modify to change certain behaviours of the plugin.

@@ -1,6 +1,6 @@
 # pyTen sKriPz
 
-These scripts are not part of the plugin, but they are here to help make the development process easier by auto-generating repeated code and all that stuff.
+These scripts are not part of the plugin, but they are here to help make the development process easier by auto-generating repeated code & tuning configs.
 
 These skripz are designed to run from the context of the project root.
 
