@@ -25,7 +25,7 @@ A plugin to give first-class support as many microtonal/xen notation systems as 
 
 ## Quick Start
 
-> :warning: This project is still a work in progress. It is semi-usable, but I haven't had time to test nor write proper how-tos yet. In the meanwhile, feel free to message me on discord (euwbah#1417), [Telegram](https://t.me/euwbah) or [Instagram](https://www.instagram.com/euwbah/) if you need any assistance.
+> :warning: This project is very experimental. Please check [Caveats](#caveats)
 
 Download the project as .zip (the green "Code" button on top right of the project page).
 
@@ -84,7 +84,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 
 #### Keeping accidentals up to date
 
-While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-plugin--troubleshooting).
+While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-plugin).
 
 Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `scripts/tabulate_accidentals.py` python script yourself with Python 3. This will sync the plugin's accidental Symbol Codes to the "CSV Export" sheet on the spreadsheet.
 
@@ -533,12 +533,14 @@ This will generate a .mid file at `path/to/score.mid`.
 
 -----
 
-## Updating plugin / Troubleshooting
+## Updating plugin
 
 This plugin is very experimental, so make sure you're always using the most updated version of this plugin as bugs are always being fixed.
 This plugin does not update automatically. Redownload the code from here, and replace the files.
 
-> ⚠️ **IMPORTANT**: When updating the plugin, make sure you reopen MuseScore for changes to take effect. To be very certain that the newer files are being used, you can click the **Reload Plugins** button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins) to force reload all plugins, though you will need to re-enable and reconfigure keyboard shortcuts again.
+> ⚠️ **IMPORTANT**: When updating the plugin, make sure you reopen MuseScore for changes to take effect. To be very certain that the newer files are being used, you can click the **Reload Plugins** button in the [Plugin Manager](https://musescore.org/en/handbook/3/plugins#enable-disable-plugins) to force reload all plugins.
+
+## Troubleshooting
 
 ### If the tuning is wrong/off
 
@@ -551,11 +553,59 @@ Checklist:
   - ⚠️ If you modify a tuning from a `.txt` or `.json` file, you will need to clear the tuning cache for the changes to take effect.
 - Specify [key signature](#how-to-key-signatures)
 
+If all else fails, [report an issue](#reporting-an-issue). Include the tuning config text you were trying to use and provide a score example.
+
 ### If the plugin is lagging/tuning isn't correct
 
 Try to reset the tuning cache of the score using the **Clear Tuning Cache** plugin. It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
 
-### Reporting an issue
+### Workarounds + advanced configs
+
+There are certain advanced configuration options at the top of the `fns.js` file, which you can modify to change certain behaviours of the plugin.
+
+#### When I select a single notehead, it doesn't play the right pitch. However, playing back the score works fine.
+
+This is normal. The plugin modifies `PlayEvent`s to affect the MIDI pitch of the note, which are not reflected when you select a notehead. Modifying `PlayEvent`s to compensate for large tuning offsets reduces distortion of the note's timbre during playback. However, if you want to hear the correct pitch all the time and disregard adjusting for timbre, you can modify this line in `fns.js` (around line 150):
+
+```js
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 1000;
+```
+
+Set the number to like 1000 or something, and that will ensure that the playback upon selecting a notehead is mostly correct. However, when you have two notes on the same staff line, e.g. [augmented unisons](https://github.com/euwbah/musescore-xen-tuner/issues/1), the plugin will still modify the `PlayEvent` to ensure that the notes play back correctly.
+
+#### The timbre is weird when I play back the score
+
+This is the inverse problem of the above workaround. Simply set:
+
+```js
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 0;
+```
+
+This way, `PlayEvent`s will be aggressively modified to ensure that the `Note.tuning` offset is kept to a minimum.
+
+#### Augmented/diminished unisons in the same voice/stafff/instrument/part don't play back
+
+This is a [known problem](https://github.com/euwbah/musescore-xen-tuner/issues/1#issuecomment-1396622359) and has to do with how MuseScore handles playback as MIDI notes. You can see how two notes on the same staff line are represented as the same note in the [piano roll](https://musescore.org/en/handbook/3/piano-roll-editor), thus making them indistinguishable to the playback engine.
+
+To work around this, simply attach standard-support accidentals (those that affect playback, not the symbolic ones) to either one of the clashing notes and make them invisible.
+
+Doing this will change how the note's MIDI pitch is represented internally so that they won't clash. The plugin will know how to compensate for the added accidentals, and you can use up to triple sharps/flats.
+
+#### Enharmonic equivalents aren't showing up / are incorrect
+
+Around line 127 of `fns.js`, there is this setting:
+
+```js
+var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.005;
+```
+
+This sets the threshold interval (in cents) where two notes should be considered enharmonically equivalent.
+
+If enharmonic equivalents in your ET/temperament are not showing up, try increasing this number slightly (e.g. 0.01). Floating point errors (inaccuracies in computer number-crunching) may cause enharmonically equivalent notes to have slightly different cent values. Also, make sure you specify your cent offsets to as many decimal places as possible to reduce this error.
+
+If you're working in a very large JI subset and there are no enharmonic equivalents, it's recommended to set this number smaller (or even to 0), to prevent two very similar notes being regarded as enharmonically equivalent, since there are no equivalents in JI.
+
+## Reporting an issue
 
 If none of the above remedies work, you will need to [file an issue here](https://github.com/euwbah/musescore-xen-tuner/issues). Please include the following information:
 
@@ -563,8 +613,10 @@ If none of the above remedies work, you will need to [file an issue here](https:
 - Version of plugin
 - Operating system
 - Debug logs
+  - Stop running Xen Tuner (close plugin window/quit button).
   - Open the **Plugin Creator** (Plugins > Plugin Creator).
-  - Open the plugin's .qml file (but don't run it).
+  - Open the `xen tuner.qml`
+  - Run the plugin from the Plugin Creator.
   - Repeat the action you did that caused the issue.
   - Usually if an error occurs, you should be able to see the error message at the bottom of the log.
   - Copy and paste as much of the debug log as you can, **making sure that you include the error message** at the bottom.
@@ -599,6 +651,7 @@ The other type of accidental symbols are the ones in the "Symbols" category, ide
 <br>
 
 The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalType`s) are represented in the document, and that all `SymId`s/`AccidentalType`s that point to a similar-looking accidental are grouped together on the same row.
+
 
 ## Caveats
 

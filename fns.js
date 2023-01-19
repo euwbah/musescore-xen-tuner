@@ -2120,6 +2120,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         // the PlayEvent.pitch property is relative
         // to the original note's pitch.
         note.playEvents[i].pitch = midiOffset;
+        console.log('play event: ' + JSON.stringify(note.playEvents[i]));
     }
 
     if (!returnMidiCSV) {
@@ -2133,7 +2134,6 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
     // iterate play events
     for (var i = 0; i < note.playEvents.length; i++) {
         var pev = note.playEvents[i];
-        console.log('play event: ' + JSON.stringify(pev));
         var pitch = note.pitch + pev.pitch; // midi pitch, to nearest semitone
 
         // Actual default duration information is tied to the Chord.actualDuration.ticks
