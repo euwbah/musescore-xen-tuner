@@ -794,6 +794,14 @@ class PluginAPIElement {
      * @type {number?}
      */
     velocity;
+
+    /**
+     * Checks if two element wrapper objects point to the same element in the score.
+     * 
+     * @param {PluginAPIElement} elem other element
+     * @returns {boolean} `true` if this element is the same as `elem`.
+     */
+    is (elem) {}
 }
 
 /**

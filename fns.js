@@ -2028,7 +2028,6 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
 
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
 
-
     // console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
 
     var midiOffset = Math.round(centsOffset / 100);
@@ -2044,6 +2043,67 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         // This reduces the chance of that happening when the tuning
         // & nominals are close to 12.
         midiOffset = 0;
+    }
+
+
+    /*
+     * This is a hacky quickfix for https://github.com/euwbah/musescore-xen-tuner/issues/1
+     * 
+     * Two notes with the same internal MIDI pitch will be regarded as one note,
+     * making it impossible to tune them differently.
+     * 
+     * This solution scans the chord this note is attached to, so at least within
+     * the same chord, augmented unisons et al will be played back properly.
+     * 
+     * However, this doesn't solve the problem when it occurs over two voices,
+     * two Staffs under the same Part, or in play events caused by ornamentation.
+     */
+
+    var chord = note.parent;
+    /**
+     * Contains a lookup of MIDI pitches of PlayEvents of notes in this chord, 
+     * excluding play events of this current note.
+     */
+    var midiPitchesInChord = {};
+
+    if (chord) {
+        for (var i = 0; i < chord.notes.length; i++) {
+            var n = chord.notes[i];
+            if (n.is(note)) // skip self
+                continue;
+            
+            var p = n.pitch;
+            for (var nPevIdx = 0; nPevIdx < n.playEvents.length; nPevIdx++) {
+                var pev = n.playEvents[nPevIdx];
+                midiPitchesInChord[p + pev.pitch] = true;
+            }
+        }
+    }
+
+    
+    if (midiPitchesInChord[note.pitch + midiOffset]) {
+        // If the original midi offset won't work because another note in the same chord already has the 
+        // same midi pitch, work in a zig-zag fashion to find a 'hole' to insert the note.
+
+        for (var offset = 1; offset < 80; offset++) { // god forbid someone actually having 80-note clusters in ONE chord.
+            var bestOffset = 100;
+            var foundSpace = false;
+            for (var direction = -1; direction <= 1; direction += 2) {
+                // test both directions in case the MIDI pitch is already offset and
+                // going in one direction reduces offset more than the other.
+                var testOffset = midiOffset + offset * direction;
+                if (!midiPitchesInChord[note.pitch + testOffset] && Math.abs(testOffset) < Math.abs(bestOffset)) {
+                    // hole found!
+                    bestOffset = testOffset;
+                    foundSpace = true;
+                }
+            }
+
+            if (foundSpace) {
+                midiOffset = bestOffset;
+                break;
+            }
+        }
     }
 
     centsOffset -= midiOffset * 100;
@@ -2073,6 +2133,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
     // iterate play events
     for (var i = 0; i < note.playEvents.length; i++) {
         var pev = note.playEvents[i];
+        console.log('play event: ' + JSON.stringify(pev));
         var pitch = note.pitch + pev.pitch; // midi pitch, to nearest semitone
 
         // Actual default duration information is tied to the Chord.actualDuration.ticks
