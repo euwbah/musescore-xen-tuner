@@ -938,7 +938,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 .map(function (x) {
                     var code = readSymbolCode(x);
                     if (code == null) hasInvalid = true;
-                    usedSymbols[code] = true;
+                    tuningConfig.usedSymbols[code] = true;
                     return code;
                 });
 
