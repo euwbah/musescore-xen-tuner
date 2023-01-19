@@ -3881,7 +3881,7 @@ function operationTune() {
 
     /** @type {Parms} */
     var parms = {};
-    // _curScore.createPlayEvents();
+    _curScore.createPlayEvents();
 
     var cursor = _curScore.newCursor();
     cursor.rewind(1);
@@ -4124,7 +4124,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
     console.log(Qt.resolvedUrl("."));
     /** @type {Parms} */
     var parms = {};
-    // _curScore.createPlayEvents();
+    _curScore.createPlayEvents();
 
     var cursor = _curScore.newCursor();
     cursor.rewind(1);
