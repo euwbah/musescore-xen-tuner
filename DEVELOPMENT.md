@@ -8,6 +8,12 @@
 
 - Almost everything is in one file: `fns.js`
 
+## Important quirks of QJSEngine
+
+- ECMA 5 only. Maybe even older.
+- `char` is **not** a valid variable name.
+- Semicolons are **compulsory**
+
 ## Case Study/Example
 
 This tuning system/staff text specifies a 315-note subset of 2.3.5 JI:

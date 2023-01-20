@@ -1830,11 +1830,11 @@ function parseHewmString(text) {
     var hewmAcc = {};
 
     for (var i = 0; i < text.length; i++) {
-        var char = text[i];
-        if (hewmAcc[char]) {
-            hewmAcc[char]++;
+        var asciiChar = text[i];
+        if (hewmAcc[asciiChar]) {
+            hewmAcc[asciiChar]++;
         } else {
-            hewmAcc[char] = 1;
+            hewmAcc[asciiChar] = 1;
         }
     }
 

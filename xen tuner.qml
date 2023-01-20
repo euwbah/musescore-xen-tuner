@@ -17,9 +17,9 @@
 
 // When there's some syntax error the imported files and its not showing up,
 // uncomment these lines
-import "generated-tables.js" as AAAAAaa
-import "lookup-tables.js" as Aaa
-import "fns.js" as Bbb
+// import "generated-tables.js" as AAAAAaa
+// import "lookup-tables.js" as Aaa
+// import "fns.js" as Bbb
 
 import "fns.ms.js" as Fns
 import MuseScore 3.0
