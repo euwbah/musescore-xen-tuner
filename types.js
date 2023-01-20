@@ -826,8 +826,16 @@ class PluginAPIElement {
      * correct order. The Z-index of accidental symbols cannot be changed.
      * 
      * Fingerings use {@link HEWM_PROCESSED_Z_INDEX} to mark them as processed.
+     * 
+     * @type {number}
      */
     z;
+    /**
+     * Enables/disables Automatic placement
+     * 
+     * @type {boolean}
+     */
+    autoplace;
 
     /**
      * Checks if two element wrapper objects point to the same element in the score.

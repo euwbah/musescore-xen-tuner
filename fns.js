@@ -1955,21 +1955,25 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
              */
             var symbolCodes = [];
 
+            console.log('hewmAcc: ' + JSON.stringify(hewmAcc));
+
             for (var asciiChar in hewmAcc) {
-                var numOccurencesOfThisChar = hewmAcc[symbol];
+                var numOccurencesOfThisChar = hewmAcc[asciiChar];
                 var symbolsToAdd = [];
                 var numberCharsConverted = 0;
                 // slowly add 1 accidental at a time until there are no more symbol
                 // replacements, or the symbol accidentals are no longer part of
                 // the tuning config.
-                for (var i = 1; i < numOccurencesOfThisChar; i++) {
+                for (var i = 1; i <= numOccurencesOfThisChar; i++) {
                     var symLookup = Lookup.HEWM_CONVERT_SYMCODES[asciiChar] || null;
                     // try to convert i instances of this ascii char to symbols.
                     var convertedSymbols = symLookup && symLookup[i] || null;
+                    console.log('Converted symbols: ' + convertedSymbols);
                     if (convertedSymbols != null) {
                         // But first, check if the TuningConfig contains such an accidental.
                         var testSymbolCodes = symbolCodes.concat(convertedSymbols);
                         var pseudoHash = '0 ' + accidentalsHash(testSymbolCodes);
+                        console.log('Testing pseudoHash: ' + pseudoHash);
                         if (tuningConfig.notesTable[pseudoHash]) {
                             // The note exists in the tuning config.
                             symbolsToAdd = convertedSymbols;
@@ -1998,7 +2002,7 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
             var processedHewmString = '';
 
             for (var asciiChar in hewmAcc) {
-                var numOccurencesOfThisChar = hewmAcc[symbol];
+                var numOccurencesOfThisChar = hewmAcc[asciiChar];
                 for (var i = 0; i < numOccurencesOfThisChar; i++) {
                     processedHewmString += asciiChar;
                 }
@@ -2024,6 +2028,8 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
 
             // update fingering & convert accidental symbols
             fingering.text = processedHewmString;
+            fingering.autoplace = false;
+            fingering.align = 0;
             setAccidental(msNote.internalNote, symbolCodes, newElement, tuningConfig.usedSymbols);
 
             return tokenizeNote(msNote.internalNote);
@@ -2128,7 +2134,18 @@ function calcCentsOffset(noteData, tuningConfig) {
     noteData.ms.fingerings.forEach(function (fingering) {
         var text = fingering.text;
 
-        if (text[0] && (text[0] == '+' || text[0] == '-')) {
+        if (text.match(HEWM_REGEX)) {
+            // HEWM accidental
+            /* 
+                Note that + and - are allowed in HEWM (accidentals can start with + or -).
+                To differentiate between cents offset and HEWM,
+                HEWM does not have numbers, whereas cent offsets must contain numbers.
+
+                Thus, check for HEWM first to avoid misparsing it as cents offset.
+            */
+
+            hewmAcc = parseHewmString(text);
+        } else if (text[0] && (text[0] == '+' || text[0] == '-')) {
             // Cents offset fingering
             var cents = parseFloat(eval(text.slice(1)));
             if (!isNaN(cents)) {
@@ -2147,9 +2164,6 @@ function calcCentsOffset(noteData, tuningConfig) {
                     fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
                 }
             }
-        } else if (text.match(HEWM_REGEX)) {
-            // HEWM accidental
-            hewmAcc = parseHewmAccidental(text);
         }
     });
 
