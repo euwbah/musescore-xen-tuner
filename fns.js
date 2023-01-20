@@ -37,6 +37,21 @@ var pluginHomePath = '';
 var _curScore = null; // don't clash with namespace
 
 /**
+ * Regex expr that matches HEWM fingering text that hasn't yet been processed.
+ * 
+ * Once HEWM text is processed, it will be prefixed with {@link HEWM_PROCESSED_CHAR}.
+ */
+var HEWM_REGEX = /^[b#\-+<>v^{}\\/()\[\];!?"&%@$,':*_|szykjfpd]+$/;
+
+/**
+ * If a fingering has this Z index, it signifies that it is a HEWM accidental that
+ * has been already been processed by the plugin.
+ * 
+ * Uses Z index as metadata. The original Z index for fingerings is 3900.
+ */
+var HEWM_PROCESSED_Z_INDEX = 3903;
+
+/**
  * If true, the plugin will allow `cmd('pitch-up')` and `cmd('pitch-down')` to be
  * sent when the selection doesn't include notes and up/down operations are being sent.
  * 
@@ -90,7 +105,7 @@ function generateDefaultTuningConfig() {
         }
     }
 
-    console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote + 
+    console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote +
         ', nominal: ' + tuningConfig.tuningNominal);
 
     return tuningConfig;
@@ -489,7 +504,7 @@ function saveMetaTagCache() {
         // don't save tuning configs with more than 1000 steps. MuseScore will crash.
         if (tuningConfigCache[tuningConfigStr].stepsList.length < 1000) {
             toSave[tuningConfigStr] = tuningConfigCache[tuningConfigStr];
-        } 
+        }
     });
     _curScore.setMetaTag('tuningconfigs', JSON.stringify(toSave));
 }
@@ -600,7 +615,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         var filePath = textOrPath;
-        
+
         if (textOrPath.endsWith('.txt')) {
             filePath = textOrPath.slice(0, textOrPath.length - 4);
         } else if (textOrPath.endsWith('.json')) {
@@ -612,7 +627,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         fileIO.source = pluginHomePath + 'tunings/' + filePath + '.json';
 
         text = fileIO.read().trim();
-        
+
         try {
             var jsonTuningConfig = JSON.parse(text);
 
@@ -625,7 +640,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         // Otherwise, try read .txt
-        
+
         fileIO.source = pluginHomePath + 'tunings/' + filePath + '.txt';
 
         text = fileIO.read().trim();
@@ -637,6 +652,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     } else {
         console.log('Reading tuning config from ' + fileIO.source + ':\n' + text);
     }
+
+    // remove comments from tuning config text.
+    // comments start with two slashes
+    text = text.replace(/^(.*?)\/\/.*$/gm, '$1')
+        // remove empty lines
+        .replace(/^(?:[\t ]*(?:\r?\n|\r))+/gm, '');
+
 
     /** @type {TuningConfig} */
     var tuningConfig = { // TuningConfig
@@ -1096,7 +1118,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         - cents (cents from nominal modulo equave)
         - equavesAdjusted (non-zero if cents was wrapped around the equave)
     */
-    
+
 
     /**
      * @type {XenNotesEquaves}
@@ -1617,7 +1639,7 @@ function parsePossibleConfigs(text, tick) {
 
         return { // ConfigUpdateEvent
             tick: tick,
-            config: function(parms) {
+            config: function (parms) {
                 parms.currTuning.tuningNominal = maybeConfig.tuningNominal;
                 parms.currTuning.tuningNote = maybeConfig.tuningNote;
                 parms.currTuning.tuningFreq = maybeConfig.tuningFreq;
@@ -1642,7 +1664,7 @@ function parsePossibleConfigs(text, tick) {
             // all staves, while individual staves can use ChangeReferenceTuning
             // to emulate transposing instruments.
             tick: tick - 1,
-            config: function(parms) {
+            config: function (parms) {
                 parms.currTuning = maybeConfig;
             }
         };
@@ -1656,7 +1678,7 @@ function parsePossibleConfigs(text, tick) {
 
         return { // ConfigUpdateEvent
             tick: tick,
-            config: function(parms) {
+            config: function (parms) {
                 parms.currKeySig = maybeConfig;
             }
         }
@@ -1793,7 +1815,37 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 }
 
 /**
+ * Tokenizes a HEWM ASCII accidental into a {@link HewmAccidental} object.
+ * 
+ * @param {string} text An ASCII accidental according to HEWM.
+ * @returns {HewmAccidental?}
+ */
+function parseHewmString(text) {
+    var text = text.trim();
+    if (text.match(HEWM_REGEX) == null) {
+        return null;
+    }
+
+    /** @type {HewmAccidental} */
+    var hewmAcc = {};
+
+    for (var i = 0; i < text.length; i++) {
+        var char = text[i];
+        if (hewmAcc[char]) {
+            hewmAcc[char]++;
+        } else {
+            hewmAcc[char] = 1;
+        }
+    }
+
+    return hewmAcc;
+}
+
+/**
  * Checks if an accidental fingering text is attached to the note.
+ * 
+ * Accidental fingering text could either be an AccidentalVector
+ * prefixed with an 'a', or an unprocessed HEWM accidental string.
  * 
  * If so, replaces the fingering text with actual accidental symbols.
  * 
@@ -1807,18 +1859,25 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
  * 
  * 
  * @param {MSNote} msNote
+ * @param {TuningConfig} tuningConfig
  * @returns {MSNote} 
  *  If accidentals were created, returns the retokenized `MSNote`, 
  *  Otherwise, returns the original `MSNote`.
  */
 function renderFingeringAccidental(msNote, tuningConfig, newElement) {
-    var elemToRemove = null;
-    var av = null;
+    // Keep track of found processed accidentals.
+    // Saves iterations when trying to find processed accidentals to delete.
+    var processedHewmAccidentals = [];
 
     for (var i = 0; i < msNote.fingerings.length; i++) {
+        // Loop through all fingerings attached to this note.
+
         var fingering = msNote.fingerings[i];
         var text = fingering.text;
+
         if (text.startsWith('a')) {
+            // test accidental vector fingering.
+
             // Each space-separated number represents the degree of the
             // nth accidental chain.
             var isValid = true;
@@ -1834,9 +1893,9 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
                     });
 
             if (isValid) {
-                // We found a fingering text accidental.
+                // We found an accidental vector fingering.
 
-                av = [];
+                var av = [];
 
                 // If the number of degrees is less than the number of chains,
                 // assume the rest to be 0.
@@ -1850,36 +1909,130 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
                         av.push(0);
                 }
 
-                elemToRemove = fingering;
-                break;
+                var elemToRemove = fingering;
+
+                // remove the fingering.
+                msNote.internalNote.remove(elemToRemove);
+
+                var orderedSymbols = [];
+
+                // Loop from left most (last) acc chain to right most acc chain.
+                for (var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
+                    var accChain = tuningConfig.accChains[accChainIdx];
+                    var deg = av[accChainIdx];
+                    if (deg != 0) {
+                        var degIdx = deg + accChain.centralIdx;
+                        var symCodes = accChain.degreesSymbols[degIdx]; // left-to-right
+                        orderedSymbols = orderedSymbols.concat(symCodes);
+                    }
+                }
+
+                console.log('Set accidental from fingering: ' + orderedSymbols);
+
+                setAccidental(msNote.internalNote, orderedSymbols,
+                    newElement, tuningConfig.usedSymbols);
+
+                return tokenizeNote(msNote.internalNote);
             }
+        } else if (fingering.z == HEWM_PROCESSED_Z_INDEX) {
+            // We found a processed HEWM accidental.
+            processedHewmAccidentals.push(fingering);
+        } else if (text.match(HEWM_REGEX) != null) {
+
+            // We found an unprocessed HEWM accidental. Process it.
+
+            var hewmAcc = parseHewmString(text);
+
+            if (hewmAcc == null) {
+                // This should not happen. The regex should filter parseable HEWM accidentals only.
+                console.error("ERROR: Could not parse HEWM accidental: " + text);
+                continue;
+            }
+
+            /**
+             * Symbols to be attached to note as SMuFL symbols.
+             * @type {SymbolCode[]}
+             */
+            var symbolCodes = [];
+
+            for (var asciiChar in hewmAcc) {
+                var numOccurencesOfThisChar = hewmAcc[symbol];
+                var symbolsToAdd = [];
+                var numberCharsConverted = 0;
+                // slowly add 1 accidental at a time until there are no more symbol
+                // replacements, or the symbol accidentals are no longer part of
+                // the tuning config.
+                for (var i = 1; i < numOccurencesOfThisChar; i++) {
+                    var symLookup = Lookup.HEWM_CONVERT_SYMCODES[asciiChar] || null;
+                    // try to convert i instances of this ascii char to symbols.
+                    var convertedSymbols = symLookup && symLookup[i] || null;
+                    if (convertedSymbols != null) {
+                        // But first, check if the TuningConfig contains such an accidental.
+                        var testSymbolCodes = symbolCodes.concat(convertedSymbols);
+                        var pseudoHash = '0 ' + accidentalsHash(testSymbolCodes);
+                        if (tuningConfig.notesTable[pseudoHash]) {
+                            // The note exists in the tuning config.
+                            symbolsToAdd = convertedSymbols;
+                            numberCharsConverted = i;
+                        } else {
+                            // The note does not exist in the tuning config.
+                            // Do not try to convert anymore symbols.
+                            break;
+                        }
+                    } else {
+                        // the conversion lookup doesn't specify any more symbols.
+                        break;
+                    }
+                }
+
+                // Convert the maximum number of ASCII accidentals into symbols
+                // for this current asciiChar
+                symbolCodes = symbolCodes.concat(symbolsToAdd);
+
+                // Subtract converted chars from the hewmAcc object.
+                hewmAcc[asciiChar] -= numberCharsConverted;
+            }
+
+            // reconstruct the HEWM string
+
+            var processedHewmString = '';
+
+            for (var asciiChar in hewmAcc) {
+                var numOccurencesOfThisChar = hewmAcc[symbol];
+                for (var i = 0; i < numOccurencesOfThisChar; i++) {
+                    processedHewmString += asciiChar;
+                }
+            }
+
+            // Complete iterating fingerings to find processed HEWM fingerings.
+
+            for (var j = i + 1; j < msNote.fingerings.length; j++) {
+                if (msNote.fingerings[j].z == HEWM_PROCESSED_Z_INDEX) {
+                    // We found a processed HEWM accidental.
+                    processedHewmAccidentals.push(fingering);
+                }
+            }
+
+            // remove prior processed HEWM ascii accidentals.
+
+            processedHewmAccidentals.forEach(function (fingering) {
+                msNote.internalNote.remove(fingering);
+            });
+
+            // mark current HEWM fingering as processed.
+            fingering.z = HEWM_PROCESSED_Z_INDEX;
+
+            // update fingering & convert accidental symbols
+            fingering.text = processedHewmString;
+            setAccidental(msNote.internalNote, symbolCodes, newElement, tuningConfig.usedSymbols);
+
+            return tokenizeNote(msNote.internalNote);
         }
     }
 
-    if (av == null) return msNote;
+    // nothing found just return the original note.
 
-    // remove the fingering.
-    msNote.internalNote.remove(elemToRemove);
-
-    var orderedSymbols = [];
-
-    // Loop from left most (last) acc chain to right most acc chain.
-    for (var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
-        var accChain = tuningConfig.accChains[accChainIdx];
-        var deg = av[accChainIdx];
-        if (deg != 0) {
-            var degIdx = deg + accChain.centralIdx;
-            var symCodes = accChain.degreesSymbols[degIdx]; // left-to-right
-            orderedSymbols = orderedSymbols.concat(symCodes);
-        }
-    }
-
-    console.log('Set accidental from fingering: ' + orderedSymbols);
-
-    setAccidental(msNote.internalNote, orderedSymbols,
-        newElement, tuningConfig.usedSymbols);
-
-    return tokenizeNote(msNote.internalNote);
+    return msNote;
 }
 
 /**
@@ -1905,6 +2058,28 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
 }
 
 /**
+ * Calculate the effective ratio caused by HEWM accidental ASCII characters.
+ * 
+ * @param {HewmAccidental} hewmAcc HEWM Accidentals object
+ * @returns {number} JI ratio represented by the {@link HewmAccidental}.
+ */
+function calcHewmRatio(hewmAcc) {
+    var ratio = 1;
+    for (var asciiChar in hewmAcc) {
+        var numOccurencesOfThisChar = hewmAcc[asciiChar];
+        var ratioLookup = Lookup.HEWM_RATIOS[asciiChar] || null;
+        if (ratioLookup != null) {
+            ratio *= Math.pow(ratioLookup, numOccurencesOfThisChar);
+        } else {
+            // This should not happen as the REGEX shouldn't match symbols.
+            // without ratio.
+            console.error("ERROR: HEWM symbol has no ratio: " + asciiChar);
+        }
+    }
+    return ratio;
+}
+
+/**
  * Given current `NoteData` and a `TuningConfig`, calculate the
  * required note's tuning offset in cents.
  * 
@@ -1927,22 +2102,28 @@ function calcCentsOffset(noteData, tuningConfig) {
     // apply NoteData equave offset.
     xenCentsFromA4 += noteData.equaves * tuningConfig.equaveSize;
 
-    // 2 different fingering tuning annotations can be applied to a note.
-    // (and can be applied simultaneously).
-    //
-    // They are applied in this order:
-    //
-    // 1. The fingering JI interval/ratio tuning overrides the tuning entirely,
-    // tuning the note as the specified ratio against the reference note.
-    // Its octave is automatically reduced/expanded to be as close as possible to 
-    // xenCentsFromA4. By default, this fingering must be suffixed by a period
-    // unless the REQUIRE_PERIOD_AFTER_FINGERING_RATIO flag is set to false.
-    // 
-    // 2. The fingering cents offset simply offsets tuning by the specified
-    //    amount of cents.
+    /*
+    3 different fingering tuning annotations can be applied to a note.
+    (and can be applied simultaneously).
+    
+    They are applied in this order:
+    
+    1. The fingering JI interval/ratio tuning overrides the tuning entirely,
+    tuning the note as the specified ratio against the reference note.
+    Its octave is automatically reduced/expanded to be as close as possible to 
+    xenCentsFromA4. By default, this fingering must be suffixed by a period
+    unless the REQUIRE_PERIOD_AFTER_FINGERING_RATIO flag is set to false.
+
+    2. HEWM accidentals modify tuning of note by a specified ratio.
+    
+    3. The fingering cents offset simply offsets tuning by the specified
+       amount of cents.
+    */
 
     var fingeringCentsOffset = 0;
     var fingeringJIOffset = null; // this is in cents
+    /** @type {HewmAccidental?} */
+    var hewmAcc = null;
 
     noteData.ms.fingerings.forEach(function (fingering) {
         var text = fingering.text;
@@ -1966,17 +2147,30 @@ function calcCentsOffset(noteData, tuningConfig) {
                     fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
                 }
             }
+        } else if (text.match(HEWM_REGEX)) {
+            // HEWM accidental
+            hewmAcc = parseHewmAccidental(text);
         }
     });
 
     if (fingeringJIOffset) {
+        // 1. If JI ratio is present on the note, override the tuning of the note.
+
         // We need to octave reduce/expand this until it is as close as possible to 
         // xenCentsFromA4.
 
         xenCentsFromA4 = fingeringJIOffset - Math.round((fingeringJIOffset - xenCentsFromA4) / 1200) * 1200;
     }
 
-    // Apply cents offset.
+    // 2. Apply HEWM JI offset
+
+    if (hewmAcc) {
+        var hewmRatio = calcHewmRatio(hewmAcc);
+        var hewmCents = Math.log(hewmRatio) * 1200 / Math.log(2);
+        xenCentsFromA4 += hewmCents;
+    }
+
+    // 3. Apply cents offset.
 
     xenCentsFromA4 += fingeringCentsOffset;
 
@@ -2085,7 +2279,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
             var n = chord.notes[i];
             if (n.is(note)) // skip self
                 continue;
-            
+
             var p = n.pitch;
             for (var nPevIdx = 0; nPevIdx < n.playEvents.length; nPevIdx++) {
                 var pev = n.playEvents[nPevIdx];
@@ -2094,7 +2288,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         }
     }
 
-    
+
     if (midiPitchesInChord[note.pitch + midiOffset]) {
         // If the original midi offset won't work because another note in the same chord already has the 
         // same midi pitch, work in a zig-zag fashion to find a 'hole' to insert the note.
@@ -3431,7 +3625,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                                 var currAccState = accidentalState[lineNum];
 
-                                console.log('currAccState: ' + currAccState + ', accHash: ' + accHash 
+                                console.log('currAccState: ' + currAccState + ', accHash: ' + accHash
                                     + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
 
                                 if (currAccState && currAccState == accHash) {
@@ -3568,9 +3762,17 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
  * Positions accidental symbols for all voices' chords that are to be
  * vertically-aligned.
  * 
+ * Uses the [zig-zag algorithm](https://musescore.org/en/node/25055) to auto-position symbols.
+ * 
+ * Also positions HEWM fingering to the left of any other accidental symbols, treating it
+ * as if it were an accidental symbol.
+ * 
  * returns the largest (negative) distance between the left-most symbol the notehead 
  * it is attached to. This returned value will decide how much should
  * grace chords be pushed back.
+ * 
+ * **IMPORTANT**: `chord` is NOT the wrapped {@link PluginAPIChord} plugin object.
+ * It is a list of unwrapped {@link PluginAPINote} objects!
  * 
  * @param {PluginAPINote[]} chord Notes from all voices at a single tick & vertical-chord position.
  * @param {Object.<string, boolean>} usedSymbols 
@@ -3642,10 +3844,9 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
             bottom: note.pagePos.y + note.bbox.bottom
         };
 
-        var accSymbolsRTL = [];
+        var accSymbolsRTL = []; // right-to-left
 
         // stores list of all accidental symbols attached to this notehead.
-        // Symbols appearing to the right come first.
         for (var i = 0; i < note.elements.length; i++) {
             var elem = note.elements[i];
             // console.log(JSON.stringify(elem.bbox));
@@ -3654,9 +3855,16 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                 if (symCode && (!usedSymbols || usedSymbols[symCode])) {
                     accSymbolsRTL.push(elem);
                 }
+            } else if (elem.name && elem.name == 'Fingering' && elem.z == HEWM_PROCESSED_Z_INDEX) {
+                // Found HEWM accidental fingering.
+                // The z-index of this element is much higher than the z-index of
+                // the other accidental symbols. We don't need to change its z index
+                // as this fingering element should appear to the left of the other accidentals.
+                accSymbolsRTL.push(elem);
             }
         }
 
+        // Symbols on the right have lower z index.
         accSymbolsRTL.sort(function (a, b) { return a.z - b.z });
 
 

@@ -705,6 +705,24 @@ class PositionedElement {
  * @property {number} equavesAdjusted - Number of equaves adjusted to get cents within equave 0
  */
 
+/**
+ * Represents a tokenized [HEWM](http://www.tonalsoft.com/enc/h/hewm_appendix.aspx)
+ * accidental string. The keys of this object are the unique ASCII characters in the
+ * accidental string, and the value is the number of times it appears.
+ * 
+ * For example,
+ * 
+ * ```js
+ * {
+ *   'b': 2,
+ *   '+': 1,
+ *   '?': 1
+ * }
+ * ```
+ * 
+ * @typedef {Object.<string, number>} HewmAccidental
+ */
+
 class QRectF {
     /** @type {number} */
     top;
@@ -794,6 +812,22 @@ class PluginAPIElement {
      * @type {number?}
      */
     velocity;
+    /**
+     * Z-index of this element.
+     * 
+     * MuseScore uses this to control what draws on top of what,
+     * however this plugin uses this to ascribe certain metadata/flags
+     * to score elements.
+     * 
+     * The user is not recommended to change Z index, unless the user
+     * knows to avoid the special Z-index numbers.
+     * 
+     * Accidental symbols use Z-index to sort them left-to-right in the
+     * correct order. The Z-index of accidental symbols cannot be changed.
+     * 
+     * Fingerings use {@link HEWM_PROCESSED_Z_INDEX} to mark them as processed.
+     */
+    z;
 
     /**
      * Checks if two element wrapper objects point to the same element in the score.

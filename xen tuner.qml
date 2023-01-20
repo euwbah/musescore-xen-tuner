@@ -15,9 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Xen Tuner.  If not, see <http://www.gnu.org/licenses/>.
 
-// When there's some syntax error in fns.js and its not showing up,
-// uncomment this line.
-// import "fns.js" as Aaaimport "fns.ms.js" as Fns
+// When there's some syntax error the imported files and its not showing up,
+// uncomment these lines
+import "generated-tables.js" as AAAAAaa
+import "lookup-tables.js" as Aaa
+import "fns.js" as Bbb
+
 import "fns.ms.js" as Fns
 import MuseScore 3.0
 import QtQuick 2.9

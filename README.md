@@ -1,6 +1,6 @@
 # Xen Tuner: Microtonal MuseScore Plugin Suite
 
-A plugin to give first-class support as many microtonal/xen notation systems as possible by introducing multiple accidentals per note.
+A **MuseScore 3.6** plugin to give first-class support as many microtonal/xen notation systems as possible by introducing multiple accidentals per note.
 
 ## Features/Goals
 

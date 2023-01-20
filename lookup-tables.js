@@ -129,6 +129,88 @@ function ImportLookup() {
         return x;
     })();
 
+    var HEWM_CONVERT_SYMCODES = {
+        '#': {
+            '1': [5],
+            '2': [4], 
+            '3': [3],
+        },
+        'b': {
+            '1': [6],
+            '2': [7],
+            '3': [8],
+        },
+        '+': {
+            // converts to johnston +
+            '1': [104],
+            '2': [104, 104],
+            '3': [104, 104, 104],
+        },
+        '-': {
+            // converts to johnston -
+            '1': [105],
+            '2': [105, 105],
+            '3': [105, 105, 105],
+        },
+        '<': {
+            // converts to HEJI's 7
+            '1': [72], // mirrored 7
+            '2': [73], // double mirrored 7
+        },
+        '>': {
+            // converts to 7 up
+            '1': [71], // 'el'
+            '2': [70], // double 'el'
+        },
+        '^': {
+            // converts to johnston up arrow
+            '1': [108],
+            '2': [108, 108],
+        },
+        'v': {
+            // converts to johnston down arrow
+            '1': [109],
+            '2': [109, 109],
+        }
+    };
+
+    var HEWM_RATIOS = {
+        '#': 2187/2048,
+        'b': 2048/2187,
+        '+': 81/80,
+        '-': 80/81,
+        '>': 64/63,
+        '<': 63/64,
+        '^': 33/32,
+        'v': 32/33,
+        '}': 27/26,
+        '{': 26/27,
+        '/': 18/17,
+        '\\': 17/18,
+        ')': 19/18,
+        '(': 18/19,
+        ']': 24/23,
+        '[': 23/24,
+        '!': 261/256,
+        ';': 256/261,
+        '"': 32/31,
+        '?': 31/32,
+        '%': 37/36,
+        '&': 36/37,
+        '$': 82/81,
+        '@': 81/82,
+        "'": 129/128,
+        ',': 128/129,
+        '*': 48/47,
+        ':': 47/48,
+        '|': 54/53,
+        '.': 53/54,
+        'z': 243/236,
+        's': 236/243,
+        'k': 244/243,
+        'y': 243/244,
+    };
+
 
     return {
         /**
@@ -202,5 +284,27 @@ function ImportLookup() {
          *      on the note A. (A4 = 0th octave, G4 = -1st octave)
          */
         TPC_TO_NOMINAL: TPC_TO_NOMINAL,
+
+        /**
+         * If the tokenized {@link HewmAccidental} matches this lookup,
+         * the plugin will automatically convert it into the respective
+         * symbol code.
+         * 
+         * When writing in HEWM, the Tuning Config must use these symbols
+         * in order for the plugin to automatically convert from ASCII to
+         * symbols.
+         * 
+         * Otherwise, the accidentals will remain as ASCII.
+         * 
+         * @type {Object.<string, Object.<number, SymbolCode[]>>}
+         */
+        HEWM_CONVERT_SYMCODES: HEWM_CONVERT_SYMCODES,
+
+        /**
+         * Mapping of HEWM ASCII symbols to their respective JI ratios.
+         * 
+         * @type {Object.<string, number>}
+         */
+        HEWM_RATIOS: HEWM_RATIOS,
     };
 }

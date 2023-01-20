@@ -559,6 +559,11 @@ The first line contains the number of midi ticks per quarter note, and the secon
 
 Tempo changes are denoted by having `-2` staff index. Tempo is given in BPM, and `tick` refers to the tick at which the tempo change occurs.
 
+## HEWM Support
+
+In HEWM, every accidental is represented by a single ASCII symbol.
+
+This plugin 
 
 ## Data Structures
 
