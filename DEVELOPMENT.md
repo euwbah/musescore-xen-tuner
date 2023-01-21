@@ -26,6 +26,18 @@ Also, in v0.1, the handling of fingerings is very hacky. The plugin needs a bett
 
 ## Feature plan
 
+### Add comments in tuning config
+
+```txt
+// this is comment
+
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x // also comment
+'--' '-' (20c) '+' '++'
+// this is a comment
+```
+
 ### ASCII Accidentals
 
 Fingering annotations should be able to function just like SMuFL symbols. The plugin should allow the user to define ASCII accidentals in the Tuning Config alongside Symbol Codes.
@@ -45,11 +57,17 @@ Due to restrictions of tuning config parsing, spaces cannot be used inside an AS
 
 The Z-index of ASCII accidentals will be changed to match the Z-index range of standard symbol accidentals so that they will be auto-placed together with other symbols in the correct user-defined order.
 
+⚠️ **This will break tuning configs made for v0.1**. Because of the new syntax, **backslashes and single quotes must be escaped** when declaring Symbol Codes/Text Codes/ASCII accidentals in a tuning config.
+
+To differentiate accidental fingerings from standard fingerings/JI ratios/cent offset annotations, a processed ASCII accidental fingering element will have Z-index between 1000 and 2000. That way, `getAccidental` will simply search for any fingerings with Z-index between 1000 and 2000, and immediately regard them as accidentals. This allows `getAccidental` to remain stateless.
+
+The plugin [does this processing of ASCII accidentals automatically](#verbatim-ascii-accidental-entry)
+
 ### Secondary Accidentals + ASCII to Symbol conversions
 
 Once all primary symbols/fingerings have been matched to form the main XenNote hash, the secondary symbols are remaining symbols that are not part of the main Tuning Space.
 
-We can input secondary symbols using fingering text or by dragging
+Because they are not part of a XenNote, we cannot access them via up/down operations, hwoever we can input secondary symbols using fingering text or by dragging additional symbols from the Master Palette.
 
 A secondary symbol can only have a single interval size. They can be stacked as many times as needed, providing a way to extend accidental chains to infinity.
 
@@ -57,27 +75,63 @@ They can be used to add higher-limit accidentals that need not be part of any ac
 
 We can also use secondary symbols to declare how ASCII accidentals convert into SMuFL symbols. Because of this, secondary symbols opens up the possibility of user-configurable methods of entering accidentals via fingerings.
 
-```
+```txt
 A4: 440
 0 200c 300c 500c 700c 800c 1000c 1200c
 bb b (100c) # x
 '--' '-' (20c) '+' '++'
 sec()
 '#' # 100c
-b 'd' -50c
-#^ 111c
-'#^' 111c
-'<' -31c
-'>' 31c
+'d' b -50c
 ```
 
-In the above example, we define 6 different secondary accidentals. One on each line.
+In the above example, we define 2 different secondary accidentals. One on each line.
 
 In the first two lines, we define the '#' ASCII and # SMuFL symbol to signify +100 cents. We also define 'd'/b to be -50c.
 
 In these two declarations, the symbol and ASCII variants are declared together in the same line. This syntax means that we want the plugin to always convert the ASCII variant into the SMuFL variant upon processing the fingering text.
 
-Let's say we declared accidental fingering
+Note that during the conversion process, the value of the accidental can change. E.g. if we type "d" as the fingering text, this will be converted into the SMuFL flat (b) symbol, which instead signifies -100c instead of -50.
+
+However, once we type two 'd's, both of which will be converted into flat symbols, the second flat symbol is in fact not part of any accidental chain, because the accidental chain only defines a single flat symbol, and the double flat SMuFL symbol is an entirely different entity.
+
+This means that after typing 'Cdd' as an accidental, this will be converted to the XenNote 'Cb', with an extra 'd' secondary accidental. The flat symbol corresponds to -100c, and the secondary 'd' will correspond to an additional -50c, which means this note is 150c below C.
+
+If ASCII-to-Symbol conversion is not desired, we can declare each version on its own line:
+
+```txt
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+'--' '-' (20c) '+' '++'
+sec()
+# 100c // secondary sharp symbol
+'#' 100c // secondary sharp ASCII
+```
+
+### Verbatim ASCII accidental entry
+
+In v0.1, we can drag symbols from the Palette to enter symbols verbatim. In the same way, we need to support verbatim entry of ASCII accidentals.
+
+The plugin will need to be able to parse ASCII accidentals written in newly-created fingerings (which have default Z-index 3900), separate them into their individual symbols, convert ASCII to Symbols, and reattach new accidental symbols/fingerings with the new `setAccidental` function which also accepts fingering accidentals.
+
+Also, there should be two possible behaviours that the user can select using some boolean flag:
+
+The default behaviour would be to delete old accidental symbols & fingerings, and replace them with the ASCII-entered text.
+
+The second behaviour would be where prior accidentals are preserved and the newly entered accidentals add to the existing accidentals.
+
+### New tokenizing/parsing method
+
+Now that there are all sorts of symbols in various forms, figuring out how to parse accidentals attached to a note has got a lot harder.
+
+First, the old approach of consolidating all the symbols into one AccidentalSymbols object and looking that up the NotesTable to retrieve the XenNote will simply no longer work.
+
+Given a tokenized AccidentalSymbols object which may contain primary and secondary accidentals, we need to work one accidental chain at a time, searching and replacing the most symbols we can per chain. Once a match is found in a chain, we subtract the matched symbols from the AccidentalSymbols object, then proceed to the next chain.
+
+Once all declared AccidentalChains are matched, then we parse the rest as secondary accidentals, and we perform the same search-and-replace in the order which the user has declared the secondary symbols.
+
+Any remaining symbols after searching and tokenzing everything are simply ignored.
 
 # Version 0.1
 

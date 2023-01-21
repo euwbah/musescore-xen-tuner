@@ -93,6 +93,22 @@ class MSNote {
 }
 
 /**
+ * Represents a hashed {@link AccidentalSymbols} object or {@link SymbolCode[]} list.
+ * 
+ * This is a space-separated value where entries come in pairs.
+ * 
+ * `<SymbolCode> <number of occurrences>`
+ * 
+ * E.g. "6 1 41 2" represents one flat and two up arrows.
+ * 
+ * The symbol codes must be sorted in increasing order. Numerical SymbolCodes
+ * come first, followed by string-based ASCII symbol codes, sorted in increasing
+ * alphabetical order.
+ * 
+ * @typedef {string} AccidentalHash
+ */
+
+/**
  * Represents a single abstract composite accidental being applied to a note, 
  * represented by the degrees of each accidental chain.
  * 
@@ -269,7 +285,7 @@ class AccidentalChain {
      * 
      * Central element is null.
      * 
-     * @type {(SymbolCode|null)[]}
+     * @type {(SymbolCode[]|null)[]}
      */
     degreesSymbols;
     /**
@@ -406,13 +422,19 @@ class TuningConfig {
      * 
      * @type {Object.<SymbolCode, boolean>}
      */
-    secondarySymbols;
+    usedSecondarySymbols;
 
+    /**
+     * These are all the secondary symbols in the order which they are declared.
+     * 
+     * The plugin will search for secondary symbols in this order.
+     * 
+     * @type {SymbolCode[]}
+     */
     secondarySymbolsList;
 
     /**
-     * Contains lookup for tunings of accidentals outside of the defined
-     * accidental chains.
+     * Contains lookup for tunings of secondary accidentals.
      * 
      * @type {Object.<SymbolCode, number>}
      */

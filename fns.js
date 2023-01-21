@@ -271,6 +271,9 @@ function readSymbolCode(codeOrText) {
     if (!code)
         code = parseInt(codeOrText) || null;
 
+    if (code >= Lookup.CODE_TO_LABELS.length) {
+        return null;
+    }
     return code;
 }
 
@@ -544,7 +547,7 @@ function clearTuningConfigCaches() {
 }
 
 /**
- * Parses a string that represents a chain of {@link SymbolCode}s.
+ * Parses a string that declares {@link SymbolCode}s in a Tuning Config.
  * 
  * E.g. '\\\'+.'.'$'.# represents 3 symbols. Left to right, they are
  * 
@@ -554,17 +557,100 @@ function clearTuningConfigCaches() {
  * 2. ASCII symbol consisting of $ (dollar sign)
  * 3. Standard-issue SMuFL sharp symbol.
  * 
+ * Backslash escapes work both inside and outside quotes.
+ * 
+ * 'abc'# is invalid syntax. A dot must separate distinct symbols,
+ * and ASCII symbols are distinct from SMuFL symbols.
+ * 
+ * The plugin will not check for this syntax error and will instead
+ * parse it as a single ASCII symbol: 'abc#'.
+ * 
+ * If failed to parse, logs error messages to the console.
+ * 
  * @param {string} str Text that represents a symbol.
  * @returns {SymbolCode[]?} Array of {@link SymbolCode}s, or `null` if the string is invalid.
  */
-function parseSymbolDeclaration(str) {
+function parseSymbolsDeclaration(str) {
     var symCodes = [];
-    var isQuoted = false;
-    var isEscape = false;
+    var isQuoted = false; // true if pending a closing quote.
+    var isEscape = false; // true if pending an escape sequence.
+    
+    // stores current single symbol being processed.
+    // the period seperates each symbol.
+    var currStr = '';
+    var currIsQuoted = false;
 
     for (var i = 0; i < str.length; i++) {
+        var c = str[i];
 
+        
+        if (isEscape) {
+            isEscape = false;
+            currStr += c; // add character verbatim.
+        } else if (c == '\\') {
+            isEscape = true;
+        } else if (c == '\'') {
+            isQuoted = !isQuoted;
+            currIsQuoted = true;
+        } else if (c == '.') {
+            if (isQuoted) {
+                // still inside quotes, add period verbatim.
+                currStr += c;
+                continue;
+            }
+
+            // period separates symbols.
+            if (currIsQuoted) {
+                // Push an ASCII symbol code.
+                symCodes.push(currStr);
+            } else {
+                // Push a SMuFL symbol code.
+                var code = readSymbolCode(currStr);
+
+                if (code == null) {
+                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                    return null;
+                }
+
+                symCodes.push(code);
+            }
+
+            currStr = '';
+            currIsQuoted = false;
+        } else {
+            // otherwise just add the character.
+            currStr += c;
+        }
     }
+
+    if (isQuoted) {
+        console.error('TUNING CONFIG ERROR: symbol missing closing quote: ' + str);
+        return null;
+    }
+
+    if (currStr.length > 0) {
+        // last symbol 
+
+        // period separates symbols.
+        if (currIsQuoted) {
+            // Push an ASCII symbol code.
+            symCodes.push(currStr);
+        } else {
+            // Push a SMuFL symbol code.
+            var code = readSymbolCode(currStr);
+
+            if (code == null) {
+                console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                return null;
+            }
+
+            symCodes.push(code);
+        }
+
+        return symCodes;
+    }
+
+    return null;
 }
 
 /**
@@ -882,19 +968,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
                 hasInvalid = false;
 
-                // each symbol is either a text code or symbol code number
-                var symbolCodes = symbols_offset[0].split('.').map(function (x) {
-                    var code = readSymbolCode(x);
+                var symbolCodes = parseSymbolsDeclaration(symbols_offset[0]);
 
-                    if (code == null) hasInvalid = true;
-
-                    symbolsLookup[code] = true;
-                    tuningConfig.usedSymbols[code] = true;
-                    return code;
-                });
-
-                if (hasInvalid) {
-                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + symbols_offset[0]);
+                if (symbolCodes == null) {
                     return null;
                 }
 
@@ -1014,18 +1090,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var words = line.split(' ').map(function (x) { return x.trim() });
             var ligAv = words.slice(0, words.length - 1).map(function (x) { return parseInt(x) });
 
-            hasInvalid = false;
-            var ligatureSymbols = words[words.length - 1]
-                .split('.')
-                .map(function (x) {
-                    var code = readSymbolCode(x);
-                    if (code == null) hasInvalid = true;
-                    tuningConfig.usedSymbols[code] = true;
-                    return code;
-                });
+            var ligatureSymbols = parseSymbolsDeclaration(words[words.length - 1]);
 
-            if (hasInvalid) {
-                console.error('TUNING CONFIG ERROR: invalid ligature symbol: ' + words[words.length - 1]);
+            if (ligatureSymbols == null) {
                 return null;
             }
 
@@ -1104,6 +1171,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         tuningConfig.auxList.push(constantConstrictions);
     }
+
+
+    // PARSE SECONDARY SYMBOLS, ASCII CONVERSIONS
+    //
+    //
 
     //
     //
@@ -1913,12 +1985,13 @@ function parseHewmString(text) {
  * Checks if an accidental fingering text is attached to the note.
  * 
  * Accidental fingering text could either be an AccidentalVector
- * prefixed with an 'a', or an unprocessed HEWM accidental string.
+ * prefixed with an 'a', or an unprocessed ASCII string.
  * 
- * If so, replaces the fingering text with actual accidental symbols.
- * 
- * The accidental fingering text is a string prefixed by 'a', followed
+ * AccidentalVector fingering is prefixed by 'a', followed
  * by the accidental vector that is comma-separated.
+ * 
+ * Unprocessed ASCII string contains ASCII accidentals that
+ * must be processed by 
  * 
  * (Spaces can't be typed into a fingering)
  * 
