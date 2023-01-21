@@ -1605,6 +1605,22 @@ function removeFormattingCode(str) {
 }
 
 /**
+ * Decodes html espace sequences.
+ * 
+ * Text in musescore is HTML Encoded (since it is represented in XML).
+ * 
+ * @param {string} str String containing html escape sequences
+ */
+function decodeHTMLEscape(str) {
+    var str = str.replace(/&amp;/g, '&');
+    str = str.replace(/&lt;/g, '<');
+    str = str.replace(/&gt;/g, '>');
+    str = str.replace(/&quot;/g, '"');
+
+    return str;
+}
+
+/**
  * Parses a System/Staff Text contents to check if it represents any config.
  * 
  * If a config is found, returns a `ConfigUpdateEvent` object to be added to
@@ -1874,6 +1890,9 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
 
         var fingering = msNote.fingerings[i];
         var text = fingering.text;
+        text = decodeHTMLEscape(text);
+        
+        console.log(text);
 
         if (text.startsWith('a')) {
             // test accidental vector fingering.
@@ -2028,8 +2047,19 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
 
             // update fingering & convert accidental symbols
             fingering.text = processedHewmString;
-            fingering.autoplace = false;
-            fingering.align = 0;
+            /*
+             Autoplace is required for this accidental to push back prior
+             segments.
+             */
+            fingering.autoplace = true;
+            fingering.align = Align.LEFT | Align.VCENTER;
+            fingering.fontSize = 12;
+            /*
+             Set offsetY to some random number to re-trigger vertical align later.
+             Otherwise, the fingering will be auto-placed above the notehead, even though
+             offsetY is set to 0.
+             */
+            fingering.offsetY = -3;
             setAccidental(msNote.internalNote, symbolCodes, newElement, tuningConfig.usedSymbols);
 
             return tokenizeNote(msNote.internalNote);
@@ -3842,6 +3872,13 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
     positionedElemsBbox.sort(function (a, b) { return b.left - a.left });
 
     // stores positions of positioned symbols to be updated all at once at the end.
+    /**
+     * @type {{
+     *  sym: PluginAPIElement,
+     *  x: number,
+     *  y: number
+     * }[]}
+     */
     var registeredSymbolOffsets = [];
 
     var count = 0;
@@ -3978,7 +4015,13 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
     // Now, we need to apply the offsets
 
     registeredSymbolOffsets.forEach(function (symOff) {
-        symOff.sym.offsetX = symOff.x;
+        if (symOff.sym.name == 'Fingering') {
+            // because the HEWM accidental has autoplace on,
+            // the offsetX needs to be further left.
+            symOff.sym.offsetX = symOff.x - 0.65;
+        } else {
+            symOff.sym.offsetX = symOff.x;
+        }
         symOff.sym.offsetY = symOff.y;
     });
 
