@@ -52,6 +52,22 @@ var HEWM_REGEX = /^[b#\-+<>v^{}\\/()\[\];!?"&%@$,':*_|szykjfpd]+$/;
 var HEWM_PROCESSED_Z_INDEX = 3903;
 
 /**
+ * This is the default Z index for fingerings as of MuseScore 3.6.2.
+ * 
+ * If MuseScore changes this, we need to change this as well.
+ * 
+ * The default fingering z index is used to mark that a fingering
+ * has not been processed, and that we will need to process it.
+ */
+var DEFAULT_FINGERING_Z_INDEX = 3900;
+
+/**
+ * This is the Z index of a fingering text containing JI offset or
+ * cents offset that has been processed.
+ */
+var FINGERING_RATIO_CENTS_OFFSET_Z = 3901;
+
+/**
  * If true, the plugin will allow `cmd('pitch-up')` and `cmd('pitch-down')` to be
  * sent when the selection doesn't include notes and up/down operations are being sent.
  * 
@@ -528,6 +544,30 @@ function clearTuningConfigCaches() {
 }
 
 /**
+ * Parses a string that represents a chain of {@link SymbolCode}s.
+ * 
+ * E.g. '\\\'+.'.'$'.# represents 3 symbols. Left to right, they are
+ * 
+ * 1. ASCII symbol consisting of \'+. (quote, plus, period).\
+ *    \\ escapes into backslash\
+ *    \' escapes into quote.
+ * 2. ASCII symbol consisting of $ (dollar sign)
+ * 3. Standard-issue SMuFL sharp symbol.
+ * 
+ * @param {string} str Text that represents a symbol.
+ * @returns {SymbolCode[]?} Array of {@link SymbolCode}s, or `null` if the string is invalid.
+ */
+function parseSymbolDeclaration(str) {
+    var symCodes = [];
+    var isQuoted = false;
+    var isEscape = false;
+
+    for (var i = 0; i < str.length; i++) {
+
+    }
+}
+
+/**
  * Tests if a certain text/tuning file is a tuning config.
  * 
  * First it will look up cached TuningConfigs so it won't
@@ -831,6 +871,15 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
                 var symbols_offset = word.split('(');
 
+                if (symbols_offset.length > 2) {
+                    // '(' was used as an ASCII accidental somewhere.
+                    // Combine the first N-1 splits as the accidental symbol.
+                    symbols_offset = [
+                        symbols_offset.slice(0, symbols_offset.length - 1).join('('), 
+                        symbols_offset[symbols_offset.length - 1]
+                    ];
+                }
+
                 hasInvalid = false;
 
                 // each symbol is either a text code or symbol code number
@@ -1009,7 +1058,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var match = line.match(/aux\(([0-9,]+)\)/);
 
         if (match == null) {
-            console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting aux(x?, y?, ...), got "' + line + '" instead.');
+            // Aux declarations finished. 
+            // Parse secondary symbols.
+            nextDeclStartLine = i;
+            break;
         }
 
         hasInvalid = false;
@@ -1891,8 +1943,16 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
         var fingering = msNote.fingerings[i];
         var text = fingering.text;
         text = decodeHTMLEscape(text);
-        
-        console.log(text);
+
+        if (fingering.z == HEWM_PROCESSED_Z_INDEX) {
+            // We found a processed HEWM accidental.
+            processedHewmAccidentals.push(fingering);
+            continue;
+        } else if (fingering.z != DEFAULT_FINGERING_Z_INDEX) {
+            // We only want to process fingerings that haven't yet been
+            // processed.
+            continue;
+        }
 
         if (text.startsWith('a')) {
             // test accidental vector fingering.
@@ -1953,9 +2013,6 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
 
                 return tokenizeNote(msNote.internalNote);
             }
-        } else if (fingering.z == HEWM_PROCESSED_Z_INDEX) {
-            // We found a processed HEWM accidental.
-            processedHewmAccidentals.push(fingering);
         } else if (text.match(HEWM_REGEX) != null) {
 
             // We found an unprocessed HEWM accidental. Process it.

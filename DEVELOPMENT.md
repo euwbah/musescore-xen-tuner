@@ -14,6 +14,73 @@
 - `char` is **not** a valid variable name.
 - Semicolons are **compulsory**
 
+----
+
+# Version 0.2
+
+One of the main issues of the v0.1 plugin is that every accidental vector in the tuning config must be permuted for all nominals to populate the tuning config. This is really only necessary if the user wishes to use the up/down transpose feature with these symbols.
+
+However, when writing in HCJI/large tunings, it's common that there are some symbols which are 'secondary' and used less frequently.
+
+Also, in v0.1, the handling of fingerings is very hacky. The plugin needs a better way to handle fingerings that can regard them as accidentals.
+
+## Feature plan
+
+### ASCII Accidentals
+
+Fingering annotations should be able to function just like SMuFL symbols. The plugin should allow the user to define ASCII accidentals in the Tuning Config alongside Symbol Codes.
+
+For example:
+
+```txt
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+'--' '-' (20c) '+' '++'
+```
+
+The above example defines the second accidental chain to comprise fingerings containing plus/minus characters
+
+Due to restrictions of tuning config parsing, spaces cannot be used inside an ASCII fingering.
+
+The Z-index of ASCII accidentals will be changed to match the Z-index range of standard symbol accidentals so that they will be auto-placed together with other symbols in the correct user-defined order.
+
+### Secondary Accidentals + ASCII to Symbol conversions
+
+Once all primary symbols/fingerings have been matched to form the main XenNote hash, the secondary symbols are remaining symbols that are not part of the main Tuning Space.
+
+We can input secondary symbols using fingering text or by dragging
+
+A secondary symbol can only have a single interval size. They can be stacked as many times as needed, providing a way to extend accidental chains to infinity.
+
+They can be used to add higher-limit accidentals that need not be part of any accidental chain.
+
+We can also use secondary symbols to declare how ASCII accidentals convert into SMuFL symbols. Because of this, secondary symbols opens up the possibility of user-configurable methods of entering accidentals via fingerings.
+
+```
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+'--' '-' (20c) '+' '++'
+sec()
+'#' # 100c
+b 'd' -50c
+#^ 111c
+'#^' 111c
+'<' -31c
+'>' 31c
+```
+
+In the above example, we define 6 different secondary accidentals. One on each line.
+
+In the first two lines, we define the '#' ASCII and # SMuFL symbol to signify +100 cents. We also define 'd'/b to be -50c.
+
+In these two declarations, the symbol and ASCII variants are declared together in the same line. This syntax means that we want the plugin to always convert the ASCII variant into the SMuFL variant upon processing the fingering text.
+
+Let's say we declared accidental fingering
+
+# Version 0.1
+
 ## Case Study/Example
 
 This tuning system/staff text specifies a 315-note subset of 2.3.5 JI:
@@ -564,12 +631,6 @@ staff number, MIDI note, ontime, duration, velocity, cents offset
 The first line contains the number of midi ticks per quarter note, and the second line onwards contains midi play events or tempo changes.
 
 Tempo changes are denoted by having `-2` staff index. Tempo is given in BPM, and `tick` refers to the tick at which the tempo change occurs.
-
-## HEWM Support
-
-In HEWM, every accidental is represented by a single ASCII symbol.
-
-This plugin 
 
 ## Data Structures
 

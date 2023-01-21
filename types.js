@@ -25,12 +25,17 @@ so that autocomplete is improved.
 
 
 /**
- * A number representing a uniquely identifiable accidental symbol. 
- * A single symbol code maps to all MuseScore accidental enums/SMuFL IDs 
- * that looks identical.
+ * A number or string representing a uniquely identifiable accidental symbol.
+ * 
+ * If this value is a number, it corresponds to a SMuFL symbol. Similar-looking
+ * SMuFL symbols have the same symbol code.
+ * 
+ * If this value is a string, it represents an ASCII accidental to be attached to
+ * the note verbatim.
+ * 
  * 
  * [See list of symbol codes](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
- * @typedef {number} SymbolCode
+ * @typedef {number|string} SymbolCode
  */
 
 /**
@@ -384,16 +389,34 @@ class TuningConfig {
      */
     auxList;
     /**
-     * Lookup of all the accidental symbols that affect tuning/{@link XenNote} spelling.
+     * Lookup of all the accidental symbols/ASCII that affect {@link XenNote} spelling.
      * 
-     * Any symbol not in this lookup will be ignored by the plugin.
-     * 
-     * TODO: implement cosmetic symbols &mdash; symbols that do not affect tuning or
-     * {@link XenNote} spelling but are auto-positioned/formatted as accidentals)
+     * When tokenizing a note, if the plugin finds symbols that do not belong
+     * to this lookup, it will exclude them from affecting the XenNote spelling.
      * 
      * @type {Object.<SymbolCode, boolean>}
      */
     usedSymbols;
+
+    /**
+     * Lookup of all the secondary symbols that do not affect {@link XenNote} spelling.
+     * But the plugin should still recognize these as accidentals and format them as such.
+     * 
+     * These symbols are not included in {@link usedSymbols}.
+     * 
+     * @type {Object.<SymbolCode, boolean>}
+     */
+    secondarySymbols;
+
+    secondarySymbolsList;
+
+    /**
+     * Contains lookup for tunings of accidentals outside of the defined
+     * accidental chains.
+     * 
+     * @type {Object.<SymbolCode, number>}
+     */
+    secondaryTunings;
 }
 
 /**
