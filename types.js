@@ -86,7 +86,11 @@ class MSNote {
      */
     internalNote;
     /**
-     * List of fingering elements attached to this note.
+     * List of non-accidental fingering elements attached to this note.
+     * 
+     * To differentiate fingering annotations and ASCII accidental fingerings,
+     * the ASCII accidental fingerings use 
+     * 
      * @type {PluginAPIElement[]}
      */
     fingerings;
@@ -766,7 +770,11 @@ class PositionedElement {
  * 
  * Used while it is being parsed/constructed.
  * 
- * @typedef XenNotesEquaves
+ * @typedef {XNE[]} XenNotesEquaves
+ */
+
+/** 
+ * @typedef XNE
  * @type {object}
  * @property {AccidentalVector} av
  * @property {XenNote} xen

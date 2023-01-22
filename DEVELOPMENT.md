@@ -65,7 +65,7 @@ The plugin [does this processing of ASCII accidentals automatically](#verbatim-a
 
 ### Restrictions on ASCII Accidentals
 
-- Cannot be purely numerical, otherwise will function
+- Cannot be purely numerical, otherwise the plugin will parse them as symbol code IDs.
 - Cannot have spaces
 
 ### Secondary Accidentals
@@ -130,6 +130,7 @@ When we're declaring ASCII to symbol conversions take note of what you can and c
 - Unlike declaring a secondary accidental, the ASCII accidental to be converted must be fully ASCII and cannot be a hybrid accidental like `'>@'.#`.
 - [Restrictions on ASCII accidentals](#restrictions-on-ascii-accidentals) apply
 - If a main accidental chain contains an ASCII accidental that is also declared as a converted secondary accidental, the main accidental chain will match first, eating up the ASCII accidental. Remaining identical ASCII accidentals will then be converted.
+- If ASCII accidentals take the form of another fingering syntax (e.g. cent offset, JI ratio tuning, or accidental vector entry mode), those fingering annotations will no longer work and will instead be parsed as ASCII accidentals.
 - It is possible to convert from ASCII to ASCII/Hybrid/SMuFL. The 'convert-from' text is merely a user-configurable representation of what you would like to enter when typing it in as ASCII. For example, if you have declared some obscure accidental degree which goes like `'hello world'.#.'123abc'.^./`, and you find that really hard to key-in, you can declare an ASCII conversion to configure a short-hand, e.g.:
 
 ```txt
@@ -144,13 +145,28 @@ This declares that you want the plugin to convert the fingering that goes `/hw` 
 
 `/hw` itself will have no value, as the plugin will assume that all instances of the shorthand would have been converted during the `renderFingeringAccidental()` function already.
 
-### Verbatim ASCII accidental entry
+### Verbatim ASCII accidental entry: `renderFingeringAccidental()`
 
 In v0.1, we can drag symbols from the Palette to enter symbols verbatim. In the same way, we need to support verbatim entry of ASCII accidentals.
 
 The plugin will need to be able to parse ASCII accidentals written in newly-created fingerings (which have default Z-index 3900), separate them into their individual symbols, convert ASCII to Symbols, and reattach new accidental symbols/fingerings with the new `setAccidental` function which also accepts fingering accidentals.
 
-The parsing of fingerings is done in the `renderFingeringAccidental()` function.
+In order to get verbatim ASCII accidental entry working, we will need to
+
+The parsing & rendering of accidentals input as fingerings is done in the `renderFingeringAccidental()` function.
+
+This function parses:
+
+- Accidental vector fingerings `a<x>,<y>,<z>,...`
+- Verbatim fingerings
+
+Accidental vector fingerings are trivial to parse.
+
+The parsing for verbatim fingerings is a bit more involved:
+
+- First, iterate each accidental chain in the order they were declared. For each accidental chain:
+  - Iterate the degrees. For each degree:
+    - Find ASCII matches
 
 Once fingerings have been parsed, the original fingering will be removed and the new tokenized fingerings/symbols will have their Z index set as a running number from 1000 onwards up to 2000, where sorting by increasing Z-index will give the right-to-left order of symbols.
 

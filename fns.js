@@ -351,6 +351,10 @@ function tokenizeNote(note) {
         if (elem.name == 'Fingering') {
             // Found fingering.
 
+            if (elem.z <= 2000) {
+                // This is
+            }
+
             fingerings.push(elem);
         } else if (elem.symbol) {
             // Check if it is an accidental symbol.
@@ -374,6 +378,7 @@ function tokenizeNote(note) {
         }
     }
 
+    /** @type {MSNote} */
     var msNote = { // MSNote
         midiNote: note.pitch,
         tpc: note.tpc,
@@ -428,7 +433,20 @@ function removeUnusedSymbols(accHash, tuningConfig) {
  * The result is appended to the nominal of a note to construct a {@link XenNote}.
  * 
  * You can also specify a list of unsorted {@link SymbolCode}s that are present.
- * (useful for hashing accidentals from user-input)
+ * (useful for hashing accidentals from user-input).
+ * 
+ * Accidentals hash format:
+ * 
+ * ```txt
+ * 3 1 5 2 // this means SymCode 3 appears once, and SymCode 5 appears twice.
+ * 'asdf 1 // this means the ASCII accidental 'asdf' appears once.
+ * 7 2 '7 2 // this means the SymCode 7 appears 2 times, and the
+ *          // ASCII symbol '7' appears 2 times.
+ * ```
+ * 
+ * To differentiate between ASCII and SymCode, ASCII accidentals are prefixed
+ * with a single quote. No encapsulation or escaping is required, as spaces are
+ * not allowed in ASCII accidentals.
  * 
  * @param {AccidentalSymbols|SymbolCode[]} accidentals 
  *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
@@ -487,7 +505,12 @@ function accidentalsHash(accidentals) {
             }
 
             if (symCode != prevSymCode) {
-                symCodeNums.push(prevSymCode);
+                if (typeof(prevSymCode) == 'string') {
+                    symCodeNums.push("'" + prevSymCode);
+                    // prepend quote to differentiate between ASCII and SymCode
+                } else {
+                    symCodeNums.push(prevSymCode);
+                }
                 symCodeNums.push(occurences);
                 occurences = 0;
             }
@@ -496,7 +519,12 @@ function accidentalsHash(accidentals) {
             prevSymCode = symCode;
         });
 
-        symCodeNums.push(prevSymCode);
+        if (typeof(prevSymCode) == 'string') {
+            symCodeNums.push("'" + prevSymCode);
+            // prepend quote to differentiate between ASCII and SymCode
+        } else {
+            symCodeNums.push(prevSymCode);
+        }
         symCodeNums.push(occurences);
 
         return symCodeNums.join(' ');
