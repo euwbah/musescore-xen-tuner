@@ -654,6 +654,33 @@ function parseSymbolsDeclaration(str) {
 }
 
 /**
+ * 
+ * @param {string} str Parses cents or ratio text into cents offset.
+ * @returns {number} Cents offset.
+ */
+function parseCentsOrRatio(str) {
+    var str = str.trim();
+    if (str.endsWith('c')) {
+        // in cents
+        maybeOffset = parseFloat(eval(str.slice(0, -1)));
+    } else {
+        var ratio = parseFloat(eval(str));
+        if (ratio < 0) {
+            maybeOffset = -Math.log(-ratio) / Math.log(2) * 1200;
+        } else if (ratio == 0) {
+            maybeOffset = 0;
+        } else {
+            maybeOffset = Math.log(ratio) / Math.log(2) * 1200
+        }
+    }
+    if (!isNaN(maybeOffset)) {
+        offset = maybeOffset;
+    } else {
+        console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + str);
+    }
+}
+
+/**
  * Tests if a certain text/tuning file is a tuning config.
  * 
  * First it will look up cached TuningConfigs so it won't
@@ -809,6 +836,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             // Natural symbol should always be included.
             2: true
         },
+        usedSecondarySymbols: {},
+        secondarySymbolsList: [],
+        secondaryTunings: {},
+        asciiToSmufl: {},
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -904,7 +935,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux)\([0-9,]+\)/);
+        var matches = line.match(/(lig|aux|sec)\([0-9,]+\)/);
         if (matches != null) {
             nextDeclStartLine = i;
             break;
@@ -1037,7 +1068,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
-        if (line.match(/aux\([0-9,]+\)/) != null) {
+        if (line.match(/(aux|sec)\([0-9,]+\)/) != null) {
             nextDeclStartLine = i;
             break;
         }
@@ -1120,6 +1151,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var line = lines[i].trim();
 
+        if (line.match(/sec\([0-9,]+\)/) != null) {
+            nextDeclStartLine = i;
+            break;
+        }
+
         // Check for `aux(x,y,..)` declaration
 
         var match = line.match(/aux\(([0-9,]+)\)/);
@@ -1176,6 +1212,30 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     // PARSE SECONDARY SYMBOLS, ASCII CONVERSIONS
     //
     //
+
+    /*
+        sec()
+        '#' # 100c // convert ascii '#' to SMuFL #
+                   // maps extra '#' and # to 100c
+    */
+
+    for (var i = nextDeclStartLine; i < lines.length; i++) {
+        if (nextDeclStartLine == null) break;
+
+        var line = lines[i].trim();
+
+        // Check for `sec()` declaration
+        if (line.match(/sec\([0-9,]+\)/) == null) {
+            console.error('TUNING CONFIG ERROR: Expected sec(), got "' + line + '" instead.');
+            return null;
+        }
+
+        for (var j = i + 1; j < lines.length; j++) {
+            var line = lines[j].trim();
+
+
+        }
+    }
 
     //
     //

@@ -439,6 +439,13 @@ class TuningConfig {
      * @type {Object.<SymbolCode, number>}
      */
     secondaryTunings;
+
+    /**
+     * Contains lookup for converting ascii accidentals to SMuFL symbols.
+     * 
+     * @type {Object.<string, SymbolCode>}
+     */
+    asciiToSmufl;
 }
 
 /**
