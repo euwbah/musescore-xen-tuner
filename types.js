@@ -31,7 +31,11 @@ so that autocomplete is improved.
  * SMuFL symbols have the same symbol code.
  * 
  * If this value is a string, it represents an ASCII accidental to be attached to
- * the note verbatim.
+ * the note verbatim. Internally, ASCII accidental SymbolCodes are prefixed with a
+ * quote (`'`) to signify that they are not SMuFL symbols.
+ * 
+ * Remember to prepend the quote `'` to tokenized ASCII accidental fingering texts
+ * before looking up tables.
  * 
  * 
  * [See list of symbol codes](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
@@ -45,7 +49,7 @@ The keys are NOT ORDERED.
 
 The keys are in left-to-right display order as per accidental display order determined by {@link TuningConfig}.
 
-This object can be hashed into the AccidentalSymbols hash, which can be appended to a nominal number to produce the {@link XenNote.hash}. 
+This object can be hashed into the {@link AccidentalHash}, which can be appended to a nominal number to produce the {@link XenNote.hash}. 
 The hashed symbols list is sorted by increasing {@link SymbolCode}.
  * @typedef {Object.<number, number>} AccidentalSymbols
  */
@@ -103,7 +107,9 @@ class MSNote {
  * 
  * `<SymbolCode> <number of occurrences>`
  * 
- * E.g. "6 1 41 2" represents one flat and two up arrows.
+ * E.g. `"6 1 41 2"` represents one flat and two up arrows.
+ * 
+ * `"6 1 'b 1 '6 1"` represents one flat, one 'b' ascii symbol, and one '6' ascii symbol.
  * 
  * The symbol codes must be sorted in increasing order. Numerical SymbolCodes
  * come first, followed by string-based ASCII symbol codes, sorted in increasing

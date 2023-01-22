@@ -262,6 +262,12 @@ function isEnharmonicallyEquivalent(cents1, cents2) {
 /**
  * Convert user-input {@link SymbolCode} or Text Code ({@link Lookup.TEXT_TO_CODE}) into SymbolCode ID.
  * 
+ * This function only reads SMuFL symbol {@link SymbolCode}s or Text Codes.
+ * 
+ * In v0.2, an update was made such that SymbolCodes can now be ASCII as well.
+ * 
+ * The full parsing implementation of symbols is in {@link parseSymbolsDeclaration}.
+ * 
  * @param {string} codeOrText
  * @returns {SymbolCode?} {@link SymbolCode} or null if invalid.
  */
@@ -328,8 +334,11 @@ function tokenizeNote(note) {
     //     ', pagePos: ' + JSON.stringify(note.pagePos));
 
     var hasAcc = false;
+
+    /** @type {AccidentalSymbols} */
     var accidentals = {};
 
+    /** @type {PluginAPIElement[]} */
     var fingerings = [];
 
     // Removed. This plugin no longer attempts to deal with musescore's accidentals.
@@ -351,11 +360,14 @@ function tokenizeNote(note) {
         if (elem.name == 'Fingering') {
             // Found fingering.
 
-            if (elem.z <= 2000) {
-                // This is
-            }
+            if (elem.z >= 1000 && elem.z <= 2000) {
+                // This is an ASCII accidental symbol.
 
-            fingerings.push(elem);
+            } else {
+                // This is some other fingering annotation
+                // or an unprocessed accidental vector/verbatim input fingering.
+                fingerings.push(elem);
+            }
         } else if (elem.symbol) {
             // Check if it is an accidental symbol.
             // Don't worry about registering accidentals not in the tuning config.
@@ -444,9 +456,8 @@ function removeUnusedSymbols(accHash, tuningConfig) {
  *          // ASCII symbol '7' appears 2 times.
  * ```
  * 
- * To differentiate between ASCII and SymCode, ASCII accidentals are prefixed
- * with a single quote. No encapsulation or escaping is required, as spaces are
- * not allowed in ASCII accidentals.
+ * To differentiate between ASCII and SMuFL internally, ASCII accidental 
+ * {@link SymbolCode}s are represented with a prefixed quote (`'`).
  * 
  * @param {AccidentalSymbols|SymbolCode[]} accidentals 
  *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
@@ -505,12 +516,7 @@ function accidentalsHash(accidentals) {
             }
 
             if (symCode != prevSymCode) {
-                if (typeof(prevSymCode) == 'string') {
-                    symCodeNums.push("'" + prevSymCode);
-                    // prepend quote to differentiate between ASCII and SymCode
-                } else {
-                    symCodeNums.push(prevSymCode);
-                }
+                symCodeNums.push(prevSymCode);
                 symCodeNums.push(occurences);
                 occurences = 0;
             }
@@ -519,12 +525,7 @@ function accidentalsHash(accidentals) {
             prevSymCode = symCode;
         });
 
-        if (typeof(prevSymCode) == 'string') {
-            symCodeNums.push("'" + prevSymCode);
-            // prepend quote to differentiate between ASCII and SymCode
-        } else {
-            symCodeNums.push(prevSymCode);
-        }
+        symCodeNums.push(prevSymCode);
         symCodeNums.push(occurences);
 
         return symCodeNums.join(' ');
@@ -646,7 +647,8 @@ function parseSymbolsDeclaration(str) {
             // period separates symbols.
             if (currIsQuoted) {
                 // Push an ASCII symbol code.
-                symCodes.push(currStr);
+                // Prepend with a quote.
+                symCodes.push("'" + currStr);
             } else {
                 // Push a SMuFL symbol code.
                 var code = readSymbolCode(currStr);
