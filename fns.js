@@ -447,6 +447,22 @@ function accidentalsHash(accidentals) {
         return '';
     }
 
+    var symCodeSortingFn = function(a, b) {
+        if (typeof(a) == 'string' && typeof(b) == 'string') {
+            // strings are sorted in increasing alphabetical order
+            return a.localeCompare(b);
+        } else if (typeof(a) == 'number' && typeof(b) == 'number') {
+            // numbers are sorted in increasing numerical order
+            return a - b;
+        } else if (typeof(a) == 'string' && typeof(b) == 'number') {
+            // strings always after numbers
+            return 1;
+        } else {
+            // numbers always before strings
+            return -1;
+        }
+    };
+
     if (accidentals.length != undefined) {
         // `accidentals` param is a list of individual symbol codes
 
@@ -457,7 +473,7 @@ function accidentalsHash(accidentals) {
 
         // simply sort and count number of occurences.
 
-        accidentals.sort();
+        accidentals.sort(symCodeSortingFn);
 
         var occurences = 0;
         var prevSymCode = -1;
@@ -492,7 +508,7 @@ function accidentalsHash(accidentals) {
 
     Object.keys(accidentals)
         .map(function (x) { return parseInt(x); })
-        .sort()
+        .sort(symCodeSortingFn)
         .forEach(function (symCode) {
             symCodeNums.push(symCode);
             symCodeNums.push(accidentals[symCode]);
@@ -656,27 +672,29 @@ function parseSymbolsDeclaration(str) {
 /**
  * 
  * @param {string} str Parses cents or ratio text into cents offset.
- * @returns {number} Cents offset.
+ * @returns {number?} Cents offset, or null if invalid syntax.
  */
 function parseCentsOrRatio(str) {
     var str = str.trim();
+    var offset = null;
     if (str.endsWith('c')) {
         // in cents
-        maybeOffset = parseFloat(eval(str.slice(0, -1)));
+        offset = parseFloat(eval(str.slice(0, -1)));
     } else {
         var ratio = parseFloat(eval(str));
         if (ratio < 0) {
-            maybeOffset = -Math.log(-ratio) / Math.log(2) * 1200;
+            offset = -Math.log(-ratio) / Math.log(2) * 1200;
         } else if (ratio == 0) {
-            maybeOffset = 0;
+            offset = 0;
         } else {
-            maybeOffset = Math.log(ratio) / Math.log(2) * 1200
+            offset = Math.log(ratio) / Math.log(2) * 1200;
         }
     }
-    if (!isNaN(maybeOffset)) {
-        offset = maybeOffset;
+    if (!isNaN(offset)) {
+        return offset;
     } else {
         console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + str);
+        return null;
     }
 }
 
@@ -837,9 +855,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             2: true
         },
         usedSecondarySymbols: {},
-        secondarySymbolsList: [],
+        secondaryAccList: [],
         secondaryTunings: {},
-        asciiToSmufl: {},
+        asciiToSmuflConv: {},
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -892,23 +910,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     var hasInvalid = false;
     var nominals = lines[1].split(' ').map(function (x) {
-        var f;
-        if (x.endsWith('c')) {
-            // in cents
-            f = parseFloat(eval(x.slice(0, -1)));
-        } else {
-            // in ratio, convert to cents.
-            var ratio = parseFloat(eval(x));
-
-            if (ratio < 0) {
-                f = -Math.log(-ratio) / Math.log(2) * 1200;
-            } else if (ratio == 0) {
-                f = 0;
-            } else {
-                f = Math.log(ratio) / Math.log(2) * 1200
-            }
-        }
-        if (isNaN(f)) hasInvalid = true;
+        var f = parseCentsOrRatio(x);
+        if (f == null) hasInvalid = true;
         return f
     });
 
@@ -956,22 +959,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var matchIncrement = word.match(/^\((.+)\)$/);
 
             if (matchIncrement != null) {
-                var maybeIncrement;
-                if (matchIncrement[1].endsWith('c')) {
-                    // in cents
-                    maybeIncrement = parseFloat(eval(matchIncrement[1].slice(0, -1)));
-                } else {
-                    var ratio = parseFloat(eval(matchIncrement[1]));
-                    if (ratio < 0) {
-                        maybeIncrement = -Math.log(-ratio) / Math.log(2) * 1200;
-                    } else if (ratio == 0) {
-                        maybeIncrement = 0;
-                    } else {
-                        maybeIncrement = Math.log(ratio) / Math.log(2) * 1200
-                    }
-                }
+                var maybeIncrement = parseCentsOrRatio(matchIncrement[1]);
 
-                if (isNaN(maybeIncrement)) {
+                if (maybeIncrement == null) {
                     console.error('TUNING CONFIG ERROR: invalid accidental chain increment: ' + matchIncrement[1]);
                     return null;
                 }
@@ -1009,21 +999,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
                 if (symbols_offset.length > 1) {
                     var offsetText = symbols_offset[1].slice(0, symbols_offset[1].length - 1);
-                    var maybeOffset;
-                    if (offsetText.endsWith('c')) {
-                        // in cents
-                        maybeOffset = parseFloat(eval(offsetText.slice(0, -1)));
-                    } else {
-                        var ratio = parseFloat(eval(offsetText));
-                        if (ratio < 0) {
-                            maybeOffset = -Math.log(-ratio) / Math.log(2) * 1200;
-                        } else if (ratio == 0) {
-                            maybeOffset = 0;
-                        } else {
-                            maybeOffset = Math.log(ratio) / Math.log(2) * 1200
-                        }
-                    }
-                    if (!isNaN(maybeOffset)) {
+                    var maybeOffset = parseCentsOrRatio(offsetText);
+                    if (maybeOffset != null) {
                         offset = maybeOffset;
                     } else {
                         console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + offsetText);
@@ -1215,8 +1192,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     /*
         sec()
-        '#' # 100c // convert ascii '#' to SMuFL #
-                   // maps extra '#' and # to 100c
+        '#' # 100c  // declares a secondary symbol with conversion.
+                    // convert all ascii '#' to SMuFL #
+                    // maps secondary # symbols to 100c
+
+        '>' 31c     // declares a secondary ASCII symbol without conversion.
+        u7 32c      // declares a secondary SMuFL symbol without conversion.
     */
 
     for (var i = nextDeclStartLine; i < lines.length; i++) {
@@ -1233,8 +1214,47 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         for (var j = i + 1; j < lines.length; j++) {
             var line = lines[j].trim();
 
+            var words = line.split(' ').map(function (x) { return x.trim() });
 
+            if (words.length == 2) {
+                // Declaring a secondary symbol without conversion
+                var symCodes = parseSymbolsDeclaration(words[0]);
+                var cents = parseCentsOrRatio(words[1]);
+
+                if (symCodes == null || cents == null) {
+                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    return null;
+                }
+
+                var accHash = accidentalsHash(symCodes);
+
+                tuningConfig.secondaryAccList.push(accHash);
+                tuningConfig.secondaryTunings[accHash] = cents;
+                
+                symCodes.forEach(function (c) {
+                    tuningConfig.usedSecondarySymbols[c] = true;
+                });
+                
+            } else if (words.length == 3) {
+                // Declaring a secondary symbol with conversion.
+                // Conversion always goes from ASCII to SMuFL.
+                var symCodes1 = parseSymbolsDeclaration(words[0]);
+                var symCodes2 = parseSymbolsDeclaration(words[1]);
+                var cents = parseCentsOrRatio(words[2]);
+
+                if (symCodes1 == null || symCodes2 == null || cents == null) {
+                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    return null;
+                }
+
+                
+            } else {
+                console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                return null;
+            }
         }
+
+        i = j + 1;
     }
 
     //

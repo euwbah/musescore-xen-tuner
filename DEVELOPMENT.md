@@ -63,17 +63,39 @@ To differentiate accidental fingerings from standard fingerings/JI ratios/cent o
 
 The plugin [does this processing of ASCII accidentals automatically](#verbatim-ascii-accidental-entry)
 
-### Secondary Accidentals + ASCII to Symbol conversions
+### Restrictions on ASCII Accidentals
+
+- Cannot be purely numerical, otherwise will function
+- Cannot have spaces
+
+### Secondary Accidentals
 
 Once all primary symbols/fingerings have been matched to form the main XenNote hash, the secondary symbols are remaining symbols that are not part of the main Tuning Space.
 
-Because they are not part of a XenNote, we cannot access them via up/down operations, hwoever we can input secondary symbols using fingering text or by dragging additional symbols from the Master Palette.
+Because they are not part of a XenNote, we cannot access them via up/down operations, however we can input secondary symbols using fingering text or by dragging additional symbols from the Master Palette.
 
-A secondary symbol can only have a single interval size. They can be stacked as many times as needed, providing a way to extend accidental chains to infinity.
+A secondary accidental can only have a single interval size. They can be stacked as many times as needed, providing a way to extend accidental chains to infinity.
 
 They can be used to add higher-limit accidentals that need not be part of any accidental chain.
 
-We can also use secondary symbols to declare how ASCII accidentals convert into SMuFL symbols. Because of this, secondary symbols opens up the possibility of user-configurable methods of entering accidentals via fingerings.
+If ASCII-to-Symbol conversion is not desired, we can declare secondary symbols like this:
+
+```txt
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+'--' '-' (20c) '+' '++'
+sec()
+'#'.# 250c // secondary sharp ASCII and symbol together
+# 100c // secondary sharp symbol
+'#' 100c // secondary sharp ASCII
+```
+
+The plugin greedily matches symbols in the order that they are declared. For example, let's say we have a note that contains 3 ASCII sharp symbols and 2 SMuFL sharp symbols: the first SMuFL sharp symbol will match the first accidental chain (100c), the 2nd SMuFL sharp symbol and 1st ASCII symbol will match first secondary accidental (250c), the remaining 2nd and 3rd ASCII symbols will match the third secondary accidental (100c each), which results in a total 550c offset.
+
+### ASCII to Symbol conversions
+
+We can also use secondary accidental declarations to declare how ASCII accidentals convert into SMuFL symbols. Because of this, secondary symbols opens up the possibility of user-configurable methods of entering accidentals via fingerings.
 
 ```txt
 A4: 440
@@ -97,17 +119,11 @@ However, once we type two 'd's, both of which will be converted into flat symbol
 
 This means that after typing 'Cdd' as an accidental, this will be converted to the XenNote 'Cb', with an extra 'd' secondary accidental. The flat symbol corresponds to -100c, and the secondary 'd' will correspond to an additional -50c, which means this note is 150c below C.
 
-If ASCII-to-Symbol conversion is not desired, we can declare each version on its own line:
+When we're declaring ASCII to symbol conversions, there are the following constraints:
 
-```txt
-A4: 440
-0 200c 300c 500c 700c 800c 1000c 1200c
-bb b (100c) # x
-'--' '-' (20c) '+' '++'
-sec()
-# 100c // secondary sharp symbol
-'#' 100c // secondary sharp ASCII
-```
+- Unlike declaring a secondary accidental, the ASCII accidental to be converted must be fully ASCII and cannot be a hybrid accidental like  `'>@'.#'.
+- [Restrictions on ASCII accidentals](#restrictions-on-ascii-accidentals) apply
+- If a main accidental chain contains an ASCII accidental that is also declared as a converted secondary accidental, the main accidental chain will match first, eating up the ASCII accidental. Remaining identical ASCII accidentals will then be converted.
 
 ### Verbatim ASCII accidental entry
 
@@ -115,21 +131,46 @@ In v0.1, we can drag symbols from the Palette to enter symbols verbatim. In the 
 
 The plugin will need to be able to parse ASCII accidentals written in newly-created fingerings (which have default Z-index 3900), separate them into their individual symbols, convert ASCII to Symbols, and reattach new accidental symbols/fingerings with the new `setAccidental` function which also accepts fingering accidentals.
 
+The parsing of fingerings is done in the `renderFingeringAccidental()` function.
+
+Once fingerings have been parsed, the original fingering will be removed and the new tokenized fingerings/symbols will have their Z index set as a running number from 1000 onwards up to 2000, where sorting by increasing Z-index will give the right-to-left order of symbols.
+
 Also, there should be two possible behaviours that the user can select using some boolean flag:
 
 The default behaviour would be to delete old accidental symbols & fingerings, and replace them with the ASCII-entered text.
 
 The second behaviour would be where prior accidentals are preserved and the newly entered accidentals add to the existing accidentals.
 
-### New tokenizing/parsing method
+### New tokenizing & parsing method
 
 Now that there are all sorts of symbols in various forms, figuring out how to parse accidentals attached to a note has got a lot harder.
 
 First, the old approach of consolidating all the symbols into one AccidentalSymbols object and looking that up the NotesTable to retrieve the XenNote will simply no longer work.
 
-Given a tokenized AccidentalSymbols object which may contain primary and secondary accidentals, we need to work one accidental chain at a time, searching and replacing the most symbols we can per chain. Once a match is found in a chain, we subtract the matched symbols from the AccidentalSymbols object, then proceed to the next chain.
+First, when we tokenize a note, we can assume that all fingering and symbol accidentals have been rendered down into individual fingering/symbol elements with Z-index ranging 1000-2000. The tokenizer will search all fingering and symbol elements with Z-index 1000-2000, and yield the `AccidentalsSymbols` object containing all these symbols + fingerings.
 
-Once all declared AccidentalChains are matched, then we parse the rest as secondary accidentals, and we perform the same search-and-replace in the order which the user has declared the secondary symbols.
+This also applies to the new `getAccidental` function, which will now return all supported symbols in the spreadsheet & fingerings with Z-index between 1000 and 2000, even if the symbol/fingering is not part of the tuning config. (This means that a non-recognized symbol will function like a natural sign. By default, fingerings have Z-index 3900, so they shouldn't affect reading accidentals)
+
+After tokenizing, we need to parse.
+
+- Filter out all symbols that are not in `TuningConfig.usedSymbols` or `TuningConfig.usedSecondarySymbols`. We shall refer to this as the filtered `AccidentalSymbols` object.
+- This filtered `AccidentalSymbols` object acts as a tally of which symbols have yet to be matched.
+- If invalid/unrecognized symbols are present, the plugin will silently ignore them, as the matching is done on a best-effort basis.
+- First we need to populate the `primaryAccidentalSymbols`. The nominal of this note and the primary symbols come together to form the `XenHash` that can be looked up in the tuning config.
+- Iterate one accidental chain at a time, in the order the chains were declared. For each chain:
+  - Iterate the `degreesSymbols` of the chain.
+  - Find the degree that matches the most number of symbols in the filtered `AccidentalSymbols` object.
+  - Call it a match, and update the `primaryAccidentalSymbols` to include the matched symbols.
+  - Subtract the matched symbols from the `AccidentalSymbols`.
+- Next, we need to populate the `secondaryAccidentalSymbols`. These symbols do not affect the `XenNote` xen pitch class, but they do affect the pitch and can carry over to the next note as they return from the `getAccidental` function.
+- Iterate each secondary accidental in the order they were declared. For each secondary accidental:
+  - Match as many symbols as possible from the filtered `AccidentalSymbols` object.
+  - Keep track of how many times the symbols were matched. Note that a single secondary accidental can comprise multiple symbols of different forms (e.g. hybrid ascii + smufl).
+  - Append to the `secondaryAccidentalSymbols` object the `AccidentalHash` that was matched, and the number of times it was matched.
+  - The `AccidentalHash` can be looked up in `TuningConfig.secondaryTunings` to get the cent offset effected by the secondary accidental.
+  - Subtract the matched symbols from the `AccidentalSymbols`.
+
+Once all declared `AccidentalChains` are matched, then we parse the rest as secondary accidentals, and we perform the same search-and-replace in the order which the user has declared the secondary symbols.
 
 Any remaining symbols after searching and tokenzing everything are simply ignored.
 

@@ -415,7 +415,7 @@ class TuningConfig {
     usedSymbols;
 
     /**
-     * Lookup of all the secondary symbols that do not affect {@link XenNote} spelling.
+     * Lookup of all the symbols used in secondary accidentals that do not affect {@link XenNote} spelling.
      * But the plugin should still recognize these as accidentals and format them as such.
      * 
      * These symbols are not included in {@link usedSymbols}.
@@ -425,27 +425,35 @@ class TuningConfig {
     usedSecondarySymbols;
 
     /**
-     * These are all the secondary symbols in the order which they are declared.
+     * These are all the secondary accidentals in the order which they are declared.
      * 
-     * The plugin will search for secondary symbols in this order.
+     * The plugin will search for secondary accidentals in this order.
      * 
-     * @type {SymbolCode[]}
+     * @type {AccidentalHash[]}
      */
-    secondarySymbolsList;
+    secondaryAccList;
 
     /**
      * Contains lookup for tunings of secondary accidentals.
      * 
-     * @type {Object.<SymbolCode, number>}
+     * @type {Object.<AccidentalHash, number>}
      */
     secondaryTunings;
 
     /**
      * Contains lookup for converting ascii accidentals to SMuFL symbols.
      * 
+     * These conversions are entered as secondary symbols.
+     * If an ASCII symbol is to be converted, the ASCII symbol will not
+     * be included in {@link secondaryAccList}, nor {@link secondaryTunings},
+     * nor {@link usedSecondarySymbols}, since the ASCII symbol will immediately
+     * be converted to the SMuFL.
+     * 
+     * Only the SMuFL symbol will show up in the other lookups.
+     * 
      * @type {Object.<string, SymbolCode>}
      */
-    asciiToSmufl;
+    asciiToSmuflConv;
 }
 
 /**
