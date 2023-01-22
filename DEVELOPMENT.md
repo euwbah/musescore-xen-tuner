@@ -145,13 +145,113 @@ This declares that you want the plugin to convert the fingering that goes `/hw` 
 
 `/hw` itself will have no value, as the plugin will assume that all instances of the shorthand would have been converted during the `renderFingeringAccidental()` function already.
 
+### :warning: WARNING: Extreme complexity
+
+The issue with implementing secondary accidentals is that it greatly increases the complexity of not only development &mdash; Users who want to take advantage of the new ASCII accidentals, verbatim ascii input, and secondary accidental features must know how the plugin parses these tokens and understand how to declare them correctly and in the correct order.
+
+For example, there IS a difference between declaring the accidental chain:
+
+```txt
+'-' (20c) '+' '+'.'+'
+```
+
+and:
+
+```txt
+'-' (20c) '+' '++'
+```
+
+In the first case, the two 'plus' symbols are rendered as separate fingering elements, but in the second case the '++' is a single fingering element containing both pluses.
+
+Now consider adding the following secondary accidental:
+
+```txt
+sec()
+'+' 21c
+'++' 41c
+```
+
+The question is: how does the plugin differentiate between the secondary accidentals and the single-element vs multi-element versions of the ASCII plus signs?
+
+How should the user enter the symbols as verbatim ASCII fingering text while having the plugin discern whether the plus is to be regarded as a single-element primary accidental, a multi-element primary accidental, a secondary accidental, or even part of a hybrid accidental?
+
+It's really an impossible task where different notation systems will have different goals.
+
+As such, verbatim accidental entries must be **MANUALLY MAPPED**. Even if the entire accidental degree comprises plain ASCII symbols, every ASCII-to-Symbols conversion must be manually stated in the `sec()` declaration.
+
+Because it is manually mapped, the user can choose to decide which patterns have greater priority. For example, if we declare:
+
+```txt
+sec()
+'++' '++' 50c
+'+' '+' 20c
+```
+
+Now the plugin knows that we need to first match consecutive double plusses in the verbatim accidental input string. These consecutive double plusses will then be mapped to the `'++'` ASCII accidental token.
+
+Now, if the user were to enter `'+++'` as the verbatim input, the plugin will first match the first two plusses as the `'++'` token, and the third plus will be matched as the `'+'` token.
+
+Likewise: `'++++'` will be processed as `'++'.'++'`.
+
+`'+++++'` will be processed as `'++'.'++'.'+'`.
+
+However, if we merely declare:
+
+```txt
+'+' '+' 20c
+```
+
+...then, `'++'` will be processed as `'+'.'+'`, and `'+++'` will be processed as `'+'.'+'.'+'`, etc...
+
+Now for the final blow:
+
+```txt
+'+++' j+.'++' 70c
+'++' '+'.t 50c
+'+' '+' 20c
+```
+
+This declares that 3 consecutive pluses gets converted to one Johnston plus symbol on the left followed by an ASCII double-plus on the right.
+
+2 consecutive pluses gets converted to one ASCII plus on the left followed by a Stockhausen quarter sharp on the right.
+
+Evidently, this allows the user to choose exactly how they want to enter their verbatim accidentals and how it gets converted, be it to ASCII, Symbols or Hybrid accidentals.
+
+The user must know how to declare the appropriate conversions, and must know that if conversions are not declared, then there will be no way of entering ASCII accidentals verbatim via fingering text. However, even without conversions, if ASCII accidentals are part of the primary accidental chains of a Tuning Config, they can still be accessible via up/down/J operations.
+
+## How to implement v0.2
+
+### Changes to data structures
+
+There are some changes we need to make to internal data structures to support ASCII & hybrid accidentals.
+
+#### `XenHash` v0.2
+
+
+First, `XenHash`/`AccidentalHash` will have `SymbolCode`s prefixed with a quote (`'`) to signify that the symbol is an ASCII symbol.
+
+For example, nominal 0 with a flat symbol and an ASCII 'b' will have its `XenHash` looking like this: `0 6 1 'b 1`.
+
+This is to differentiate numerical ASCII accidentals from actual SymbolCode numbers. (JavaScript doesn't discriminate type of object keys)
+
+#### `AccidentalSymbols` v0.2
+
+Similar to `XenHash`, symbol code keys in the `AccidentalSymbols` object will be prefixed with a quote (`'`) to signify that the symbol is an ASCII symbol.
+
+```js
+{ // AccidentalSymbols
+  6: 1, // one SMuFL flat symbol
+  "'b": 1 // one ASCII 'b' symbol
+}
+```
+
+### Implicit & Explicit `asciiToSmuflConv` population
+
+The `asciiToSmuflConv` lookup contains information on how to convert ASCII symbols input as verbatim ASCII fingering accidentals into actual used symbols
+
 ### Verbatim ASCII accidental entry: `renderFingeringAccidental()`
 
-In v0.1, we can drag symbols from the Palette to enter symbols verbatim. In the same way, we need to support verbatim entry of ASCII accidentals.
-
-The plugin will need to be able to parse ASCII accidentals written in newly-created fingerings (which have default Z-index 3900), separate them into their individual symbols, convert ASCII to Symbols, and reattach new accidental symbols/fingerings with the new `setAccidental` function which also accepts fingering accidentals.
-
-In order to get verbatim ASCII accidental entry working, we will need to
+In v0.1, we can drag symbols from the Palette to enter symbols verbatim. In the same way, we need to support verbatim entry of ASCII accidentals via fingering text.
 
 The parsing & rendering of accidentals input as fingerings is done in the `renderFingeringAccidental()` function.
 
@@ -160,13 +260,22 @@ This function parses:
 - Accidental vector fingerings `a<x>,<y>,<z>,...`
 - Verbatim fingerings
 
-Accidental vector fingerings are trivial to parse.
+Accidental vector fingerings are trivial to parse and already implemented.
 
-The parsing for verbatim fingerings is a bit more involved:
+The parsing for verbatim fingerings isn't that bad thanks to the aforementioned constraint on how [ASCII conversions for verbatim entry must be manually declared](#warning-warning-extreme-complexity).
 
-- First, iterate each accidental chain in the order they were declared. For each accidental chain:
-  - Iterate the degrees. For each degree:
-    - Find ASCII matches
+However, care must be taken to splice the search-and-replace string after every match.
+
+For example, let the verbatim input be: `abcde`, and we declare that `bc` maps to `X` and `ad` maps to `Y`.
+
+If we simply search-and-remove `bc` from `abcde`, we get `ade`, and it appears as if `ad` is now part of the verbatim string.
+
+However, that is not the case at all, as `a` and `d` are clearly supposed to be two separate entities.
+
+This means that the search-and-match process should work like this:
+
+```txt
+```
 
 Once fingerings have been parsed, the original fingering will be removed and the new tokenized fingerings/symbols will have their Z index set as a running number from 1000 onwards up to 2000, where sorting by increasing Z-index will give the right-to-left order of symbols.
 
@@ -217,6 +326,14 @@ There's a lot going on with the verbatim ASCII fingering accidental entry and th
 - ASCII is converted to relevant symbols/fingerings/hybrid accidentals
 - Accidental chains are matched first
 - Secondary accidentals matched later
+
+### Accidental display order
+
+There are two halves of accidental display. First, the primary `XenNote` accidental display order is the same as in v0.1. Those are RTL in order of declarations of accidental chains, and each symbol of a multi-symbol/element accidental is LTR in the user-defined order.
+
+Next, there are the secondary accidentals. These are to be displayed in right-to-left order in the order that the user declared the secondary accidentals.
+
+The first declared secondary accidental is to be immediately to the left of the left most accidental from the primary accidental chain, or if there are no primary accidentals, then simply it will be the right-most accidental.
 
 # Version 0.1
 

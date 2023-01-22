@@ -467,6 +467,13 @@ class TuningConfig {
      * @type {Object.<string, AccidentalHash>}
      */
     asciiToSmuflConv;
+
+    /**
+     * List of keys in asciiToSmuflConv, in order of declaration.
+     * 
+     * The keys coming earlier in the list will be searched and matched first.
+     */
+    asciiToSmuflConvList;
 }
 
 /**
