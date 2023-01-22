@@ -434,6 +434,15 @@ class TuningConfig {
     secondaryAccList;
 
     /**
+     * Lookup mapping secondary accidentals to properly ordered
+     * {@link SymbolCode}[] arrays. These symbol code arrays represent
+     * the left-to-right order that the symbol codes should be displayed.
+     * 
+     * @type {Object.<AccidentalHash, SymbolCode[]>}
+     */
+    secondaryAccTable;
+
+    /**
      * Contains lookup for tunings of secondary accidentals.
      * 
      * @type {Object.<AccidentalHash, number>}
@@ -451,7 +460,7 @@ class TuningConfig {
      * 
      * Only the SMuFL symbol will show up in the other lookups.
      * 
-     * @type {Object.<string, SymbolCode>}
+     * @type {Object.<string, AccidentalHash>}
      */
     asciiToSmuflConv;
 }

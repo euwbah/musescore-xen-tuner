@@ -856,6 +856,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         },
         usedSecondarySymbols: {},
         secondaryAccList: [],
+        secondaryAccTable: {},
         secondaryTunings: {},
         asciiToSmuflConv: {},
     };
@@ -938,7 +939,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux|sec)\([0-9,]+\)/);
+        var matches = line.match(/(lig|aux|sec)\([0-9,]*\)/);
         if (matches != null) {
             nextDeclStartLine = i;
             break;
@@ -1045,7 +1046,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
-        if (line.match(/(aux|sec)\([0-9,]+\)/) != null) {
+        if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
             nextDeclStartLine = i;
             break;
         }
@@ -1128,7 +1129,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var line = lines[i].trim();
 
-        if (line.match(/sec\([0-9,]+\)/) != null) {
+        if (line.match(/sec\([0-9,]*\)/) != null) {
             nextDeclStartLine = i;
             break;
         }
@@ -1206,7 +1207,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var line = lines[i].trim();
 
         // Check for `sec()` declaration
-        if (line.match(/sec\([0-9,]+\)/) == null) {
+        if (line != 'sec()') {
             console.error('TUNING CONFIG ERROR: Expected sec(), got "' + line + '" instead.');
             return null;
         }
@@ -1229,6 +1230,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var accHash = accidentalsHash(symCodes);
 
                 tuningConfig.secondaryAccList.push(accHash);
+                tuningConfig.secondaryAccTable[accHash] = symCodes;
                 tuningConfig.secondaryTunings[accHash] = cents;
                 
                 symCodes.forEach(function (c) {
@@ -1237,17 +1239,35 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 
             } else if (words.length == 3) {
                 // Declaring a secondary symbol with conversion.
-                // Conversion always goes from ASCII to SMuFL.
-                var symCodes1 = parseSymbolsDeclaration(words[0]);
-                var symCodes2 = parseSymbolsDeclaration(words[1]);
+                // Conversion always goes from ASCII
+
+                // The first word must be the ascii to be converted
+                var symCodesASCIIFrom = parseSymbolsDeclaration(words[0]);
+                var symCodesTo = parseSymbolsDeclaration(words[1]);
                 var cents = parseCentsOrRatio(words[2]);
 
-                if (symCodes1 == null || symCodes2 == null || cents == null) {
+                if (symCodesASCIIFrom == null || symCodesTo == null || cents == null) {
                     console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
                     return null;
                 }
 
-                
+                if (symCodesASCIIFrom.length != 1 || typeof(symCodesASCIIFrom[0]) != 'string') {
+                    console.error('TUNING CONFIG ERROR: Convert-from ASCII must be a single pure ASCII symbol.\n'
+                        + 'Received a multi-symbol/hybrid accidental instead' + line);
+                    return null;
+                }
+
+                var asciiFrom = symCodesASCIIFrom[0];
+                var accHashTo = accidentalsHash(symCodesTo);
+
+                tuningConfig.secondaryAccList.push(accHashTo);
+                tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
+                tuningConfig.secondaryTunings[accHashTo] = cents;
+                tuningConfig.asciiToSmuflConv[asciiFrom] = accHashTo;
+
+                symCodesTo.forEach(function (c) {
+                    tuningConfig.usedSecondarySymbols[c] = true;
+                });
             } else {
                 console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
                 return null;

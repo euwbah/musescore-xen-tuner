@@ -91,7 +91,15 @@ sec()
 '#' 100c // secondary sharp ASCII
 ```
 
-The plugin greedily matches symbols in the order that they are declared. For example, let's say we have a note that contains 3 ASCII sharp symbols and 2 SMuFL sharp symbols: the first SMuFL sharp symbol will match the first accidental chain (100c), the 2nd SMuFL sharp symbol and 1st ASCII symbol will match first secondary accidental (250c), the remaining 2nd and 3rd ASCII symbols will match the third secondary accidental (100c each), which results in a total 550c offset.
+The plugin greedily matches symbols in the order that they are declared. 
+
+For example, let's say we have a note that contains 3 ASCII sharp symbols and 2 SMuFL sharp symbols: 
+
+1. The 1st SMuFL sharp symbol will match the first accidental chain (100c)
+2. The 2nd SMuFL sharp symbol and 1st ASCII symbol will match first secondary accidental (250c)
+3. The remaining 2nd and 3rd ASCII symbols will match the third secondary accidental (100c each)
+
+...which results in a total 550c offset.
 
 ### ASCII to Symbol conversions
 
@@ -107,23 +115,34 @@ sec()
 'd' b -50c
 ```
 
-In the above example, we define 2 different secondary accidentals. One on each line.
-
-In the first two lines, we define the '#' ASCII and # SMuFL symbol to signify +100 cents. We also define 'd'/b to be -50c.
+In the above example, we define 2 secondary accidentals + ASCII conversions. One on each line.
 
 In these two declarations, the symbol and ASCII variants are declared together in the same line. This syntax means that we want the plugin to always convert the ASCII variant into the SMuFL variant upon processing the fingering text.
 
-Note that during the conversion process, the value of the accidental can change. E.g. if we type "d" as the fingering text, this will be converted into the SMuFL flat (b) symbol, which instead signifies -100c instead of -50.
+Note that during the conversion process, the value of the accidental can change. E.g. if we input 'd' as ASCII verbatim in fingering text, this will be rendered into the SMuFL flat (b) symbol, which instead signifies -100c instead of -50.
 
-However, once we type two 'd's, both of which will be converted into flat symbols, the second flat symbol is in fact not part of any accidental chain, because the accidental chain only defines a single flat symbol, and the double flat SMuFL symbol is an entirely different entity.
+However, if we type render 'dd' instead, both of which will be converted into flat symbols, the second flat symbol is in fact not part of any accidental chain, because the accidental chain only defines a single flat symbol.
 
-This means that after typing 'Cdd' as an accidental, this will be converted to the XenNote 'Cb', with an extra 'd' secondary accidental. The flat symbol corresponds to -100c, and the secondary 'd' will correspond to an additional -50c, which means this note is 150c below C.
+This means that after typing 'Cdd' as an accidental, this will be converted to the XenNote 'Cb', with an extra flat-symbol secondary accidental. The flat symbol corresponds to -100c, and the secondary flat-symbol will correspond to an additional -50c, which means this note is 150c below C.
 
-When we're declaring ASCII to symbol conversions, there are the following constraints:
+When we're declaring ASCII to symbol conversions take note of what you can and can't do:
 
-- Unlike declaring a secondary accidental, the ASCII accidental to be converted must be fully ASCII and cannot be a hybrid accidental like  `'>@'.#'.
+- Unlike declaring a secondary accidental, the ASCII accidental to be converted must be fully ASCII and cannot be a hybrid accidental like `'>@'.#`.
 - [Restrictions on ASCII accidentals](#restrictions-on-ascii-accidentals) apply
 - If a main accidental chain contains an ASCII accidental that is also declared as a converted secondary accidental, the main accidental chain will match first, eating up the ASCII accidental. Remaining identical ASCII accidentals will then be converted.
+- It is possible to convert from ASCII to ASCII/Hybrid/SMuFL. The 'convert-from' text is merely a user-configurable representation of what you would like to enter when typing it in as ASCII. For example, if you have declared some obscure accidental degree which goes like `'hello world'.#.'123abc'.^./`, and you find that really hard to key-in, you can declare an ASCII conversion to configure a short-hand, e.g.:
+
+```txt
+A4: 10000
+0 1c 2c 3c
+'bye world'.b.'987zyx'.v.\\ (100c) 'hello world'.#.'123abc'.^./
+sec()
+'/hw' 'hello world'.#.'123abc'.^./ 420c
+```
+
+This declares that you want the plugin to convert the fingering that goes `/hw` into that long chain of symbols and fingerings. Note that the first instance of the obscure accidental will be parsed as degree +1 of the first accidental chain, which gives it the value 100c. Only subsequent instances of the obscure accidental will be parsed as the secondary accidental.
+
+`/hw` itself will have no value, as the plugin will assume that all instances of the shorthand would have been converted during the `renderFingeringAccidental()` function already.
 
 ### Verbatim ASCII accidental entry
 
@@ -172,7 +191,16 @@ After tokenizing, we need to parse.
 
 Once all declared `AccidentalChains` are matched, then we parse the rest as secondary accidentals, and we perform the same search-and-replace in the order which the user has declared the secondary symbols.
 
-Any remaining symbols after searching and tokenzing everything are simply ignored.
+Any remaining symbols after searching and tokenizing everything are simply ignored.
+
+### Secondary accidental 'order of operations'
+
+There's a lot going on with the verbatim ASCII fingering accidental entry and the new secondary accidentals thing. Here's the order of operations:
+
+- User enters a fingering denoting ASCII accidentals + ASCII to be converted
+- ASCII is converted to relevant symbols/fingerings/hybrid accidentals
+- Accidental chains are matched first
+- Secondary accidentals matched later
 
 # Version 0.1
 
