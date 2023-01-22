@@ -362,7 +362,15 @@ function tokenizeNote(note) {
 
             if (elem.z >= 1000 && elem.z <= 2000) {
                 // This is an ASCII accidental symbol.
+                // remember to prepend "'" to signify that it is an
+                // ASCII SymbolCode
+                var asciiSymCode = "'" + removeFormattingCode(elem.text);
+                if (accidentals[asciiSymCode])
+                    accidentals[asciiSymCode] += 1;
+                else
+                    accidentals[asciiSymCode] = 1;
 
+                hasAcc = true;
             } else {
                 // This is some other fingering annotation
                 // or an unprocessed accidental vector/verbatim input fingering.
@@ -382,10 +390,6 @@ function tokenizeNote(note) {
                     accidentals[acc] = 1;
 
                 hasAcc = true;
-
-                // console.log('found elem: ' + elem.symbol.toString() + 
-                //     ', bbox: ' + JSON.stringify(elem.bbox) +
-                //     ', pagePos: ' + JSON.stringify(elem.pagePos));
             }
         }
     }
@@ -422,12 +426,13 @@ function removeUnusedSymbols(accHash, tuningConfig) {
     if (!accHash) return null;
     var accHashWords = accHash.split(' ');
     var usedSymbols = tuningConfig.usedSymbols || {};
+    var usedSecondarySymbols = tuningConfig.usedSecondarySymbols || {};
     var newAccHashWords = [];
 
     for (var i = 0; i < accHashWords.length; i += 2) {
         var symCode = accHashWords[i];
 
-        if (usedSymbols[symCode]) {
+        if (usedSymbols[symCode] || usedSecondarySymbols[symCode]) {
             // If symbol is used by tuning config, add to hash.
             newAccHashWords.push(symCode); // add the sym code
             newAccHashWords.push(accHashWords[i + 1]);// add the num of symbols
@@ -476,14 +481,17 @@ function accidentalsHash(accidentals) {
         return '';
     }
 
-    var symCodeSortingFn = function(a, b) {
-        if (typeof(a) == 'string' && typeof(b) == 'string') {
+    var symCodeSortingFn = function (a, b) {
+        // Note that object keys are always strings, so we need to
+        // differentiate between ASCII and SMuFL by checking for the
+        // prefixed quote.
+        if (a.length && a[0] == "'" && b.length && b[0] == "'") {
             // strings are sorted in increasing alphabetical order
             return a.localeCompare(b);
-        } else if (typeof(a) == 'number' && typeof(b) == 'number') {
+        } else if (!(a.length && a[0] == "'") && !(b.length && b[0] == "'")) {
             // numbers are sorted in increasing numerical order
-            return a - b;
-        } else if (typeof(a) == 'string' && typeof(b) == 'number') {
+            return parseInt(a) - parseInt(b);
+        } else if ((a.length && a[0] == "'") && !(b.length && b[0] == "'")) {
             // strings always after numbers
             return 1;
         } else {
@@ -544,6 +552,24 @@ function accidentalsHash(accidentals) {
         });
 
     return symCodeNums.join(' ');
+}
+
+/**
+ * Convert an {@link AccidentalHash} string to an {@link AccidentalSymbols} object.
+ * 
+ * @param {AccidentalHash} accHash Accidental Hash string
+ * @returns {AccidentalSymbols}
+ */
+function accidentalSymbols(accHash) {
+    if (!accHash) return null;
+    var accHashWords = accHash.split(' ');
+    var accSymbols = {};
+
+    for (var i = 0; i < accHashWords.length; i += 2) {
+        accSymbols[accHashWords[i]] = parseInt(accHashWords[i + 1]);
+    }
+
+    return accSymbols;
 }
 
 /**
@@ -619,7 +645,7 @@ function parseSymbolsDeclaration(str) {
     var symCodes = [];
     var isQuoted = false; // true if pending a closing quote.
     var isEscape = false; // true if pending an escape sequence.
-    
+
     // stores current single symbol being processed.
     // the period seperates each symbol.
     var currStr = '';
@@ -628,7 +654,7 @@ function parseSymbolsDeclaration(str) {
     for (var i = 0; i < str.length; i++) {
         var c = str[i];
 
-        
+
         if (isEscape) {
             isEscape = false;
             currStr += c; // add character verbatim.
@@ -680,7 +706,7 @@ function parseSymbolsDeclaration(str) {
         // period separates symbols.
         if (currIsQuoted) {
             // Push an ASCII symbol code.
-            symCodes.push(currStr);
+            symCodes.push("'" + currStr);
         } else {
             // Push a SMuFL symbol code.
             var code = readSymbolCode(currStr);
@@ -1013,7 +1039,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     // '(' was used as an ASCII accidental somewhere.
                     // Combine the first N-1 splits as the accidental symbol.
                     symbols_offset = [
-                        symbols_offset.slice(0, symbols_offset.length - 1).join('('), 
+                        symbols_offset.slice(0, symbols_offset.length - 1).join('('),
                         symbols_offset[symbols_offset.length - 1]
                     ];
                 }
@@ -1262,11 +1288,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 tuningConfig.secondaryAccList.push(accHash);
                 tuningConfig.secondaryAccTable[accHash] = symCodes;
                 tuningConfig.secondaryTunings[accHash] = cents;
-                
+
                 symCodes.forEach(function (c) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
-                
+
             } else if (words.length == 3) {
                 // Declaring a secondary symbol with conversion.
                 // Conversion always goes from ASCII
@@ -1281,7 +1307,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     return null;
                 }
 
-                if (symCodesASCIIFrom.length != 1 || typeof(symCodesASCIIFrom[0]) != 'string') {
+                if (symCodesASCIIFrom.length != 1 || typeof (symCodesASCIIFrom[0]) != 'string') {
                     console.error('TUNING CONFIG ERROR: Convert-from ASCII must be a single pure ASCII symbol.\n'
                         + 'Received a multi-symbol/hybrid accidental instead' + line);
                     return null;
@@ -1747,28 +1773,17 @@ function parseKeySig(text) {
 
 
     nomSymbols.forEach(function (s) {
-        var symbols = s.split('.');
-
-        var symCodes = [];
+        var symCodes = parseSymbolsDeclaration(s);
 
         if (parseInt(symCodes[0]) <= 2) {
             // Any natural/none/null accidental code should be
             // regarded as no accidentals for this nominal.
+            // just checking the first symbol should be good enough.
             keySig.push(null);
             return;
         }
 
-        var valid = true;
-
-        symbols.forEach(function (s) {
-            var symbolCode = readSymbolCode(s);
-            if (symbolCode == null) {
-                valid = false;
-            }
-            symCodes.push(symbolCode);
-        });
-
-        if (!valid) {
+        if (symCodes == null) {
             keySig.push(null);
         } else {
             keySig.push(accidentalsHash(symCodes));
@@ -1844,16 +1859,16 @@ function parseChangeReferenceTuning(text) {
 }
 
 /**
- * Removes formatting code from System/Staff text.
+ * Removes HTML/XML formatting code from text and decodes HTML escape sequences.
  * 
- * Make sure formatting code is removed before parsing System/Staff text!
+ * Make sure formatting code is removed before parsing System/Staff/Fingering text!
  * 
  * @param {string} str Raw System/Staff text contents
  * @returns {string} Text with formatting code removed
  */
 function removeFormattingCode(str) {
     if (typeof (str) == 'string')
-        return str.replace(/<[^>]*>/g, '');
+        return _decodeHTMLEscape(str.replace(/<[^>]*>/g, ''));
     else
         return null;
 }
@@ -1861,11 +1876,13 @@ function removeFormattingCode(str) {
 /**
  * Decodes html espace sequences.
  * 
+ * **DO NOT USE DIRECTLY**. Use `removeFormattingCode()` instead!
+ * 
  * Text in musescore is HTML Encoded (since it is represented in XML).
  * 
  * @param {string} str String containing html escape sequences
  */
-function decodeHTMLEscape(str) {
+function _decodeHTMLEscape(str) {
     var str = str.replace(/&amp;/g, '&');
     str = str.replace(/&lt;/g, '<');
     str = str.replace(/&gt;/g, '>');
@@ -1981,6 +1998,68 @@ function getNominal(msNote, tuningConfig) {
 }
 
 /**
+ * Subtract x - y.
+ * 
+ * Removes as many accidental symbols there are in Y from X, and returns
+ * a new object.
+ * 
+ * If X does not have enough symbols & not possible to subtract because the
+ * number of symbols will go into the negative, returns `null`.
+ * 
+ * @param {AccidentalSymbols} x The acc syms to subtract from
+ * @param {AccidentalSymbols|SymbolCode[]} y 
+ *  The symbols to subtract. Can be specified either as {@link AccidentalSymbols}
+ *  or {@link SymbolCode}[] array.
+ * @returns {AccidentalSymbols?} The result of x - y, or `null` if not possible.
+ */
+function subtractAccSym(x, y) {
+    var ret = {};
+
+    if (y.length != undefined) {
+        // y is SymbolCode[]
+
+        for (var sym in x) {
+            // shallow copy x into ret.
+            ret[sym] = x[sym];
+        }
+
+        for (var sym in y) {
+            // remove sym from ret.
+            if (ret[sym] == undefined) {
+                // X does not have any sym to subtract.
+                return null;
+            }
+
+            ret[sym] -= 1;
+            if (ret[sym] < 0) {
+                return null;
+            }
+        }
+    } else {
+        // y is AccidentalSymbols
+        for (var sym in y) {
+            if (x[sym] == undefined) {
+                // X does not have any sym to subtract.
+                return null;
+            }
+        }
+
+        for (var sym in x) {
+            if (y[sym] == undefined) {
+                ret[sym] = x[sym];
+            } else {
+                var diff = x[sym] - y[sym];
+                if (diff >= 0) {
+                    ret[sym] = diff;
+                } else {
+                    return null;
+                }
+            }
+        }
+    }
+}
+
+/**
  * 
  * Uses TuningConfig and cursor to read XenNote data from a tokenized musescore note.
  * 
@@ -2060,6 +2139,52 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     // Remove unused symbols from the hash.
     accidentalsHash = removeUnusedSymbols(accidentalsHash, tuningConfig);
 
+    // Contains accidental symbols to be matched.
+    var accSyms = accidentalSymbols(accidentalsHash);
+
+    /** @type {SymbolCode[]} */
+    var primarySyms = [];
+    /** @type {SymbolCode[]} */
+    var secondarySyms = [];
+
+    tuningConfig.accChains.forEach(function (chain) {
+        // loop each chain in user-defined order.
+
+        // Find the best accidental match for this chain, which is assumed
+        // to be the one with most symbols matched.
+        var mostSymbolsMatched = 0;
+        /** @type {SymbolCode[]} */
+        var bestSymbolMatch = null;
+        /** @type {AccidentalSymbols} */
+        var bestSubtracted = accSyms;
+
+        chain.degreesSymbols.forEach(function (syms) {
+            var trySubtract = subtractAccSym(accSyms, syms);
+            if (trySubtract != null && syms.length > mostSymbolsMatched) {
+                mostSymbolsMatched = syms.length;
+                bestSymbolMatch = syms;
+                bestSubtracted = trySubtract;
+            }
+        });
+
+        if (bestSymbolMatch != null) {
+            // If a match was found, add the best match to the primary symbols.
+            primarySyms = primarySyms.concat(bestSymbolMatch);
+
+            // Remove the best match from the list of symbols to be matched.
+            accSyms = bestSubtracted;
+        }
+    });
+
+    tuningConfig.secondaryAccList.forEach(function (accHash) {
+        var syms = tuningConfig.secondaryAccTable[accHash];
+        var trySubtract = subtractAccSym(accSyms, syms);
+        if (trySubtract != null) {
+            secondarySyms = secondarySyms.concat(syms);
+            accSyms = trySubtract;
+        }
+    });
+
     // Create hash manually.
     // Don't use the createXenHash function, that works on the AccidentalSymbols object
     // instead of the hash.
@@ -2084,7 +2209,10 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     };
 }
 
+// TODO Remove this after implementing proper ASCII accidentals.
 /**
+ * DEPRECATED.
+ * 
  * Tokenizes a HEWM ASCII accidental into a {@link HewmAccidental} object.
  * 
  * @param {string} text An ASCII accidental according to HEWM.
@@ -2141,21 +2269,11 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
     var processedHewmAccidentals = [];
 
     for (var i = 0; i < msNote.fingerings.length; i++) {
-        // Loop through all fingerings attached to this note.
+        // Loop through all non-accidental fingerings attached to this note.
 
         var fingering = msNote.fingerings[i];
         var text = fingering.text;
-        text = decodeHTMLEscape(text);
-
-        if (fingering.z == HEWM_PROCESSED_Z_INDEX) {
-            // We found a processed HEWM accidental.
-            processedHewmAccidentals.push(fingering);
-            continue;
-        } else if (fingering.z != DEFAULT_FINGERING_Z_INDEX) {
-            // We only want to process fingerings that haven't yet been
-            // processed.
-            continue;
-        }
+        text = removeFormattingCode(text);
 
         if (text.startsWith('a')) {
             // test accidental vector fingering.

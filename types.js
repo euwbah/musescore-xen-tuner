@@ -92,8 +92,8 @@ class MSNote {
     /**
      * List of non-accidental fingering elements attached to this note.
      * 
-     * To differentiate fingering annotations and ASCII accidental fingerings,
-     * the ASCII accidental fingerings use 
+     * Fingerings that function as accidentals will show up in
+     * {@link MSNote.accidentals} instead.
      * 
      * @type {PluginAPIElement[]}
      */
@@ -187,8 +187,13 @@ class NoteData {
     xen;
     /** 
      * Number of xen equaves relative to tuning note.
-     * .@type {number} */
+     * @type {number} */
     equaves;
+    /**
+     * {@link AccidentalSymbols} object containing only secondary
+     * symbols that didn't make it into the {@link XenNote.hash}.
+     */
+    secondarySyms;
 }
 
 /**

@@ -225,14 +225,20 @@ The user must know how to declare the appropriate conversions, and must know tha
 
 There are some changes we need to make to internal data structures to support ASCII & hybrid accidentals.
 
+#### `SymbolCode` v0.2
+
+`SymbolCode`s can now be either a number or a string. `SymbolCode`s of ASCII symbols are represented as strings with a quote (`'`) prefix.
+
+E.g. SymCode `3` is the triple sharp "#x" symbol, whereas SymCode `"'3"` is literally an ASCII '3' symbol.
+
+This is to differentiate numerical ASCII accidentals from actual `SymbolCode` numbers. (JavaScript doesn't discriminate type of object keys)
+
 #### `XenHash` v0.2
 
-
-First, `XenHash`/`AccidentalHash` will have `SymbolCode`s prefixed with a quote (`'`) to signify that the symbol is an ASCII symbol.
+The above change effected on `SymbolCode` affects this data structure as well.
 
 For example, nominal 0 with a flat symbol and an ASCII 'b' will have its `XenHash` looking like this: `0 6 1 'b 1`.
 
-This is to differentiate numerical ASCII accidentals from actual SymbolCode numbers. (JavaScript doesn't discriminate type of object keys)
 
 #### `AccidentalSymbols` v0.2
 
@@ -244,6 +250,12 @@ Similar to `XenHash`, symbol code keys in the `AccidentalSymbols` object will be
   "'b": 1 // one ASCII 'b' symbol
 }
 ```
+
+#### `MSNote` v0.2
+
+`MSNote.accidentals` will now include ASCII accidentals (differentiated by having 1000 &le; Z index &le; 2000).
+
+`MSNote.fingerings` will contain only non-accidental fingerings.
 
 ### Implicit & Explicit `asciiToSmuflConv` population
 
@@ -275,7 +287,25 @@ However, that is not the case at all, as `a` and `d` are clearly supposed to be 
 This means that the search-and-match process should work like this:
 
 ```txt
+Assume we start with 'aefbcdefbcg' verbatim.
+Assume we declare the search and replace in this order:
+
+bc => X
+ef => Y
+a => A
+d => D
+g => G
+
+abcdefg -> aef, X, def, X, g
+aef & def -> a, Y & d, Y
+a -> A, d -> D, g -> G
+
+result: GDAYYXX
 ```
+
+The method would be to split the string at every match. Then, every search string will be searched over the list of split strings, further splitting the strings. Once a string reaches 0 length, it is removed.
+
+This is repeated until every `asciiToSmuflConvList` search string has been searched for.
 
 Once fingerings have been parsed, the original fingering will be removed and the new tokenized fingerings/symbols will have their Z index set as a running number from 1000 onwards up to 2000, where sorting by increasing Z-index will give the right-to-left order of symbols.
 
