@@ -186,8 +186,14 @@ class XenNote {
  */
 
 /**
- * Represents a semantically parsed note after {@link TuningConfig} lookup is
- * applied to a {@link MSNote} to calculate its {@link XenNote} pitch class.
+ * Contains information after a note is parsed in {@link readNoteData}.
+ * 
+ * This is where the {@link TuningConfig} lookup is applied to a {@link MSNote}
+ * to calculate its {@link XenNote} pitch class, and other secondary accidentals
+ * that may apply.
+ * 
+ * During the parsing, new accidentals may be created on the note as the
+ * {@link parseNote} function fleshes out the fingering-based accidental entry.
  */
 class NoteData {
     /**
@@ -206,15 +212,33 @@ class NoteData {
      * {@link SymbolCode}[] list containing secondary accidental symbols 
      * in left-to-right display order.
      * 
+     * If no symbols are present, this will be an empty array.
+     * 
      * @type {SymbolCode[]}
      */
     secondaryAccSyms;
     /**
      * Contains degrees of matched secondary accidentals.
      * 
+     * If no secondary accidentals are present, this will be an empty object.
+     * 
      * @type {SecondaryAccMatches}
      */
     secondaryAccMatches;
+    /**
+     * If fingering accidental entry was performed, this will contain all accidentals
+     * symbols to be displayed & attached to the note in left-to-right display order.
+     * 
+     * Both primary and secondary accidentals are included.
+     * 
+     * As of now, this is just a concatenation of {@link secondaryAccSyms}
+     * and {@link XenNote.orderedSymbols xen.orderedSymbols}.
+     * 
+     * If no accidental entry was performed during, this will be `null`.
+     * 
+     * @type {SymbolCode[]?}
+     */
+    updatedSymbols;
 }
 
 /**
@@ -440,6 +464,7 @@ class TuningConfig {
      * @type {ConstantConstrictions[]}
      */
     auxList;
+
     /**
      * Lookup of all the accidental symbols/ASCII that affect {@link XenNote} spelling.
      * 
@@ -474,6 +499,8 @@ class TuningConfig {
      * 
      * E.g. if `6 2 '> 3` is the 3rd element of `secondaryAccList`, then
      * `secondaryAccIndexTable['6 2 '> 3'] === 2`.
+     * 
+     * @type {Object.<AccidentalHash, number>}
      */
     secondaryAccIndexTable;
 
@@ -499,7 +526,7 @@ class TuningConfig {
      * ASCII verbatim input are NOT SymbolCodes, they are literally ascii strings
      * that the user types in.
      * 
-     * @type {Object.<string, AccidentalHash>}
+     * @type {Object.<string, SymbolCode[]>}
      */
     asciiToSmuflConv;
 
@@ -507,6 +534,8 @@ class TuningConfig {
      * List of keys in asciiToSmuflConv, in order of declaration.
      * 
      * The keys coming earlier in the list will be searched and matched first.
+     * 
+     * @type {string[]}
      */
     asciiToSmuflConvList;
 }
@@ -878,6 +907,40 @@ class PluginAPISymbolID {
 }
 
 /**
+ * An enumeration label of the {@link ELEMENT} enumeration.
+ * 
+ * @typedef {string} ElementType
+ */
+
+/**
+ * [ElementType enumeration](https://musescore.github.io/MuseScore_PluginAPI_Docs/plugins/html/namespace_ms.html#a16b11be27a8e9362dd122c4d879e01ae)
+ * 
+ * Values here are placeholder. This is just for autocomplete purposes.
+ * Do not actually use these numerical values.
+ * 
+ * This is an incomplete list. See the link above for the full list.
+ * 
+ * @type {Object.<ElementType, number>}
+ */
+const ELEMENT = {
+    FINGERING: 0,
+    NOTE: 0,
+    TEXT: 0,
+    SYMBOL: 0,
+    STAFF_TEXT: 0,
+    SYSTEM_TEXT: 0,
+    TEMPO_TEXT: 0,
+    DYNAMIC: 0,
+}
+
+/**
+ * Instantiates a new element of the given type.
+ * @param {ElementType} elemType - type of element to create
+ * @return {PluginAPIElement} newly created {@link PluginAPIElement}
+ */
+function newElement(elemType) { }
+
+/**
  * Represents any element in the score.
  * 
  * For the purposes of the plugin, this could be a notehead, tempo, dynamic,
@@ -934,17 +997,24 @@ class PluginAPIElement {
     /**
      * Z-index of this element.
      * 
-     * MuseScore uses this to control what draws on top of what,
-     * however this plugin uses this to ascribe certain metadata/flags
+     * MuseScore uses this to control what draws on top of what.
+     * 
+     * However this plugin uses this to ascribe certain metadata/flags
      * to score elements.
      * 
-     * The user is not recommended to change Z index, unless the user
-     * knows to avoid the special Z-index numbers.
+     * The user is not recommended to change Z index as it will affect
+     * the plugin's ability to identify & update accidental symbols.
      * 
-     * Accidental symbols use Z-index to sort them left-to-right in the
+     * Symbols & fingering elements that constitute primary & secondary
+     * accidentals on a note use Z-index to sort them left-to-right in the
      * correct order. The Z-index of accidental symbols cannot be changed.
      * 
-     * Fingerings use {@link HEWM_PROCESSED_Z_INDEX} to mark them as processed.
+     * For Fingerings and Symbols, the Z-index range 1000-2000 is reserved
+     * for accidental elements that have been processed and sorted in the
+     * correct order.
+     * 
+     * The z-index 3900 is assumed to be the default un-processed fingering
+     * annotation.
      * 
      * @type {number}
      */
@@ -1061,6 +1131,16 @@ class PluginAPINote extends PluginAPIElement {
      * @type {PlayEvent[]
      */
     playEvents;
+    /**
+     * Attach the {@link PluginAPIElement} to this notehead
+     * @param {PluginAPIElement} elem element to add
+     */
+    add(elem) {}
+    /**
+     * Remove the {@link PluginAPIElement} from this notehead
+     * @param {PluginAPIElement} elem element to remove
+     */
+    remove(elem) {}
 }
 
 /**

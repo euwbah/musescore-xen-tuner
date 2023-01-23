@@ -370,13 +370,17 @@ keysig #.+ 0 bbb.bbb.bb 0 17.bv2 0 x.#x.#x
 
 ...also specifies a (rather extreme) key signature for 7 nominals.
 
+## How to: secondary accidentals
+
+TODO.
+
 ## How to use fingering annotations
 
-> 🟢 If you're regularly using this feature, it is recommended to change the default MuseScore shortcut of `Ctrl+F` from _"Find / Go to"_ to _"Add fingering"_. This will make note entry much more efficient.
+> 🟢 If you're using fingering-related features, it is recommended to change the default MuseScore shortcut of `Ctrl+F` from _"Find / Go to"_ to _"Add fingering"_. This will make note entry much more efficient.
 
 Fingerings are a handy way of attaching text directly to a single note. You can press space/tab to navigate between adjacent fingerings which allows you to edit them efficiently.
 
-### 1. Fingerings to enter accidentals
+### 1. Entering accidentals via Accidental Vector
 
 If you're dealing with a really large tuning system and can't reasonably access the accidental you need with just up/down & auxiliary operations, you can use fingerings to help you enter accidentals.
 
@@ -400,11 +404,15 @@ E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of t
 >
 > Of course, this will also make normal fingering numbers act as otonal harmonics, so you should be careful.
 
+> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#how-to-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
+
 ### 3. Fingerings to denote cent offsets
 
 You can apply an additional cent offset to a note (on top of its standard tuning) by prefixing the fingering with a `+` or `-` sign.
 
 E.g., `+5` on a note will make the note tune 5 cents higher than normal.
+
+> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#how-to-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
 
 ## How to: change shortcuts
 

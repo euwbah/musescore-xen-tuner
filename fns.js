@@ -37,19 +37,16 @@ var pluginHomePath = '';
 var _curScore = null; // don't clash with namespace
 
 /**
- * Regex expr that matches HEWM fingering text that hasn't yet been processed.
+ * If a fingering has this Z index, it signifies that it is a
+ * per-note tuning fingering annotation that has already been
+ * processed.
  * 
- * Once HEWM text is processed, it will be prefixed with {@link HEWM_PROCESSED_CHAR}.
+ * This currently no purpose other than to set the Z index of
+ * the fingering to the non-default value so that it won't be
+ * repeatedly attempted to be processed as an ASCII-representation
+ * accidental entry, which is computationally intensive.
  */
-var HEWM_REGEX = /^[b#\-+<>v^{}\\/()\[\];!?"&%@$,':*_|szykjfpd]+$/;
-
-/**
- * If a fingering has this Z index, it signifies that it is a HEWM accidental that
- * has been already been processed by the plugin.
- * 
- * Uses Z index as metadata. The original Z index for fingerings is 3900.
- */
-var HEWM_PROCESSED_Z_INDEX = 3903;
+var PROCESSED_FINGERING_ANNOTATION_Z = 3903;
 
 /**
  * This is the default Z index for fingerings as of MuseScore 3.6.2.
@@ -62,10 +59,52 @@ var HEWM_PROCESSED_Z_INDEX = 3903;
 var DEFAULT_FINGERING_Z_INDEX = 3900;
 
 /**
- * This is the Z index of a fingering text containing JI offset or
- * cents offset that has been processed.
+ * By default, whenever an accidental is entered via ascii
+ * input, it will clear all prior accidentals attached to the note.
+ * 
+ * This mimics the same behavior as entering accidentals via 
+ * AccidentalVector method.
+ * 
+ * However, if you want the new accidentals to pile up on top of
+ * existing accidentals instead of replacing the old ones, set this
+ * to false.
  */
-var FINGERING_RATIO_CENTS_OFFSET_Z = 3901;
+var CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY = true;
+
+/**
+ * If `true`, the non-diatonic up/down operations will keep prior secondary
+ * accidentals that were attached to the note.
+ * 
+ * This defaults to `false` as the intention of a non-diatonic up/down is to
+ * modify the existing accidentals on the note.
+ * 
+ * It would seem weird to keep some of the old accidentals only because
+ * they are 'secondary' accidentals, then have the user manually delete them
+ * later.
+ * 
+ * However, in HCJI where comma shifts are notated as secondary accidentals,
+ * (which is not recommended), then the user may find this feature handy
+ * and set this to `true`.
+ */
+var KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE = false;
+/**
+ * If `false`, the plugin will delete secondary accidentals after a
+ * diatonic transpose is performed. (That is, aux(0))
+ * 
+ * This defaults to `true` to keep in line with the expected behavior
+ * that a "diatonic" transpose should only change the nominal and
+ * not affect the accidentals.
+ */
+var KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC = true;
+/**
+ * If `false`, the plugin will delete secondary accidentals after a
+ * enharmonic cycle operation is performed.
+ * 
+ * This defaults to `true` to keep in line with the expectation that
+ * enharmonic notes should have the same pitch. Thus, any secondary
+ * accidentals present must remain to keep the pitch consistent.
+ */
+var KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC = true;
 
 /**
  * If true, the plugin will allow `cmd('pitch-up')` and `cmd('pitch-down')` to be
@@ -373,7 +412,7 @@ function tokenizeNote(note) {
                 hasAcc = true;
             } else {
                 // This is some other fingering annotation
-                // or an unprocessed accidental vector/verbatim input fingering.
+                // or an unprocessed accidental vector/ascii input fingering.
                 fingerings.push(elem);
             }
         } else if (elem.symbol) {
@@ -410,38 +449,63 @@ function tokenizeNote(note) {
 }
 
 /**
- * Filters accidentalHash to remove symbols that aren't used by the tuning config.
+ * Filters accidentals to remove symbols that aren't used by the tuning config.
  * 
- * **WARNING:** If the resulting accidentalHash is empty, returns `null`.
- * In some accidentalHash use cases, '' is required instead of null. 
+ * **WARNING:** If the resulting accidental is empty, returns `null`.
+ * In some {@link AccidentalHash} use cases, '' is required instead of null. 
  * Make sure to check what is required.
  * 
- * @param {string} accHash Accidental Hash to remove unused symbols from.
+ * @param {AccidentalHash|SymbolCode[]|AccidentalSymbols} accHashOrSymbols Accidentals to remove unused symbols from.
  * @param {TuningConfig} tuningConfig
- * @returns {string} 
- *  Accidental Hash with unused symbols removed.
+ * @returns {(AccidentalHash|SymbolCode[]|AccidentalSymbols)?} 
+ *  Returns an {@link AccidentalHash}, {@link SymbolCode}[], or {@link AccidentalSymbols} 
+ *  depending on what was passed in.
  * 
+ *  Returns `null` if there are no symbols left after filtering.
  */
-function removeUnusedSymbols(accHash, tuningConfig) {
-    if (!accHash) return null;
-    var accHashWords = accHash.split(' ');
-    var usedSymbols = tuningConfig.usedSymbols || {};
-    var usedSecondarySymbols = tuningConfig.usedSecondarySymbols || {};
-    var newAccHashWords = [];
+function removeUnusedSymbols(accHashOrSymbols, tuningConfig) {
+    if (!accHashOrSymbols) return null;
+    if (typeof (accHashOrSymbols) == 'string') {
+        // Accidental Hash 
+        var accHashWords = accHashOrSymbols.split(' ');
+        var newAccHashWords = [];
 
-    for (var i = 0; i < accHashWords.length; i += 2) {
-        var symCode = accHashWords[i];
+        for (var i = 0; i < accHashWords.length; i += 2) {
+            var symCode = accHashWords[i];
 
-        if (usedSymbols[symCode] || usedSecondarySymbols[symCode]) {
-            // If symbol is used by tuning config, add to hash.
-            newAccHashWords.push(symCode); // add the sym code
-            newAccHashWords.push(accHashWords[i + 1]);// add the num of symbols
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
+                // If symbol is used by tuning config, add to hash.
+                newAccHashWords.push(symCode); // add the sym code
+                newAccHashWords.push(accHashWords[i + 1]);// add the num of symbols
+            }
         }
+
+        if (newAccHashWords.length == 0) return null;
+
+        return newAccHashWords.join(' ');
+    } else if (Array.isArray(accHashOrSymbols)) {
+        // SymbolCode[]
+        var newSymbols = [];
+        accHashOrSymbols.forEach(function (symCode) {
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
+                newSymbols.push(symCode);
+            }
+        });
+
+        return newSymbols.length == 0 ? null : newSymbols;
+    } else {
+        // AccidentalSymbols object
+        var newAccSymbols = {};
+        for (var symCode in accHashOrSymbols) {
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
+                newAccSymbols[symCode] = accHashOrSymbols[symCode];
+            }
+        }
+
+        if (Object.keys(newAccSymbols).length == 0) return null;
+
+        return newAccSymbols;
     }
-
-    if (newAccHashWords.length == 0) return null;
-
-    return newAccHashWords.join(' ');
 }
 
 /**
@@ -466,7 +530,9 @@ function removeUnusedSymbols(accHash, tuningConfig) {
  * 
  * @param {AccidentalSymbols|SymbolCode[]} accidentals 
  *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
- * @returns {string} {@link AccidentalSymbols} hash string.
+ * @returns {string}
+ * {@link AccidentalSymbols} hash string.
+ * If no accidentals are present, returns an empty string.
  */
 function accidentalsHash(accidentals) {
 
@@ -555,12 +621,143 @@ function accidentalsHash(accidentals) {
 }
 
 /**
- * Convert an {@link AccidentalHash} string to an {@link AccidentalSymbols} object.
+ * Adds accidentals from two different collections together.
  * 
- * @param {AccidentalHash} accHash Accidental Hash string
+ * Returns a new {@link AccidentalSymbols} object.
+ * 
+ * @param {AccidentalSymbols} x 
+ * @param {AccidentalSymbols | SymbolCode[]} y
  * @returns {AccidentalSymbols}
  */
-function accidentalSymbols(accHash) {
+function addAccSym(x, y) {
+    if (!x)
+        return y;
+    if (!y)
+        return x;
+
+    var ret = {};
+
+    for (var symCode in x) {
+        ret[symCode] = x[symCode];
+    }
+
+    if (Array.isArray(y)) {
+        // y is SymbolCode[]
+        y.forEach(function (symCode) {
+            if (ret[symCode] == undefined) {
+                ret[symCode] = 1;
+            } else {
+                ret[symCode]++;
+            }
+        });
+    } else {
+        // y is AccidentalSymbols
+        for (var symCode in y) {
+            if (ret[symCode] == undefined) {
+                ret[symCode] = y[symCode];
+            } else {
+                ret[symCode] += y[symCode];
+            }
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Subtract x - y.
+ * 
+ * Removes as many accidental symbols there are in Y from X, and returns
+ * a new object.
+ * 
+ * If X does not have enough symbols & not possible to subtract because the
+ * number of symbols will go into the negative, returns `null`.
+ * 
+ * @param {AccidentalSymbols} x The acc syms to subtract from
+ * @param {AccidentalSymbols|SymbolCode[]} y 
+ *  The symbols to subtract. Can be specified either as {@link AccidentalSymbols}
+ *  or {@link SymbolCode}[] array.
+ * @returns {AccidentalSymbols?} The result of x - y, or `null` if not possible.
+ */
+function subtractAccSym(x, y) {
+    if (!x)
+        return null;
+    if (!y)
+        return x;
+
+    var ret = {};
+
+    for (var sym in x) {
+        // shallow copy x into ret.
+        ret[sym] = x[sym];
+    }
+
+    if (y.length != undefined) {
+        // y is SymbolCode[]
+        for (var sym in y) {
+            // remove sym from ret.
+            if (ret[sym] == undefined) {
+                // X does not have any sym to subtract.
+                return null;
+            }
+
+            ret[sym] -= 1;
+            if (ret[sym] < 0) {
+                return null;
+            } else if (ret[sym] == 0) {
+                delete ret[sym];
+            }
+        }
+    } else {
+        // y is AccidentalSymbols
+        for (var sym in y) {
+            if (ret[sym] == undefined) {
+                // X does not have any sym to subtract.
+                return null;
+            }
+            ret[sym] -= y[sym];
+            if (ret[sym] < 0) {
+                return null;
+            } else if (ret[sym] == 0) {
+                delete ret[sym];
+            }
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Convert a {@link SymbolCode}[] array into an {@link AccidentalSymbols} object.
+ * 
+ * @param {SymbolCode[]} symList Array of {@link SymbolCode}s
+ * @returns {AccidentalSymbols?}
+ * An {@link AccidentalSymbols} object, or `null` if the array is empty.
+ */
+function accidentalSymbolsFromList(symList) {
+    if (symList.length == 0) return null;
+
+    var accSymbols = {};
+
+    symList.forEach(function (symCode) {
+        if (accSymbols[symCode] == undefined) {
+            accSymbols[symCode] = 0;
+        }
+        accSymbols[symCode]++;
+    });
+
+    return accSymbols;
+}
+
+/**
+ * Convert an {@link AccidentalHash} string to an {@link AccidentalSymbols} object.
+ * 
+ * @param {AccidentalHash?} accHash Accidental Hash string
+ * @returns {AccidentalSymbols?}
+ * An {@link AccidentalSymbols} object, or `null` if the string is empty, or
+ * null value was passed.
+ */
+function accidentalSymbolsFromHash(accHash) {
     if (!accHash) return null;
     var accHashWords = accHash.split(' ');
     var accSymbols = {};
@@ -656,6 +853,11 @@ function parseSymbolsDeclaration(str) {
 
 
         if (isEscape) {
+            if (c != '\\' && c != '\'') {
+                // invalid escape sequence.
+                console.error('TUNING CONFIG ERROR: Invalid escape sequence: \\' + c);
+                return null;
+            }
             isEscape = false;
             currStr += c; // add character verbatim.
         } else if (c == '\\') {
@@ -916,6 +1118,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         secondaryAccTable: {},
         secondaryTunings: {},
         asciiToSmuflConv: {},
+        asciiToSmuflConvList: [],
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -1295,6 +1498,19 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
 
+                // if the declared SymbolCode is a single-element, pure ASCII symbol,
+                // implicitly declare the ASCII-to-SymCode conversion.
+
+                // in these cases, it is obvious that if the user enters the
+                // ASCII of the accidental itself, the user will want that exact
+                // ASCII to be entered as a symbol.
+
+                if (symCodes.length == 1 && typeof (symCodes[0]) == 'string') {
+                    var asciiFrom = symCodes[0].slice(1);
+                    tuningConfig.asciiToSmuflConv[asciiFrom] = symCodes;
+                    tuningConfig.asciiToSmuflConvList.push(asciiFrom);
+                }
+
             } else if (words.length == 3) {
                 // Declaring a secondary symbol with conversion.
                 // Conversion always goes from ASCII
@@ -1324,6 +1540,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
                 tuningConfig.secondaryTunings[accHashTo] = cents;
                 tuningConfig.asciiToSmuflConv[asciiFrom] = accHashTo;
+                tuningConfig.asciiToSmuflConvList.push(asciiFrom);
 
                 symCodesTo.forEach(function (c) {
                     tuningConfig.usedSecondarySymbols[c] = true;
@@ -2002,68 +2219,6 @@ function getNominal(msNote, tuningConfig) {
 }
 
 /**
- * Subtract x - y.
- * 
- * Removes as many accidental symbols there are in Y from X, and returns
- * a new object.
- * 
- * If X does not have enough symbols & not possible to subtract because the
- * number of symbols will go into the negative, returns `null`.
- * 
- * @param {AccidentalSymbols} x The acc syms to subtract from
- * @param {AccidentalSymbols|SymbolCode[]} y 
- *  The symbols to subtract. Can be specified either as {@link AccidentalSymbols}
- *  or {@link SymbolCode}[] array.
- * @returns {AccidentalSymbols?} The result of x - y, or `null` if not possible.
- */
-function subtractAccSym(x, y) {
-    var ret = {};
-
-    if (y.length != undefined) {
-        // y is SymbolCode[]
-
-        for (var sym in x) {
-            // shallow copy x into ret.
-            ret[sym] = x[sym];
-        }
-
-        for (var sym in y) {
-            // remove sym from ret.
-            if (ret[sym] == undefined) {
-                // X does not have any sym to subtract.
-                return null;
-            }
-
-            ret[sym] -= 1;
-            if (ret[sym] < 0) {
-                return null;
-            }
-        }
-    } else {
-        // y is AccidentalSymbols
-        for (var sym in y) {
-            if (x[sym] == undefined) {
-                // X does not have any sym to subtract.
-                return null;
-            }
-        }
-
-        for (var sym in x) {
-            if (y[sym] == undefined) {
-                ret[sym] = x[sym];
-            } else {
-                var diff = x[sym] - y[sym];
-                if (diff >= 0) {
-                    ret[sym] = diff;
-                } else {
-                    return null;
-                }
-            }
-        }
-    }
-}
-
-/**
  * 
  * Uses TuningConfig and cursor to read XenNote data from a tokenized musescore note.
  * 
@@ -2086,32 +2241,6 @@ function subtractAccSym(x, y) {
  *      declared TuningConfig, returns `null`.
  */
 function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
-    /*
-    Example repr. of the note Ebbbb\\4 with implicit accidentals:
-    {
-        ms: { // MSNote
-            midiNote: 64, // E4
-            tpc: 18, // E
-            nominalsFromA4: -3, // E4 is 3 nominals below A4.
-            accidentals: null,
-            tick: 1337,
-            internalNote: PluginAPI::Note // copy of internal musescore note object
-        },
-        xen: { // XenNote
-            nominal: 4, // E
-            // Left-to-right order of symbols
-            // comma downs are on the left because they are defined in the second chain.
-            orderedSymbols: [34, 34, 6, 6]
-            accidentals: {
-                6: 2, // two double flats
-                34: 2, // two comma downs
-            },
-            hash: "4 6 2 34 2"
-        },
-        equaves: -1 // E4 is in the equave below tuning note A4
-    }
-    */
-
     // Convert nominalsFromA4 to nominals from tuning note.
 
     var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
@@ -2119,111 +2248,112 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
     var nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
 
-    /**
-     * Contains accidental hash of accidental symbols/fingerings found
-     * to apply to this note.
-     * 
-     * @type {AccidentalHash?}
-     */
-    var retrievedAccHash = getAccidental(
+    var currAccStateHash = getAccidental(
         cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0, null, reusedBarState);
 
-    // console.log("Found effective accidental: " + retrievedAccHash);
+    var accSyms = accidentalSymbolsFromHash(currAccStateHash);
+    accSyms = removeUnusedSymbols(accSyms, tuningConfig);
 
-    if (retrievedAccHash == null && keySig && keySig[nominal] != null
+    // Check fingerings for accidental declarations
+    var maybeFingeringAccSymbols = readFingeringAccidentalInput(msNote, tuningConfig);
+    if (maybeFingeringAccSymbols != null) {
+        if (!CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY &&
+            maybeFingeringAccSymbols.type == "ascii" && retrievedAccHash != null) {
+            // We need to combine existing accidentals and newly created ones
+            accSyms = addAccSym(accSyms, maybeFingeringAccSymbols.symCodes);
+        } else {
+            // Simply replace existing accidentals with newly created ones
+            accSyms = accidentalSymbolsFromList(maybeFingeringAccSymbols.symCodes);
+        }
+    }
+
+    // If no accidental found, check key signature
+    if (accSyms == null && keySig && keySig[nominal] != null
         // Check if KeySig has a valid number of nominals.
         && keySig.length == tuningConfig.numNominals) {
-        // If no prior accidentals found within the bar,
-        // look to key signature.
-        retrievedAccHash = keySig[nominal];
+        accSyms = accidentalSymbolsFromHash(keySig[nominal]);
     }
 
-    if (retrievedAccHash != null) {
-        var acHashSplit = retrievedAccHash.split(' ');
-        if (acHashSplit.length == 2 && acHashSplit[0] == '2') {
-            // treat any number of natural symbols = no accidental
-            retrievedAccHash = null;
+    if (accSyms != null) {
+        // make sure that if the only symbols present are natural symbols,
+        // we make accSyms null.
+        var syms = Object.keys(accSyms);
+        if (syms.length == 1 && syms[0] == '2') {
+            accSyms = null;
         }
     }
 
-    // Remove unused symbols from the hash.
-    retrievedAccHash = removeUnusedSymbols(retrievedAccHash, tuningConfig);
-
-    // Contains accidental symbols to be matched one by one.
-    var accSyms = accidentalSymbols(retrievedAccHash);
-
-    // Symbol Codes are ordered left-to-right.
     /** @type {SymbolCode[]} */
-    var primarySyms = [];
+    var primarySyms = []; // left-to-right display order
     /** @type {SymbolCode[]} */
-    var secondarySyms = [];
-
+    var secondarySyms = []; // left-to-right display order
     /** @type {SecondaryAccMatches} */
     var secondaryAccMatches = {};
+    if (accSyms != null) {
+        // Search first declared acc Chain first.
+        for (var i = 0; i <= tuningConfig.accChains.length; i++) {
+            var chain = tuningConfig.accChains[i];
 
-    // Search first declared acc Chain first.
-    for (var i = 0; i <= tuningConfig.accChains.length; i++) {
-        var chain = tuningConfig.accChains[i];
+            // Find the best accidental match for this chain, which is assumed
+            // to be the one with most symbols matched.
+            var mostSymbolsMatched = 0;
+            /** @type {SymbolCode[]} */
+            var bestSymbolMatch = null;
+            /** @type {AccidentalSymbols} */
+            var bestSubtracted = accSyms;
 
-        // Find the best accidental match for this chain, which is assumed
-        // to be the one with most symbols matched.
-        var mostSymbolsMatched = 0;
-        /** @type {SymbolCode[]} */
-        var bestSymbolMatch = null;
-        /** @type {AccidentalSymbols} */
-        var bestSubtracted = accSyms;
+            chain.degreesSymbols.forEach(function (syms) {
+                var trySubtract = subtractAccSym(accSyms, syms);
+                if (trySubtract != null && syms.length > mostSymbolsMatched) {
+                    mostSymbolsMatched = syms.length;
+                    bestSymbolMatch = syms;
+                    bestSubtracted = trySubtract;
+                }
+            });
 
-        chain.degreesSymbols.forEach(function (syms) {
-            var trySubtract = subtractAccSym(accSyms, syms);
-            if (trySubtract != null && syms.length > mostSymbolsMatched) {
-                mostSymbolsMatched = syms.length;
-                bestSymbolMatch = syms;
-                bestSubtracted = trySubtract;
+            if (bestSymbolMatch != null) {
+                // If a match was found, add the best match to the primary symbols.
+                // The matched accidentals go to the left of the earlier accidentals
+                // from earlier chains.
+                primarySyms = bestSymbolMatch.concat(primarySyms);
+
+                // Remove the best match from the list of symbols to be matched.
+                accSyms = bestSubtracted;
             }
-        });
-
-        if (bestSymbolMatch != null) {
-            // If a match was found, add the best match to the primary symbols.
-            // The matched accidentals go to the left of the earlier accidentals
-            // from earlier chains.
-            primarySyms = bestSymbolMatch.concat(primarySyms);
-
-            // Remove the best match from the list of symbols to be matched.
-            accSyms = bestSubtracted;
-        }
-    }
-
-    // Search from first declared secondary accidental.
-    for (var i = 0; i <= tuningConfig.secondaryAccList.length; i++) {
-        var accHash = tuningConfig.secondaryAccList[i];
-        var syms = tuningConfig.secondaryAccTable[accHash];
-
-        // secondary accidentals can be stacked indefinitely.
-        // match this secondary accidental's symbols until no more
-        // are matchable.
-
-        var numTimesMatched = 0;
-
-        while (true) {
-            var trySubtract = subtractAccSym(accSyms, syms);
-
-            if (trySubtract == null) {
-                break;
-            }
-
-            accSyms = trySubtract;
-            numTimesMatched++;
         }
 
-        // Register secondary accidental matches.
+        // Search from first declared secondary accidental.
+        for (var i = 0; i <= tuningConfig.secondaryAccList.length; i++) {
+            var accHash = tuningConfig.secondaryAccList[i];
+            var syms = tuningConfig.secondaryAccTable[accHash];
 
-        if (numTimesMatched > 0) {
-            var secAccIndex = tuningConfig.secondaryAccIndexTable[accHash];
-            for (var j = 0; j < numTimesMatched; j++) {
-                secondarySyms = syms.concat(secondarySyms);
+            // secondary accidentals can be stacked indefinitely.
+            // match this secondary accidental's symbols until no more
+            // are matchable.
+
+            var numTimesMatched = 0;
+
+            while (true) {
+                var trySubtract = subtractAccSym(accSyms, syms);
+
+                if (trySubtract == null) {
+                    break;
+                }
+
+                accSyms = trySubtract;
+                numTimesMatched++;
             }
 
-            secondaryAccMatches[secAccIndex] = numTimesMatched;
+            // Register secondary accidental matches.
+
+            if (numTimesMatched > 0) {
+                var secAccIndex = tuningConfig.secondaryAccIndexTable[accHash];
+                for (var j = 0; j < numTimesMatched; j++) {
+                    secondarySyms = syms.concat(secondarySyms);
+                }
+
+                secondaryAccMatches[secAccIndex] = numTimesMatched;
+            }
         }
     }
 
@@ -2252,58 +2382,27 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         equaves: equaves,
         secondaryAccSyms: secondarySyms,
         secondaryAccMatches: secondaryAccMatches,
+        updatedSymbols: maybeFingeringAccSymbols == null ? null : 
+            secondarySyms.concat(xenNote.orderedSymbols)
     };
 }
 
-// TODO Remove this after implementing proper ASCII accidentals.
 /**
- * DEPRECATED.
+ * Parses a user-input string which converts into an array of {@link SymbolCode}s.
  * 
- * Tokenizes a HEWM ASCII accidental into a {@link HewmAccidental} object.
+ * The entire user input must be matched with not a single character left over.
+ * Otherwise, this is not a valid ASCII accidental input string.
  * 
- * @param {string} text An ASCII accidental according to HEWM.
- * @returns {HewmAccidental?}
- */
-function parseHewmString(text) {
-    var text = text.trim();
-    if (text.match(HEWM_REGEX) == null) {
-        return null;
-    }
-
-    /** @type {HewmAccidental} */
-    var hewmAcc = {};
-
-    for (var i = 0; i < text.length; i++) {
-        var asciiChar = text[i];
-        if (hewmAcc[asciiChar]) {
-            hewmAcc[asciiChar]++;
-        } else {
-            hewmAcc[asciiChar] = 1;
-        }
-    }
-
-    return hewmAcc;
-}
-
-/**
- * Parses user-string which inputs user-declared strings into an array
- * of {@link SymbolCode}s.
- * 
- * This does not directly parse into {@link SecondaryAccMatches} because
- * the converted symbol codes may match primary accidentals first.
- * 
- * @param {string} str Text containing verbatim ascii accidentals.
+ * @param {string} str Text containing ascii representation of accidentals.
  * @param {TuningConfig} tuningConfig
- * @returns {SymbolCode[]} List of symbol
+ * @returns {SymbolCode[]?} List of symbols, or null if the string couldn't be fully parsed.
  */
-function parseVerbatimAsciiInput(str, tuningConfig) {
+function parseAsciiAccInput(str, tuningConfig) {
     /** 
      * A list of strings.
      * 
      * Every time a match is found, the string will be split into the parts
-     * before and after the match. See the writeup in
-     * [Verbatim ASCII accidental entry](./DEVELOPMENT.md#verbatim-ascii-accidental-entry-renderfingeringaccidental)
-     * 
+     * before and after the match.
      * @type {string[]} 
      */
     var strParts = [str];
@@ -2331,15 +2430,40 @@ function parseVerbatimAsciiInput(str, tuningConfig) {
 
         if (numMatches > 0) {
             var symCodes = tuningConfig.asciiToSmuflConv[searchStr];
+            for (var i = 0; i < numMatches; i++) {
+                // It doesn't really matter what order the individual SymCodes are in.
+                // It will get parsed properly by readNoteData().
+                convertedSymbols = convertedSymbols.concat(symCodes);
+            }
+
+            strParts = newStrParts;
         }
     });
+
+    if (strParts.length != 0) {
+        // fail silently. Not all fingerings are meant to be accidentals.
+        return null;
+    }
+
+    return convertedSymbols;
 }
 
 /**
- * Checks if user enters accidentals via using fingering text.
+ * Checks if user enters accidentals via using fingering text attached
+ * to this note.
  * 
- * Accidental fingering text could either be an AccidentalVector
- * prefixed with an 'a', or an unprocessed ASCII string.
+ * If so, returns an {@link SymbolCode[]} list containing
+ * accidental symbols that should replace existing accidentals.
+ * 
+ * When parsing accidentals, this {@link SymbolCode}[] object, if any, 
+ * should be used in place of the original tokenized {@link AccidentalSymbols}
+ * on the {@link MSNote}
+ * 
+ * Accidental fingering text could either be an {@link AccidentalVector}, 
+ * or ASCII-representation accidental entry.
+ * 
+ * For ASCII-representation accidental entry, the user must declare conversion rules
+ * in the secondary accidentals section of the tuning config.
  * 
  * AccidentalVector fingering is prefixed by 'a', followed
  * by the accidental vector that is comma-separated.
@@ -2351,15 +2475,17 @@ function parseVerbatimAsciiInput(str, tuningConfig) {
  * 
  * @param {MSNote} msNote
  * @param {TuningConfig} tuningConfig
- * @returns {MSNote} 
- *  If accidentals were created, returns the retokenized `MSNote`, 
- *  Otherwise, returns the original `MSNote`.
+ * @returns {{
+ *  type: 'av' | 'ascii',
+ *  symCodes: SymbolCode[]
+ * }?}
+ * Returns `null`, if there are no fingerings that affect the accidentals of this note.
+ * Otherwise, returns an object containing the `symbols` property which contains
+ * a list of symbol codes that this fingering applies on to the note, and the 
+ * `type` property which is either 'av' or 'ascii' depending on what kind of
+ * fingering created the new accidental symbols.
  */
-function renderFingeringAccidental(msNote, tuningConfig, newElement) {
-    // Keep track of found processed accidentals.
-    // Saves iterations when trying to find processed accidentals to delete.
-    var processedHewmAccidentals = [];
-
+function readFingeringAccidentalInput(msNote, tuningConfig) {
     for (var i = 0; i < msNote.fingerings.length; i++) {
         // Loop through all non-accidental fingerings attached to this note.
 
@@ -2372,8 +2498,20 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
             continue;
         }
 
-        // first, we try to match the fingering to verbatim ascii
-        // as declared in the sec() accidentals declarations
+        // first, we try to match the fingering to user-declared ASCII
+        // representations as declared in the sec() accidentals declarations
+
+        var maybeSymCodes = parseAsciiAccInput(text, tuningConfig);
+
+        if (maybeSymCodes != null) {
+            // These new accidental symbols are converted from the 
+            // ascii-representation fingering.
+            msNote.internalNote.remove(fingering);
+            return {
+                symCodes: maybeSymCodes,
+                type: 'ascii',
+            };
+        }
 
         if (text.startsWith('a')) {
             // test accidental vector fingering.
@@ -2425,132 +2563,27 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
                     }
                 }
 
-                console.log('Set accidental from fingering: ' + orderedSymbols);
-
-                setAccidental(msNote.internalNote, orderedSymbols,
-                    newElement, tuningConfig.usedSymbols);
-
-                return tokenizeNote(msNote.internalNote);
+                return {
+                    symCodes: orderedSymbols,
+                    type: 'av',
+                };
             }
-        } else if (text.match(HEWM_REGEX) != null) {
-
-            // We found an unprocessed HEWM accidental. Process it.
-
-            var hewmAcc = parseHewmString(text);
-
-            if (hewmAcc == null) {
-                // This should not happen. The regex should filter parseable HEWM accidentals only.
-                console.error("ERROR: Could not parse HEWM accidental: " + text);
-                continue;
-            }
-
-            /**
-             * Symbols to be attached to note as SMuFL symbols.
-             * @type {SymbolCode[]}
-             */
-            var symbolCodes = [];
-
-            console.log('hewmAcc: ' + JSON.stringify(hewmAcc));
-
-            for (var asciiChar in hewmAcc) {
-                var numOccurencesOfThisChar = hewmAcc[asciiChar];
-                var symbolsToAdd = [];
-                var numberCharsConverted = 0;
-                // slowly add 1 accidental at a time until there are no more symbol
-                // replacements, or the symbol accidentals are no longer part of
-                // the tuning config.
-                for (var i = 1; i <= numOccurencesOfThisChar; i++) {
-                    var symLookup = Lookup.HEWM_CONVERT_SYMCODES[asciiChar] || null;
-                    // try to convert i instances of this ascii char to symbols.
-                    var convertedSymbols = symLookup && symLookup[i] || null;
-                    console.log('Converted symbols: ' + convertedSymbols);
-                    if (convertedSymbols != null) {
-                        // But first, check if the TuningConfig contains such an accidental.
-                        var testSymbolCodes = symbolCodes.concat(convertedSymbols);
-                        var pseudoHash = '0 ' + accidentalsHash(testSymbolCodes);
-                        console.log('Testing pseudoHash: ' + pseudoHash);
-                        if (tuningConfig.notesTable[pseudoHash]) {
-                            // The note exists in the tuning config.
-                            symbolsToAdd = convertedSymbols;
-                            numberCharsConverted = i;
-                        } else {
-                            // The note does not exist in the tuning config.
-                            // Do not try to convert anymore symbols.
-                            break;
-                        }
-                    } else {
-                        // the conversion lookup doesn't specify any more symbols.
-                        break;
-                    }
-                }
-
-                // Convert the maximum number of ASCII accidentals into symbols
-                // for this current asciiChar
-                symbolCodes = symbolCodes.concat(symbolsToAdd);
-
-                // Subtract converted chars from the hewmAcc object.
-                hewmAcc[asciiChar] -= numberCharsConverted;
-            }
-
-            // reconstruct the HEWM string
-
-            var processedHewmString = '';
-
-            for (var asciiChar in hewmAcc) {
-                var numOccurencesOfThisChar = hewmAcc[asciiChar];
-                for (var i = 0; i < numOccurencesOfThisChar; i++) {
-                    processedHewmString += asciiChar;
-                }
-            }
-
-            // Complete iterating fingerings to find processed HEWM fingerings.
-
-            for (var j = i + 1; j < msNote.fingerings.length; j++) {
-                if (msNote.fingerings[j].z == HEWM_PROCESSED_Z_INDEX) {
-                    // We found a processed HEWM accidental.
-                    processedHewmAccidentals.push(fingering);
-                }
-            }
-
-            // remove prior processed HEWM ascii accidentals.
-
-            processedHewmAccidentals.forEach(function (fingering) {
-                msNote.internalNote.remove(fingering);
-            });
-
-            // mark current HEWM fingering as processed.
-            fingering.z = HEWM_PROCESSED_Z_INDEX;
-
-            // update fingering & convert accidental symbols
-            fingering.text = processedHewmString;
-            /*
-             Autoplace is required for this accidental to push back prior
-             segments.
-             */
-            fingering.autoplace = true;
-            fingering.align = Align.LEFT | Align.VCENTER;
-            fingering.fontSize = 12;
-            /*
-             Set offsetY to some random number to re-trigger vertical align later.
-             Otherwise, the fingering will be auto-placed above the notehead, even though
-             offsetY is set to 0.
-             */
-            fingering.offsetY = -3;
-            setAccidental(msNote.internalNote, symbolCodes, newElement, tuningConfig.usedSymbols);
-
-            return tokenizeNote(msNote.internalNote);
         }
     }
 
-    // nothing found just return the original note.
+    // nothing found
 
-    return msNote;
+    return null;
 }
 
 /**
  * Parse a MuseScore Note into `NoteData`.
  * 
- * If a fingering accidental is found, it is rendered on to the note.
+ * Checks for fingering-based accidental entry and adds accidental symbols/fingerings
+ * if accidental vector fingerings or ascii-representation fingerings are present.
+ * 
+ * If fingering accidental entry is performed, the note will have its accidentals
+ * replaced/updated with the new symbols.
  * 
  * @param {PluginAPINote} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
@@ -2563,37 +2596,22 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
  * @returns {NoteData} NoteData object
  */
 function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState) {
-    var msNote = renderFingeringAccidental(tokenizeNote(note), tuningConfig, newElement);
+    var msNote = tokenizeNote(note);
     var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
 
-    return noteData;
-}
-
-/**
- * Calculate the effective ratio caused by HEWM accidental ASCII characters.
- * 
- * @param {HewmAccidental} hewmAcc HEWM Accidentals object
- * @returns {number} JI ratio represented by the {@link HewmAccidental}.
- */
-function calcHewmRatio(hewmAcc) {
-    var ratio = 1;
-    for (var asciiChar in hewmAcc) {
-        var numOccurencesOfThisChar = hewmAcc[asciiChar];
-        var ratioLookup = Lookup.HEWM_RATIOS[asciiChar] || null;
-        if (ratioLookup != null) {
-            ratio *= Math.pow(ratioLookup, numOccurencesOfThisChar);
-        } else {
-            // This should not happen as the REGEX shouldn't match symbols.
-            // without ratio.
-            console.error("ERROR: HEWM symbol has no ratio: " + asciiChar);
-        }
+    if (noteData && noteData.updatedSymbols) {
+        // update new symbols if fingering-based accidental entry is performed.
+        setAccidental(note, noteData.updatedSymbols, newElement, tuningConfig);
     }
-    return ratio;
+    return noteData;
 }
 
 /**
  * Given current `NoteData` and a `TuningConfig`, calculate the
  * required note's tuning offset in cents.
+ * 
+ * This function also applies per-note tuning offsets denoted by
+ * fingering annotations.
  * 
  * @param {NoteData} noteData The note to be tuned
  * @param {TuningConfig} tuningConfig The tuning configuration
@@ -2614,8 +2632,16 @@ function calcCentsOffset(noteData, tuningConfig) {
     // apply NoteData equave offset.
     xenCentsFromA4 += noteData.equaves * tuningConfig.equaveSize;
 
+    // apply secondary accidentals
+    Object.keys(noteData.secondaryAccMatches).forEach(function (secAccIdx) {
+        var accHash = tuningConfig.secondaryAccList[secAccIdx];
+        xenCentsFromA4 += 
+            noteData.secondaryAccMatches[secAccIdx] // number of matched accidentals
+            * tuningConfig.secondaryTunings[accHash];
+    });
+
     /*
-    3 different fingering tuning annotations can be applied to a note.
+    Different fingering tuning annotations can be applied to a note.
     (and can be applied simultaneously).
     
     They are applied in this order:
@@ -2625,38 +2651,30 @@ function calcCentsOffset(noteData, tuningConfig) {
     Its octave is automatically reduced/expanded to be as close as possible to 
     xenCentsFromA4. By default, this fingering must be suffixed by a period
     unless the REQUIRE_PERIOD_AFTER_FINGERING_RATIO flag is set to false.
-
-    2. HEWM accidentals modify tuning of note by a specified ratio.
     
-    3. The fingering cents offset simply offsets tuning by the specified
+    2. The fingering cents offset simply offsets tuning by the specified
        amount of cents.
     */
 
     var fingeringCentsOffset = 0;
     var fingeringJIOffset = null; // this is in cents
-    /** @type {HewmAccidental?} */
-    var hewmAcc = null;
 
     noteData.ms.fingerings.forEach(function (fingering) {
+        if (fingering.z >= 1000 && fingering.z <= 2000) {
+            // don't read ASCII accidentals as fingering
+            // annotations.
+            return;
+        }
+
         var text = fingering.text;
 
-        if (text.match(HEWM_REGEX)) {
-            // HEWM accidental
-            /* 
-                Note that + and - are allowed in HEWM (accidentals can start with + or -).
-                To differentiate between cents offset and HEWM,
-                HEWM does not have numbers, whereas cent offsets must contain numbers.
-
-                Thus, check for HEWM first to avoid misparsing it as cents offset.
-            */
-
-            hewmAcc = parseHewmString(text);
-        } else if (text[0] && (text[0] == '+' || text[0] == '-')) {
+        if (text[0] && (text[0] == '+' || text[0] == '-')) {
             // Cents offset fingering
             var cents = parseFloat(eval(text.slice(1)));
             if (!isNaN(cents)) {
                 fingeringCentsOffset += cents * (text[0] == '+' ? 1 : -1);
             }
+            fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
         } else if (!REQUIRE_PERIOD_AFTER_FINGERING_RATIO || text.endsWith('.')) {
             // Ratio.
             if (REQUIRE_PERIOD_AFTER_FINGERING_RATIO)
@@ -2670,6 +2688,7 @@ function calcCentsOffset(noteData, tuningConfig) {
                     fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
                 }
             }
+            fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
         }
     });
 
@@ -2682,15 +2701,7 @@ function calcCentsOffset(noteData, tuningConfig) {
         xenCentsFromA4 = fingeringJIOffset - Math.round((fingeringJIOffset - xenCentsFromA4) / 1200) * 1200;
     }
 
-    // 2. Apply HEWM JI offset
-
-    if (hewmAcc) {
-        var hewmRatio = calcHewmRatio(hewmAcc);
-        var hewmCents = Math.log(hewmRatio) * 1200 / Math.log(2);
-        xenCentsFromA4 += hewmCents;
-    }
-
-    // 3. Apply cents offset.
+    // 2. Apply cents offset.
 
     xenCentsFromA4 += fingeringCentsOffset;
 
@@ -3028,6 +3039,9 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * Retrieve the next note up/down/enharmonic from the current {@link PluginAPINote}, and
  * returns {@link XenNote} and {@link PluginAPINote.line} offset to be applied on the note.
  * 
+ * This function does not read/regard secondary accidentals. The returned {@link NextNote} will
+ * not contain any secondary accidentals.
+ * 
  * The returned `lineOffset` property represents change in `Note.line`.
  * This is a negated value of the change in nominal ( +pitch = -line )
  * 
@@ -3343,7 +3357,7 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             matchPriorAcc: false
         };
 
-        if (bestOptionAccDist - avDist > 0.02) {
+        if (bestOptionAccDist - avDist > 0.5) {
             // console.log('best av dist');
             bestOption = nextNoteObj;
             bestOptionAccDist = avDist;
@@ -3351,7 +3365,7 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             bestNumSymbols = 90000;
             bestLineOffset = 90000;
             bestSumOfDegree = direction == 1 ? -10000 : 10000;
-        } else if (Math.abs(avDist - bestOptionAccDist) <= 0.02) {
+        } else if (Math.abs(avDist - bestOptionAccDist) <= 0.5) {
             // If distances are very similar, choose the option with
             // lesser symbols
             var numSymbols = newXenNote.orderedSymbols.length;
@@ -3717,11 +3731,11 @@ function getAccidental(cursor, note, tickOfThisBar,
  * 
  *  `null` or `[]` to remove all accidentals.
  * @param {Function} newElement reference to the `PluginAPI.newElement()` function
- * @param {Object.<string, boolean>?} usedSymbols
+ * @param {TuningConfig} tuningConfig
  *  If provided, any accidentals symbols that are not included in the tuning config
  *  will not be altered/removed by this function.
  */
-function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
+function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
 
     var elements = note.elements;
     var elemsToRemove = [];
@@ -3731,8 +3745,13 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
     for (var i = 0; i < elements.length; i++) {
         if (elements[i].symbol) {
             var symCode = Lookup.LABELS_TO_CODE[elements[i].symbol.toString()];
-            if (symCode && (!usedSymbols || usedSymbols[symCode])) {
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
                 // This element is an accidental symbol, remove it.
+                elemsToRemove.push(elements[i]);
+            }
+        } else if (elements[i].name == 'Fingering') {
+            if (elements[i].z >= 1000 && elements[i].z < 2000) {
+                // This fingering is an accidental symbol, remove it.
                 elemsToRemove.push(elements[i]);
             }
         }
@@ -3742,28 +3761,42 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
         note.remove(elem);
     });
 
+
     if (!orderedSymbols || orderedSymbols.length == 0) return;
 
     // Create new SymId symbols and attach to note.
     var zIdx = 1000;
     // go right-to-left.
     for (var i = orderedSymbols.length - 1; i >= 0; i--) {
-        var symId = Lookup.CODE_TO_LABELS[orderedSymbols[i]][0];
-        var elem = newElement(Element.SYMBOL);
-        elem.symbol = SymId[symId];
-        note.add(elem);
-        elem.z = zIdx;
-
-        // var pageXBefore = elem.pagePos.x;
+        var symCode = orderedSymbols[i];
+        if (typeof (symCode) == 'string' && symCode[0] == "'") {
+            // Create a fingering accidental
+            var fingering = newElement(Element.FINGERING);
+            note.add(fingering);
+            fingering.text = symCode.slice(1);
+            /*  Autoplace is required for this accidental to push back prior
+                segments. */
+            fingering.autoplace = true;
+            fingering.align = Align.LEFT | Align.VCENTER;
+            fingering.fontSize = 12;
+            /*  Set offsetY to some random number to re-trigger vertical align later.
+                Otherwise, the fingering will be auto-placed above the notehead, even though
+                offsetY is set to 0. */
+            fingering.offsetY = -3;
+            fingering.z = zIdx;
+        } else {
+            // Create a SMuFL symbol accidental
+            var symId = Lookup.CODE_TO_LABELS[symCode][0];
+            var elem = newElement(Element.SYMBOL);
+            elem.symbol = SymId[symId];
+            note.add(elem);
+            elem.z = zIdx;
+        }
 
         // Just put some arbitrary 1.4sp offset
         // between each symbol for now.
         elem.offsetX = -1.4 * (zIdx - 999);
 
-        // I've checked that setting an element's offset also updates
-        // its pagePos immediately. Thus, pagePos is a reliable source
-        // of an element's most updated position.
-        // console.log('pagePos.x difference: ' + (elem.pagePos.x - pageXBefore));
         zIdx++;
     }
 }
@@ -3782,10 +3815,10 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
     if (noteData.xen.accidentals != null) {
-        setAccidental(note, noteData.xen.orderedSymbols, newElement, tuningConfig.usedSymbols);
+        setAccidental(note, noteData.xen.orderedSymbols, newElement, tuningConfig);
     } else {
         // If no accidentals, also make the natural accidental explicit.
-        setAccidental(note, [2], newElement, tuningConfig.usedSymbols);
+        setAccidental(note, [2], newElement, tuningConfig);
     }
 }
 
@@ -3796,8 +3829,9 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * @param {number} lineOffset Nominals offset from current note's pitch
  * @param {SymbolCode[]} orderedSymbols Ordered accidental symbols as per XenNote.orderedSymbols.
  * @param {*} newElement 
+ * @param {TuningConfig} tuningConfig
  */
-function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
+function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) {
     console.log('modifyNote(' + (note.line + lineOffset) + ')');
     var newLine = note.line + lineOffset;
 
@@ -3815,7 +3849,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
 
     note.line = newLine; // Finally...
 
-    setAccidental(note, orderedSymbols, newElement, usedSymbols);
+    setAccidental(note, orderedSymbols, newElement, tuningConfig);
 }
 
 /**
@@ -3956,7 +3990,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         accSymbols = [2];
     }
 
-    modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig.usedSymbols);
+    modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
 
     //
     // STEP 4
@@ -4088,12 +4122,16 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                     // go from leftmost to rightmost chord
                     for (var chdIdx = 0; chdIdx < chds.length; chdIdx++) {
+                        /** 
+                         * All these notes are on the same line => all have the same nominal.
+                         * @type {MSNote[]} 
+                         */
                         var msNotes = chds[chdIdx].map(
                             function (note) {
                                 return tokenizeNote(note);
                             }
                         );
-                        // All these notes are on the same line => all have the same nominal.
+                        // All these notes have the same nominal.
                         var nominal = getNominal(msNotes[0], tuningConfig);
 
                         // Before we proceed, make sure that all explicit accidentals 
@@ -4121,8 +4159,9 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                 if (prevExplicitAcc == null) {
                                     prevExplicitAcc = accHash;
                                 } else if (prevExplicitAcc != accHash) {
-                                    // this chord contains notes with different
-                                    // explicit accidentals. We cannot proceed.
+                                    // this chord contains notes on the same line
+                                    // with different explicit accidentals.
+                                    // We should not remove these accidentals.
                                     proceed = false;
                                     break;
                                 }
@@ -4153,7 +4192,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     // accidental state and this note, this note's
                                     // accidental is redundant. Remove it.
 
-                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                 } else if (!currAccState && keySig) {
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
@@ -4162,13 +4201,13 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     var realKeySig = removeUnusedSymbols(keySig[nominal], tuningConfig) || '';
                                     console.log('realKeySig: ' + realKeySig);
                                     if (realKeySig == accHash) {
-                                        setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                        setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                     }
                                 } else if (isNatural && !currAccState && (!keySig || !keySig[nominal])) {
                                     // This note has a natural accidental, but it is not
                                     // needed, since the prior accidental state/key sig is natural.
 
-                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                 } else {
                                     // Otherwise, if we find an explicit accidental
                                     // that is necessary, update the accidental state.
@@ -4382,11 +4421,9 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                 if (symCode && (!usedSymbols || usedSymbols[symCode])) {
                     accSymbolsRTL.push(elem);
                 }
-            } else if (elem.name && elem.name == 'Fingering' && elem.z == HEWM_PROCESSED_Z_INDEX) {
-                // Found HEWM accidental fingering.
-                // The z-index of this element is much higher than the z-index of
-                // the other accidental symbols. We don't need to change its z index
-                // as this fingering element should appear to the left of the other accidentals.
+            } else if (elem.name && elem.name == 'Fingering' && 
+                elem.z >= 1000 && elem.z <= 2000) {
+                // Found ASCII accidental symbols implemented as fingerings.
                 accSymbolsRTL.push(elem);
             }
         }
@@ -4494,6 +4531,8 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
         if (symOff.sym.name == 'Fingering') {
             // because the HEWM accidental has autoplace on,
             // the offsetX needs to be further left.
+            // TODO: Check if there's some kind of Score Formatting rules that
+            //       affects this offset. It can't possibly be alright to hardcode this.
             symOff.sym.offsetX = symOff.x - 0.65;
         } else {
             symOff.sym.offsetX = symOff.x;

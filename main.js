@@ -23,19 +23,34 @@
 var Lookup = ImportLookup();
 
 window.testTuning = `
-A4: 440
-0 200 300 500 700 800 1000 1200
-db b (72) # #+
-\ (101.069) /
-`;
+// HEWM Referenced from http://www.tonalsoft.com/enc/h/hewm.aspx
+// Accidental Symbols up to 7-limit.
+// The rest are kept as ASCII.
 
-window.testTuning2 = `
-A4: 440
-0 200 300 500 700 800 1000 1200
-(100) #
-(20) /
-lig(1,2)
-1 1 #^
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2/1
+bbb bb b (2187/2048) # x #x
+j-.j- j- (81/80) j+ j+.j+
+d77 d7 (64/63) u7 u77
+aux(0)
+aux(1)
+aux(2)
+aux(3)
+sec()
+'bbb' bbb Math.pow(2048/2187,3)
+'bb' bb Math.pow(2048/2187,2)
+'b' b 2048/2187
+'###' #x Math.pow(2187/2048,3)
+'#x' #x Math.pow(2187/2048,3)
+'##' x Math.pow(2187/2048,2)
+'x' x Math.pow(2187/2048,2)
+'#' # 2187/2048
+'+' j+ 81/80
+'-' j- 80/81
+'<<' d77 Math.pow(63/64,2)
+'<' d7 63/64
+'>>' u77 Math.pow(64/63,2)
+'>' u7 64/63
 `;
 
 function download(content, filename, contentType)

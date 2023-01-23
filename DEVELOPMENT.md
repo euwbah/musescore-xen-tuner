@@ -61,7 +61,11 @@ The Z-index of ASCII accidentals will be changed to match the Z-index range of s
 
 To differentiate accidental fingerings from standard fingerings/JI ratios/cent offset annotations, a processed ASCII accidental fingering element will have Z-index between 1000 and 2000. That way, `getAccidental` will simply search for any fingerings with Z-index between 1000 and 2000, and immediately regard them as accidentals. This allows `getAccidental` to remain stateless.
 
-The plugin [does this processing of ASCII accidentals automatically](#verbatim-ascii-accidental-entry)
+🟧 **IMPORTANT:** When using ASCII accidentals in the score, the "Minimum Distance" property of Fingerings must be set to -999sp. You can set this once per score by using the "Set as style" button in the Inspector (`F8`).
+
+![](imgs/minimum-distance-set-style-default.png)
+
+**Failure to do so will result in ASCII accidentals appearing on top of the staff instead of to the left of the note.**
 
 ### Restrictions on ASCII Accidentals
 
@@ -145,11 +149,56 @@ sec()
 
 This declares that you want the plugin to convert the fingering that goes `/hw` into that long chain of symbols and fingerings. Note that the first instance of the obscure accidental will be parsed as degree +1 of the first accidental chain, which gives it the value 100c. Only subsequent instances of the obscure accidental will be parsed as the secondary accidental.
 
-`/hw` itself will have no value, as the plugin will assume that all instances of the shorthand would have been converted during the `renderFingeringAccidental()` function already.
+`/hw` itself will have no value, as the plugin will assume that all instances of the shorthand would have been converted during the `readFingeringAccidentalInput()` function already.
 
-### How to input verbatim ASCII
+### Implicit conversions
 
-To input ASCII accidentals as fingerings directly, the Tuning Config must declare ASCII to ASCII symbol conversions as secondary accidentals. It's not possible for the plugin to figure out what strings should match first in order to prevent the wrong symbols from being entered from a single ASCII verbatim input.
+If a single-element, pure-ASCII accidental is declared as a secondary accidental, its ASCII to SymbolCode conversion is implicitly declared.
+
+For example, `'+' 100c` will declare `'+'` as a secondary ASCII accidental and implicitly declare that '+' in verbatim accidental input will be converted into the `'+'` SymbolCode.
+
+This means that `'+' '+' 100c` is an unnecessary declaration.
+
+This auto-conversion declaration only happens if the secondary accidental is a single-element, pure-ASCII accidental.
+
+For example, `'+'.#` is a hybrid accidental comprising of one ASCII SymbolCode and one SMuFL SymbolCode, so it will not be auto-converted.
+
+`'+'.'+'` comprises only ASCII, however it is made of two distinct SymbolCodes, each one containing one '+' ASCII character. Thus, this is not single-element, and will not be auto-converted.
+
+The reason is because there is no way that the plugin can identify when the user wants to input `'+'.'+'` vs `'++'`. Thus, the user will have to declare how they want to input these multi-symbol/hybric accidentals via ASCII input.
+
+Here's a more thorough example:
+
+```txt
+sec()
+'+++' j+.'++' 90c
+'+' 10c
+```
+
+In the above declared secondary symbols, first a conversion is declared that converts three consecutive pluses into one Johnston plus symbol followed by a single ASCII accidental which consist of two plus characters.
+
+In the second line, we define a secondary accidental which is just a single ASCII plus character.
+
+Assuming this declaration, let's see what happens when the user enters various inputs:
+
+Verbatim entry of '+' will be converted into a single ASCII SymCode: `'+'`
+'++' will be converted into `'+'.'+'`.
+'+++' will be converted into `j+.'++'`
+'++++' will be converted into `'+'.j+.'++'`
+'+++++' will be converted into `'+'.'+'.j+.'++'`
+'++++++' will be converted into `j+.'++'.j+.'++'`
+
+...and so on.
+
+Note that we cannot implicitly declare conversions for pure-ASCII single-element accidentals declared in a primary accidental chain. The user needs to have control over the order of which strings are searched and matched, in the event where certain search strings are substrings of other search strings. This is the reason why the user has to go through additional steps to manually declare conversions.
+
+### How to configure `TuningConfig` to input accidentals as verbatim fingerings
+
+To allow the input of ASCII accidentals using user-created fingering text, there is some setup the user has to do.
+
+While SMuFL symbols are accessible from the Master Palette (Symbols), it's not that easy to input ASCII accidentals (simply adding fingerings is not enough). All ASCII accidentals will need to be pre-processed by the plugin.
+
+Thus, all ASCII accidentals must have ASCII-to-SymbolCodes conversions declared in order for them to be directly input by the user. Otherwise, they will only be available via up/down operations and must be part of a main accidental chain.
 
 #### :warning: WARNING: Extreme complexity
 
@@ -265,21 +314,33 @@ Similar to `XenHash`, symbol code keys in the `AccidentalSymbols` object will be
 
 `MSNote.fingerings` will contain only non-accidental fingerings.
 
+#### `NoteData` v0.2
+
+Two new properties are added: `secondaryAccSyms` and `secondaryAccMatches`. These contain information on how to display and tune secondary accidentals on a note.
+
+#### `TuningConfig` v0.2
+
+The `usedSecondarySymbols`, `secondaryAccList`, `secondaryAccIndexTable`, `secondaryAccTable`, and `secondaryTunings` properties contain information on secondary accidentals.
+
+`asciiToSmuflConv` and `asciiToSmuflConvList` contain information on how to convert accidentals input as verbatim ASCII fingerings into tokenized symbols.
+
+Conversions are declared together with secondary accidentals. If a secondary accidental is a single-element pure-ascii accidental, its accidental conversion will be elided and automatically implicitly defined in `asciiToSmuflConv`. Otherwise, the user will need to manually declare ascii input to accidental `SymbolCode`s conversions.
+
 ### Order of operations
 
 There's a lot going on with the verbatim ASCII fingering accidental entry and the new secondary accidental thing. Here's a big-picture overview of what happens:
 
 - User uses a verbatim accidental fingering to input accidentals on a note.
-- `renderFingeringAccidental()` will convert this verbatim fingering into a `SymbolCode` array, tokenizing individual symbols and fingering accidental elements.
+- `readFingeringAccidentalInput()` will convert this verbatim fingering into a `SymbolCode` array, tokenizing individual symbols and fingering accidental elements.
 - These SymbolCode elements are matched by `readNoteData()`, which breaks down the Symbol/Fingering elements into primary and secondary accidentals.
 - The primary accidentals affect the `XenNote` spelling.
 - The secondary accidentals do not.
 
-### Verbatim ASCII accidental entry: `renderFingeringAccidental()`
+### Verbatim ASCII accidental entry: `readFingeringAccidentalInput()`
 
 In v0.1, we can drag symbols from the Palette to enter symbols verbatim. In the same way, we need to support verbatim entry of ASCII accidentals via fingering text.
 
-The parsing & rendering of accidentals input as fingerings is done in the `renderFingeringAccidental()` function.
+The parsing & rendering of accidentals input as fingerings is done in the `readFingeringAccidentalInput()` function.
 
 This function parses:
 
@@ -321,13 +382,11 @@ The method would be to split the string at every match. Then, every search strin
 
 This is repeated until every `asciiToSmuflConvList` search string has been searched for.
 
-Also, there should be two possible behaviours that the user can select using some boolean flag:
+There are two possible behaviors that the advanced user can select by adjusting the `CLEAR_ACCIDENTALS_AFTER_VERBATIM_ENTRY` boolean flag:
 
 The default behaviour would be to delete old accidental symbols & fingerings, and replace them with the ASCII-entered text.
 
 The second behaviour would be where prior accidentals are preserved and the newly entered accidentals add to the existing accidentals.
-
-Once the ASCII verbatim accidental entry is parsed, 
 
 ### New tokenizing & parsing method
 
