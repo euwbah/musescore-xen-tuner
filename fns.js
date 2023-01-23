@@ -3078,27 +3078,21 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * 
  *  (Only applicable if direction is `1`/`-1`. Not applicable for enharmonic)
  * 
- * @param {PluginAPINote} note The current `PluginAPI::Note` MuseScore note object to be modified
+ * @param {NoteData} noteData parsed note data of the note to be transposed.
  * @param {KeySig} keySig Current key signature
  * @param {TuningConfig} tuningConfig Tuning Config object
  * @param {number} tickOfThisBar Tick of first segment of the bar
  * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
  * @param {Cursor} cursor MuseScore cursor object
  * @param {BarState} reusedBarState
- * @param {*} newElement 
- *  Reference to `PluginAPI::newElement`.
- *  
- *  Rationale: The parseNote function may create accidental symbols if an
- *  accidental fingering text is attached on the note.
  * @returns {NextNote?} 
  *  `NextNote` object containing info about how to spell the newly modified note.
  *  Returns `null` if no next note can be found.
  */
-function chooseNextNote(direction, constantConstrictions, note, keySig,
-    tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newElement) {
-
-    var noteData = parseNote(note, tuningConfig, keySig,
-        tickOfThisBar, tickOfNextBar, cursor, newElement);
+function chooseNextNote(direction, constantConstrictions, noteData, keySig,
+    tuningConfig, tickOfThisBar, tickOfNextBar, cursor) {
+    
+    var note = noteData.ms.internalNote;
 
     console.log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
 
@@ -3817,7 +3811,9 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * 
  * @param {PluginAPINote} note `PluginAPI::Note` to set pitch, tuning & accidentals of
  * @param {number} lineOffset Nominals offset from current note's pitch
- * @param {SymbolCode[]} orderedSymbols Ordered accidental symbols as per XenNote.orderedSymbols.
+ * @param {SymbolCode[]} orderedSymbols 
+ * Left-to-right ordered {@link SymbolCode}s. Obtained by concatenating
+ * {@link NoteData.secondaryAccSyms} and {@link XenNote.orderedSymbols}.
  * @param {*} newElement 
  * @param {TuningConfig} tuningConfig
  */
@@ -3877,6 +3873,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) 
 function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tuningConfig = parms.currTuning;
     var keySig = parms.currKeySig; // may be null/invalid
+    /** @type {ConstantConstrictions} */
     var constantConstrictions = parms.currTuning.auxList[aux]; // may be null/undefined
     var bars = parms.bars;
     var noteTick = getTick(note);
@@ -3887,10 +3884,13 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
     console.log('executeTranspose(' + direction + ', ' + aux + '). Check same: ' + JSON.stringify(constantConstrictions));
 
+    var noteData = parseNote(note, tuningConfig, keySig,
+        tickOfThisBar, tickOfNextBar, cursor, newElement);
+
     // STEP 1: Choose the next note.
     var nextNote = chooseNextNote(
-        direction, constantConstrictions, note, keySig, tuningConfig, tickOfThisBar,
-        tickOfNextBar, cursor, newElement);
+        direction, constantConstrictions, noteData, 
+        keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
 
     if (!nextNote) {
         // If no next note (e.g. no enharmonic)
@@ -3978,6 +3978,23 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
         // The new note added should always use explicit accidentals.
         accSymbols = [2];
+    }
+
+    // Here we need to check whether or not to include prior secondary
+    // accidentals in the new note depending on the operation.
+
+    var isEnharmonic = direction == 0;
+    var isDiatonic = !isEnharmonic && constantConstrictions.length == 1 &&
+        constantConstrictions[0] == 0;
+    var isNonDiatonicTranspose = !isEnharmonic && !isDiatonic;
+
+    if (KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC && isDiatonic ||
+        KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC && isEnharmonic ||
+        KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE && isNonDiatonicTranspose) {
+        
+        // We need to keep secondary accidentals.
+        // Carry forward secondary symbols and prepend them
+        accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
     }
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
