@@ -2382,7 +2382,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         equaves: equaves,
         secondaryAccSyms: secondarySyms,
         secondaryAccMatches: secondaryAccMatches,
-        updatedSymbols: maybeFingeringAccSymbols == null ? null : 
+        updatedSymbols: maybeFingeringAccSymbols == null ? null :
             secondarySyms.concat(xenNote.orderedSymbols)
     };
 }
@@ -2635,7 +2635,7 @@ function calcCentsOffset(noteData, tuningConfig) {
     // apply secondary accidentals
     Object.keys(noteData.secondaryAccMatches).forEach(function (secAccIdx) {
         var accHash = tuningConfig.secondaryAccList[secAccIdx];
-        xenCentsFromA4 += 
+        xenCentsFromA4 +=
             noteData.secondaryAccMatches[secAccIdx] // number of matched accidentals
             * tuningConfig.secondaryTunings[accHash];
     });
@@ -3253,22 +3253,28 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
 
     var currAV = tuningConfig.avTable[noteData.xen.hash];
 
-    // Returns the XenNote hash option so far.
-    var bestOption = null;
-
     if (tuningConfig.equaveSize < 0) {
         equaveOffset = -equaveOffset;
         console.log('equaveSize < 0, reversing equaveOffset: ' + equaveOffset);
     }
 
-    // AccidentalVector Distance is measured as sum of squares
-    var bestOptionAccDist = 100000;
-    var bestNumSymbols = 10000;
-    var bestLineOffset = 90000;
-    var bestSumOfDegree = direction == 1 ? -10000 : 10000;
+    /** 
+     * A list of next note options with pre-calculated metrics.
+     * 
+     * To be sorted based on the metrics to obtain the best option.
+     * 
+     * @type {{
+     *      nextNote: NextNote,
+     *      avDist: number,
+     *      numSymbols: number,
+     *      lineOffset: number,
+     *      sumOfDegree: number
+     * }[]} 
+     */
+    var nextNoteOptions = [];
 
-    for (var i = 0; i < Math.max(5, validOptions.length); i++) {
-        var option = validOptions[i % validOptions.length]; // contains XenNote hash of enharmonic option.
+    for (var i = 0; i < validOptions.length; i++) {
+        var option = validOptions[i]; // contains XenNote hash of enharmonic option.
 
         var newXenNote = tuningConfig.notesTable[option];
 
@@ -3280,6 +3286,14 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
         var nominalOffset = newXenNote.nominal - noteData.xen.nominal +
             totalEqvOffset * tuningConfig.numNominals;
 
+        var nextNoteObj = {
+            xen: newXenNote,
+            nominal: newXenNote.nominal,
+            equaves: noteData.equaves + totalEqvOffset,
+            lineOffset: -nominalOffset,
+            matchPriorAcc: false
+        };
+
         // check each option to see if it would match a prior accidental
         // on the new line. An AccidentalVector match is considered a match,
         // The `regarding` constriction is not so strict to the point where
@@ -3287,7 +3301,6 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
 
         var priorAcc = getAccidental(
             cursor, note, tickOfThisBar, tickOfNextBar, 2, note.line - nominalOffset);
-
 
         if (priorAcc == null && keySig) {
             var keySigAcc = keySig[newXenNote.nominal];
@@ -3301,22 +3314,12 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
         var optionAV = tuningConfig.avTable[option];
 
         if (priorAcc != null) {
-            // This is used to look up the accidental's effect on the accidentalVector
-            // it doesn't matter what nominal it uses since all identical accidental
-            // hashes will result in the same accidentalVector.
             var priorAccHash = '0 ' + priorAcc;
 
             if (arraysEqual(optionAV, tuningConfig.avTable[priorAccHash])) {
                 // Direct accidental match. Return this.
-                return {
-                    xen: newXenNote,
-                    nominal: newXenNote.nominal,
-                    equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
-                    lineOffset: -nominalOffset,
-                    // This flag means that no explicit accidental needs to be
-                    // placed on this new modified note.
-                    matchPriorAcc: true
-                }
+                nextNoteObj.matchPriorAcc = true;
+                return nextNoteObj;
             }
         } else {
             // If there's no prior accidental nor key signature accidental on this line,
@@ -3324,18 +3327,13 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             // This avoids unnecessary enharmonics.
 
             if (option.split(' ').length == 1) {
-                return {
-                    xen: newXenNote,
-                    nominal: newXenNote.nominal,
-                    equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
-                    lineOffset: -nominalOffset,
-                    matchPriorAcc: true
-                }
+                nextNoteObj.matchPriorAcc = true;
+                return nextNoteObj;
             }
         }
 
-        // Otherwise, choose the best accidental option according to the above stated choosing rules
-        // in JSDoc.
+        // If no immediate match found, calculate metrics and
+        // add this to the list of options to be sorted.
 
         // Compute AV distance, choose option with smallest distance
 
@@ -3345,67 +3343,59 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             avDist += (currAV[j] - optionAV[j]) * (currAV[j] - optionAV[j]);
         }
 
+        // The lower the sum of degrees the better.
         var sumOfDeg = currAV.reduce(function (acc, deg) {
             return acc + deg;
         });
 
-        var nextNoteObj = {
-            xen: newXenNote,
-            nominal: newXenNote.nominal,
-            equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
+        nextNoteOptions.push({
+            nextNote: nextNoteObj,
+            avDist: avDist,
+            numSymbols: newXenNote.orderedSymbols.length,
             lineOffset: -nominalOffset,
-            matchPriorAcc: false
-        };
-
-        if (bestOptionAccDist - avDist > 0.5) {
-            // console.log('best av dist');
-            bestOption = nextNoteObj;
-            bestOptionAccDist = avDist;
-            // reset other lower-tier metrics
-            bestNumSymbols = 90000;
-            bestLineOffset = 90000;
-            bestSumOfDegree = direction == 1 ? -10000 : 10000;
-        } else if (Math.abs(avDist - bestOptionAccDist) <= 0.5) {
-            // If distances are very similar, choose the option with
-            // lesser symbols
-            var numSymbols = newXenNote.orderedSymbols.length;
-
-            if (numSymbols < bestNumSymbols) {
-                // console.log('best num symbols');
-                bestOption = nextNoteObj;
-                bestNumSymbols = numSymbols;
-                bestLineOffset = 90000; // reset
-                bestSumOfDegree = direction == 1 ? -10000 : 10000;
-            } else if (numSymbols == bestNumSymbols) {
-                // if everything else the same, pick
-                // the one that has the least lineOffset
-
-                if (Math.abs(nominalOffset) < bestLineOffset) {
-                    // console.log('best line offset');
-                    bestOption = nextNoteObj;
-                    bestLineOffset = Math.abs(nominalOffset);
-                    bestSumOfDegree = direction == 1 ? -10000 : 10000;
-                } else if (Math.abs(nominalOffset) == bestLineOffset) {
-                    // If all else are the same, pick the option that
-                    // matches the direction of transpose.
-
-                    // Up should favor sharps, down should favor flats.
-
-                    if ((direction == 1 && sumOfDeg > bestSumOfDegree) ||
-                        (direction == -1 && sumOfDeg < bestSumOfDegree)) {
-                        // console.log('best sum of degree');
-                        bestOption = nextNoteObj;
-                        bestSumOfDegree = sumOfDeg;
-                    }
-                }
-            }
-        }
+            sumOfDegree: sumOfDeg
+        });
     }
+
+    // Sort them such that the best option is at the front
+    nextNoteOptions.sort(function (a, b) {
+        // Lower AV Dist is better. Give +/- 0.5 leeway for
+        // 'similar' AV dist.
+        if (a.avDist - b.avDist <= -0.5) {
+            return -1;
+        } else if (a.avDist - b.avDist >= 0.5) {
+            return 1;
+        }
+
+        // AV dist similar, choose the one with lesser symbols
+        if (a.numSymbols < b.numSymbols) {
+            return -1;
+        } else if (a.numSymbols > b.numSymbols) {
+            return 1;
+        }
+
+        // Symbols similar, choose the one with lesser line offset
+        if (Math.abs(a.lineOffset) < Math.abs(b.lineOffset)) {
+            return -1;
+        } else if (Math.abs(a.lineOffset) > Math.abs(b.lineOffset)) {
+            return 1;
+        }
+
+        // Line offset similar, choose the one with sumOfDegree
+        // that matches the direction of transpose.
+        //
+        // Up should favor upward accidentals (sharps)
+        if (a.sumOfDegree > b.sumOfDegree) {
+            return direction == 1 ? -1 : 1;
+        } else {
+            return direction == 1 ? 1 : -1;
+        }
+    });
 
     // At the end of all the optimizations, bestOption should contain
     // the best option...
 
-    return bestOption;
+    return nextNoteOptions[0];
 }
 
 /**
@@ -4421,7 +4411,7 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                 if (symCode && (!usedSymbols || usedSymbols[symCode])) {
                     accSymbolsRTL.push(elem);
                 }
-            } else if (elem.name && elem.name == 'Fingering' && 
+            } else if (elem.name && elem.name == 'Fingering' &&
                 elem.z >= 1000 && elem.z <= 2000) {
                 // Found ASCII accidental symbols implemented as fingerings.
                 accSymbolsRTL.push(elem);
