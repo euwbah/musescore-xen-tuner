@@ -494,15 +494,10 @@ class TuningConfig {
     secondaryTunings;
 
     /**
-     * Contains lookup for converting ascii accidentals to SMuFL symbols.
+     * Contains lookup for converting ascii verbatim input to SMuFL symbols.
      * 
-     * These conversions are entered as secondary symbols.
-     * If an ASCII symbol is to be converted, the ASCII symbol will not
-     * be included in {@link secondaryAccList}, nor {@link secondaryTunings},
-     * nor {@link usedSecondarySymbols}, since the ASCII symbol will immediately
-     * be converted to the SMuFL.
-     * 
-     * Only the SMuFL symbol will show up in the other lookups.
+     * ASCII verbatim input are NOT SymbolCodes, they are literally ascii strings
+     * that the user types in.
      * 
      * @type {Object.<string, AccidentalHash>}
      */

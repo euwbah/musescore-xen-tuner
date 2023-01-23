@@ -1315,7 +1315,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     return null;
                 }
 
-                var asciiFrom = symCodesASCIIFrom[0];
+                // remove the preceding quote from the ascii SymbolCode
+                var asciiFrom = symCodesASCIIFrom[0].slice(1);
                 var accHashTo = accidentalsHash(symCodesTo);
 
                 tuningConfig.secondaryAccList.push(accHashTo);
@@ -2299,18 +2300,38 @@ function parseVerbatimAsciiInput(str, tuningConfig) {
     /** 
      * A list of strings.
      * 
-     * Every time a match is found, the string will be split into the part
-     * before and after the match. See
-     * 
+     * Every time a match is found, the string will be split into the parts
+     * before and after the match. See the writeup in
+     * [Verbatim ASCII accidental entry](./DEVELOPMENT.md#verbatim-ascii-accidental-entry-renderfingeringaccidental)
      * 
      * @type {string[]} 
      */
     var strParts = [str];
 
+    /**
+     * Stores converted {@link SymbolCode}s
+     * @type {SymbolCode[]}
+     */
     var convertedSymbols = [];
 
     tuningConfig.asciiToSmuflConvList.forEach(function (searchStr) {
-        
+        // contains strParts for the next iteration.
+        var newStrParts = [];
+        var numMatches = 0;
+        strParts.forEach(function (sourceStr) {
+            var splitStr = sourceStr.split(searchStr);
+            numMatches += splitStr.length - 1;
+            for (var i = 0; i < splitStr.length; i++) {
+                var strPart = splitStr[i];
+                if (strPart != '') {
+                    newStrParts.push(strPart);
+                }
+            }
+        });
+
+        if (numMatches > 0) {
+            var symCodes = tuningConfig.asciiToSmuflConv[searchStr];
+        }
     });
 }
 
