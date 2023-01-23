@@ -91,15 +91,17 @@ sec()
 '#' 100c // secondary sharp ASCII
 ```
 
-The plugin greedily matches symbols in the order that they are declared. 
+The plugin greedily matches symbols in the order that they are declared.
 
-For example, let's say we have a note that contains 3 ASCII sharp symbols and 2 SMuFL sharp symbols: 
+For example, let's say we have a note that contains 3 ASCII sharp symbols and 2 SMuFL sharp symbols:
 
 1. The 1st SMuFL sharp symbol will match the first accidental chain (100c)
 2. The 2nd SMuFL sharp symbol and 1st ASCII symbol will match first secondary accidental (250c)
 3. The remaining 2nd and 3rd ASCII symbols will match the third secondary accidental (100c each)
 
 ...which results in a total 550c offset.
+
+By default, secondary accidentals will not be removed/modified when the user uses up/down operations on a note. However, this should be a user-configurable boolean flag.
 
 ### ASCII to Symbol conversions
 
@@ -145,7 +147,11 @@ This declares that you want the plugin to convert the fingering that goes `/hw` 
 
 `/hw` itself will have no value, as the plugin will assume that all instances of the shorthand would have been converted during the `renderFingeringAccidental()` function already.
 
-### :warning: WARNING: Extreme complexity
+### How to input verbatim ASCII
+
+To input ASCII accidentals as fingerings directly, the Tuning Config must declare ASCII to ASCII symbol conversions as secondary accidentals. It's not possible for the plugin to figure out what strings should match first in order to prevent the wrong symbols from being entered from a single ASCII verbatim input.
+
+#### :warning: WARNING: Extreme complexity
 
 The issue with implementing secondary accidentals is that it greatly increases the complexity of not only development &mdash; Users who want to take advantage of the new ASCII accidentals, verbatim ascii input, and secondary accidental features must know how the plugin parses these tokens and understand how to declare them correctly and in the correct order.
 
@@ -217,6 +223,8 @@ This declares that 3 consecutive pluses gets converted to one Johnston plus symb
 
 Evidently, this allows the user to choose exactly how they want to enter their verbatim accidentals and how it gets converted, be it to ASCII, Symbols or Hybrid accidentals.
 
+Once the ASCII input is processed, they get tokenized into `SymbolCode`s, and the `readNoteData` function will match these `SymbolCode`s based on the tuning config to figure out which ones will contribute as primary accidentals to affect the `XenNote` TPC spelling, and which ones are secondary accidentals.
+
 The user must know how to declare the appropriate conversions, and must know that if conversions are not declared, then there will be no way of entering ASCII accidentals verbatim via fingering text. However, even without conversions, if ASCII accidentals are part of the primary accidental chains of a Tuning Config, they can still be accessible via up/down/J operations.
 
 ## How to implement v0.2
@@ -257,9 +265,15 @@ Similar to `XenHash`, symbol code keys in the `AccidentalSymbols` object will be
 
 `MSNote.fingerings` will contain only non-accidental fingerings.
 
-### Implicit & Explicit `asciiToSmuflConv` population
+### Order of operations
 
-The `asciiToSmuflConv` lookup contains information on how to convert ASCII symbols input as verbatim ASCII fingering accidentals into actual used symbols
+There's a lot going on with the verbatim ASCII fingering accidental entry and the new secondary accidental thing. Here's a big-picture overview of what happens:
+
+- User uses a verbatim accidental fingering to input accidentals on a note.
+- `renderFingeringAccidental()` will convert this verbatim fingering into a `SymbolCode` array, tokenizing individual symbols and fingering accidental elements.
+- These SymbolCode elements are matched by `readNoteData()`, which breaks down the Symbol/Fingering elements into primary and secondary accidentals.
+- The primary accidentals affect the `XenNote` spelling.
+- The secondary accidentals do not.
 
 ### Verbatim ASCII accidental entry: `renderFingeringAccidental()`
 
@@ -307,13 +321,13 @@ The method would be to split the string at every match. Then, every search strin
 
 This is repeated until every `asciiToSmuflConvList` search string has been searched for.
 
-Once fingerings have been parsed, the original fingering will be removed and the new tokenized fingerings/symbols will have their Z index set as a running number from 1000 onwards up to 2000, where sorting by increasing Z-index will give the right-to-left order of symbols.
-
 Also, there should be two possible behaviours that the user can select using some boolean flag:
 
 The default behaviour would be to delete old accidental symbols & fingerings, and replace them with the ASCII-entered text.
 
 The second behaviour would be where prior accidentals are preserved and the newly entered accidentals add to the existing accidentals.
+
+Once the ASCII verbatim accidental entry is parsed, 
 
 ### New tokenizing & parsing method
 
@@ -347,15 +361,6 @@ After tokenizing, we need to parse.
 Once all declared `AccidentalChains` are matched, then we parse the rest as secondary accidentals, and we perform the same search-and-replace in the order which the user has declared the secondary symbols.
 
 Any remaining symbols after searching and tokenizing everything are simply ignored.
-
-### Secondary accidental 'order of operations'
-
-There's a lot going on with the verbatim ASCII fingering accidental entry and the new secondary accidentals thing. Here's the order of operations:
-
-- User enters a fingering denoting ASCII accidentals + ASCII to be converted
-- ASCII is converted to relevant symbols/fingerings/hybrid accidentals
-- Accidental chains are matched first
-- Secondary accidentals matched later
 
 ### Accidental display order
 

@@ -912,6 +912,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         },
         usedSecondarySymbols: {},
         secondaryAccList: [],
+        secondaryAccIndexTable: {},
         secondaryAccTable: {},
         secondaryTunings: {},
         asciiToSmuflConv: {},
@@ -1286,6 +1287,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var accHash = accidentalsHash(symCodes);
 
                 tuningConfig.secondaryAccList.push(accHash);
+                tuningConfig.secondaryAccIndexTable[accHash] = tuningConfig.secondaryAccList.length - 1;
                 tuningConfig.secondaryAccTable[accHash] = symCodes;
                 tuningConfig.secondaryTunings[accHash] = cents;
 
@@ -1317,6 +1319,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var accHashTo = accidentalsHash(symCodesTo);
 
                 tuningConfig.secondaryAccList.push(accHashTo);
+                tuningConfig.secondaryAccIndexTable[accHash] = tuningConfig.secondaryAccList.length - 1;
                 tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
                 tuningConfig.secondaryTunings[accHashTo] = cents;
                 tuningConfig.asciiToSmuflConv[asciiFrom] = accHashTo;
@@ -2115,40 +2118,51 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
     var nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
 
-    var accidentalsHash = getAccidental(
+    /**
+     * Contains accidental hash of accidental symbols/fingerings found
+     * to apply to this note.
+     * 
+     * @type {AccidentalHash?}
+     */
+    var retrievedAccHash = getAccidental(
         cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0, null, reusedBarState);
 
-    // console.log("Found effective accidental: " + accidentalsHash);
+    // console.log("Found effective accidental: " + retrievedAccHash);
 
-    if (accidentalsHash == null && keySig && keySig[nominal] != null
+    if (retrievedAccHash == null && keySig && keySig[nominal] != null
         // Check if KeySig has a valid number of nominals.
         && keySig.length == tuningConfig.numNominals) {
         // If no prior accidentals found within the bar,
         // look to key signature.
-        accidentalsHash = keySig[nominal];
+        retrievedAccHash = keySig[nominal];
     }
 
-    if (accidentalsHash != null) {
-        var acHashSplit = accidentalsHash.split(' ');
+    if (retrievedAccHash != null) {
+        var acHashSplit = retrievedAccHash.split(' ');
         if (acHashSplit.length == 2 && acHashSplit[0] == '2') {
             // treat any number of natural symbols = no accidental
-            accidentalsHash = null;
+            retrievedAccHash = null;
         }
     }
 
     // Remove unused symbols from the hash.
-    accidentalsHash = removeUnusedSymbols(accidentalsHash, tuningConfig);
+    retrievedAccHash = removeUnusedSymbols(retrievedAccHash, tuningConfig);
 
-    // Contains accidental symbols to be matched.
-    var accSyms = accidentalSymbols(accidentalsHash);
+    // Contains accidental symbols to be matched one by one.
+    var accSyms = accidentalSymbols(retrievedAccHash);
 
+    // Symbol Codes are ordered left-to-right.
     /** @type {SymbolCode[]} */
     var primarySyms = [];
     /** @type {SymbolCode[]} */
     var secondarySyms = [];
 
-    tuningConfig.accChains.forEach(function (chain) {
-        // loop each chain in user-defined order.
+    /** @type {SecondaryAccMatches} */
+    var secondaryAccMatches = {};
+
+    // Search first declared acc Chain first.
+    for (var i = 0; i <= tuningConfig.accChains.length; i++) {
+        var chain = tuningConfig.accChains[i];
 
         // Find the best accidental match for this chain, which is assumed
         // to be the one with most symbols matched.
@@ -2169,29 +2183,58 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
         if (bestSymbolMatch != null) {
             // If a match was found, add the best match to the primary symbols.
-            primarySyms = primarySyms.concat(bestSymbolMatch);
+            // The matched accidentals go to the left of the earlier accidentals
+            // from earlier chains.
+            primarySyms = bestSymbolMatch.concat(primarySyms);
 
             // Remove the best match from the list of symbols to be matched.
             accSyms = bestSubtracted;
         }
-    });
+    }
 
-    tuningConfig.secondaryAccList.forEach(function (accHash) {
+    // Search from first declared secondary accidental.
+    for (var i = 0; i <= tuningConfig.secondaryAccList.length; i++) {
+        var accHash = tuningConfig.secondaryAccList[i];
         var syms = tuningConfig.secondaryAccTable[accHash];
-        var trySubtract = subtractAccSym(accSyms, syms);
-        if (trySubtract != null) {
-            secondarySyms = secondarySyms.concat(syms);
+
+        // secondary accidentals can be stacked indefinitely.
+        // match this secondary accidental's symbols until no more
+        // are matchable.
+
+        var numTimesMatched = 0;
+
+        while (true) {
+            var trySubtract = subtractAccSym(accSyms, syms);
+
+            if (trySubtract == null) {
+                break;
+            }
+
             accSyms = trySubtract;
+            numTimesMatched++;
         }
-    });
+
+        // Register secondary accidental matches.
+
+        if (numTimesMatched > 0) {
+            var secAccIndex = tuningConfig.secondaryAccIndexTable[accHash];
+            for (var j = 0; j < numTimesMatched; j++) {
+                secondarySyms = syms.concat(secondarySyms);
+            }
+
+            secondaryAccMatches[secAccIndex] = numTimesMatched;
+        }
+    }
 
     // Create hash manually.
     // Don't use the createXenHash function, that works on the AccidentalSymbols object
     // instead of the hash.
     var xenHash = nominal;
 
-    if (accidentalsHash != null) {
-        xenHash += ' ' + accidentalsHash;
+    var primarySymsHash = accidentalsHash(primarySyms);
+
+    if (primarySymsHash != '') {
+        xenHash += ' ' + primarySymsHash;
     }
 
     var xenNote = tuningConfig.notesTable[xenHash];
@@ -2205,7 +2248,9 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     return {
         ms: msNote,
         xen: xenNote,
-        equaves: equaves
+        equaves: equaves,
+        secondaryAccSyms: secondarySyms,
+        secondaryAccMatches: secondaryAccMatches,
     };
 }
 
@@ -2240,7 +2285,37 @@ function parseHewmString(text) {
 }
 
 /**
- * Checks if an accidental fingering text is attached to the note.
+ * Parses user-string which inputs user-declared strings into an array
+ * of {@link SymbolCode}s.
+ * 
+ * This does not directly parse into {@link SecondaryAccMatches} because
+ * the converted symbol codes may match primary accidentals first.
+ * 
+ * @param {string} str Text containing verbatim ascii accidentals.
+ * @param {TuningConfig} tuningConfig
+ * @returns {SymbolCode[]} List of symbol
+ */
+function parseVerbatimAsciiInput(str, tuningConfig) {
+    /** 
+     * A list of strings.
+     * 
+     * Every time a match is found, the string will be split into the part
+     * before and after the match. See
+     * 
+     * 
+     * @type {string[]} 
+     */
+    var strParts = [str];
+
+    var convertedSymbols = [];
+
+    tuningConfig.asciiToSmuflConvList.forEach(function (searchStr) {
+        
+    });
+}
+
+/**
+ * Checks if user enters accidentals via using fingering text.
  * 
  * Accidental fingering text could either be an AccidentalVector
  * prefixed with an 'a', or an unprocessed ASCII string.
@@ -2248,14 +2323,10 @@ function parseHewmString(text) {
  * AccidentalVector fingering is prefixed by 'a', followed
  * by the accidental vector that is comma-separated.
  * 
- * Unprocessed ASCII string contains ASCII accidentals that
- * must be processed by 
- * 
- * (Spaces can't be typed into a fingering)
- * 
  * Recap: The Nth integer of the accidental vector represents the degree 
  * of the Nth accidental chain to be applied to this note.
  * 
+ * Unprocessed fingerings have z-index of DEFAULT_FINGERING_Z_INDEX
  * 
  * @param {MSNote} msNote
  * @param {TuningConfig} tuningConfig
@@ -2274,6 +2345,14 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
         var fingering = msNote.fingerings[i];
         var text = fingering.text;
         text = removeFormattingCode(text);
+
+        if (fingering.z != DEFAULT_FINGERING_Z_INDEX) {
+            // only process unprocessed fingerings.
+            continue;
+        }
+
+        // first, we try to match the fingering to verbatim ascii
+        // as declared in the sec() accidentals declarations
 
         if (text.startsWith('a')) {
             // test accidental vector fingering.
@@ -2309,10 +2388,8 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
                         av.push(0);
                 }
 
-                var elemToRemove = fingering;
-
                 // remove the fingering.
-                msNote.internalNote.remove(elemToRemove);
+                msNote.internalNote.remove(fingering);
 
                 var orderedSymbols = [];
 

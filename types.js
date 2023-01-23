@@ -173,6 +173,19 @@ class XenNote {
 }
 
 /**
+ * Contains degrees of secondary accidentals present in a {@link NoteData}
+ * 
+ * The keys of this lookup are the indices of the secondary accidental,
+ * such that {@link TuningConfig.secondaryAccList}[idx] will yield the
+ * secondary accidental that has been matched.
+ * 
+ * The values of this lookup are positive, non-zero numbers, indicating
+ * how many times that particular secondary accidental has been matched.
+ * 
+ * @typedef {Object.<number, number>} SecondaryAccMatches
+ */
+
+/**
  * Represents a semantically parsed note after {@link TuningConfig} lookup is
  * applied to a {@link MSNote} to calculate its {@link XenNote} pitch class.
  */
@@ -190,10 +203,18 @@ class NoteData {
      * @type {number} */
     equaves;
     /**
-     * {@link AccidentalSymbols} object containing only secondary
-     * symbols that didn't make it into the {@link XenNote.hash}.
+     * {@link SymbolCode}[] list containing secondary accidental symbols 
+     * in left-to-right display order.
+     * 
+     * @type {SymbolCode[]}
      */
-    secondarySyms;
+    secondaryAccSyms;
+    /**
+     * Contains degrees of matched secondary accidentals.
+     * 
+     * @type {SecondaryAccMatches}
+     */
+    secondaryAccMatches;
 }
 
 /**
@@ -447,6 +468,14 @@ class TuningConfig {
      * @type {AccidentalHash[]}
      */
     secondaryAccList;
+
+    /**
+     * Lookup mapping entries in {@link secondaryAccList} to their index.
+     * 
+     * E.g. if `6 2 '> 3` is the 3rd element of `secondaryAccList`, then
+     * `secondaryAccIndexTable['6 2 '> 3'] === 2`.
+     */
+    secondaryAccIndexTable;
 
     /**
      * Lookup mapping secondary accidentals to properly ordered
