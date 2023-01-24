@@ -680,6 +680,7 @@ function addAccSym(x, y) {
  * @returns {AccidentalSymbols?} The result of x - y, or `null` if not possible.
  */
 function subtractAccSym(x, y) {
+    // console.log('subtractAccSym\n' + JSON.stringify(x) + ' - ' + JSON.stringify(y));
     if (!x)
         return null;
     if (!y)
@@ -694,13 +695,14 @@ function subtractAccSym(x, y) {
 
     if (y.length != undefined) {
         // y is SymbolCode[]
-        for (var sym in y) {
+        for (var i = 0; i < y.length; i++) {
+            var sym = y[i];
             // remove sym from ret.
             if (ret[sym] == undefined) {
                 // X does not have any sym to subtract.
                 return null;
             }
-
+            
             ret[sym] -= 1;
             if (ret[sym] < 0) {
                 return null;
@@ -1313,6 +1315,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // Check for `aux(x,y,..)` declaration
         if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
             nextDeclStartLine = i;
+            console.log('skip lig');
             break;
         }
 
@@ -1455,6 +1458,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningConfig.auxList.push(constantConstrictions);
     }
 
+    nextDeclStartLine = i;
+
 
     // PARSE SECONDARY SYMBOLS, ASCII CONVERSIONS
     //
@@ -1548,7 +1553,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 tuningConfig.secondaryAccIndexTable[accHashTo] = tuningConfig.secondaryAccList.length - 1;
                 tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
                 tuningConfig.secondaryTunings[accHashTo] = cents;
-                tuningConfig.asciiToSmuflConv[asciiFrom] = accHashTo;
+                tuningConfig.asciiToSmuflConv[asciiFrom] = symCodesTo;
                 tuningConfig.asciiToSmuflConvList.push(asciiFrom);
 
                 symCodesTo.forEach(function (c) {
@@ -2269,6 +2274,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     // Check fingerings for accidental declarations
     var maybeFingeringAccSymbols = readFingeringAccidentalInput(msNote, tuningConfig);
     if (maybeFingeringAccSymbols != null) {
+        console.log('found fingering acc input: ' + JSON.stringify(maybeFingeringAccSymbols.symCodes));
         if (!CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY &&
             maybeFingeringAccSymbols.type == "ascii" && retrievedAccHash != null) {
             // We need to combine existing accidentals and newly created ones
@@ -2302,8 +2308,35 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     /** @type {SecondaryAccMatches} */
     var secondaryAccMatches = {};
     if (accSyms != null) {
-        // Search first declared acc Chain first.
-        for (var i = 0; i <= tuningConfig.accChains.length; i++) {
+        // First, check for ligatures, they count as primary accidentals.
+        tuningConfig.ligatures.forEach(function (lig) {
+            var mostSymbolsMatched = 0;
+            /** @type {SymbolCode[]} */
+            var bestSymbolMatch = null;
+            /** @type {AccidentalSymbols} */
+            var bestSubtracted = accSyms;
+            for (var key in lig.ligAvToSymbols) {
+                var syms = lig.ligAvToSymbols[key];
+                var trySubtract = subtractAccSym(accSyms, syms);
+                if (trySubtract != null && syms.length > mostSymbolsMatched) {
+                    mostSymbolsMatched = syms.length;
+                    bestSymbolMatch = syms;
+                    bestSubtracted = trySubtract;
+                }
+            }
+            if (bestSymbolMatch != null) {
+                // If a match was found, add the best match to the primary symbols.
+                // The matched accidentals go to the left of the earlier accidentals
+                // from earlier chains.
+                primarySyms = bestSymbolMatch.concat(primarySyms);
+
+                // Remove the best match from the list of symbols to be matched.
+                accSyms = bestSubtracted;
+            }
+        });
+
+        // Search first declared acc Chain
+        for (var i = 0; i < tuningConfig.accChains.length; i++) {
             var chain = tuningConfig.accChains[i];
 
             // Find the best accidental match for this chain, which is assumed
@@ -2315,6 +2348,9 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
             var bestSubtracted = accSyms;
 
             chain.degreesSymbols.forEach(function (syms) {
+                if (syms == null) {
+                    return; // skip central natural index.
+                }
                 var trySubtract = subtractAccSym(accSyms, syms);
                 if (trySubtract != null && syms.length > mostSymbolsMatched) {
                     mostSymbolsMatched = syms.length;
@@ -2335,7 +2371,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         }
 
         // Search from first declared secondary accidental.
-        for (var i = 0; i <= tuningConfig.secondaryAccList.length; i++) {
+        for (var i = 0; i < tuningConfig.secondaryAccList.length; i++) {
             var accHash = tuningConfig.secondaryAccList[i];
             var syms = tuningConfig.secondaryAccTable[accHash];
 
@@ -2345,7 +2381,8 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
             var numTimesMatched = 0;
 
-            while (true) {
+            var count = 0;
+            while (count++ < 10) {
                 var trySubtract = subtractAccSym(accSyms, syms);
 
                 if (trySubtract == null) {

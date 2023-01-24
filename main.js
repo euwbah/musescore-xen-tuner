@@ -23,34 +23,86 @@
 var Lookup = ImportLookup();
 
 window.testTuning = `
-// HEWM Referenced from http://www.tonalsoft.com/enc/h/hewm.aspx
-// Accidental Symbols up to 7-limit.
-// The rest are kept as ASCII.
+// A subset of 5-limit JI notation using HEJI notation
+// A4 is tuned to 440 Hz.
+//
+// Tuning space comprises:
+// 3 flats to 3 sharps
+// 3 comma downs to 3 comma ups
 
-C4: 440 * 16/27
+C4: 440*16/27 // Indirectly tune A4 by tuning C4 to 16/27 of A4 = 440
+
+// Nominals are a chain of pure fifths from F to B
 0 9/8 81/64 4/3 3/2 27/16 243/128 2/1
+
+// Here we declare two accidental chains
+
+// 3-limit accidentals from bbb to #x
 bbb bb b (2187/2048) # x #x
-j-.j- j- (81/80) j+ j+.j+
-d77 d7 (64/63) u7 u77
-aux(0)
-aux(1)
-aux(2)
-aux(3)
+// 5-limit acc from -3 to +3
+\\\\.\\\\.\\\\ \\\\.\\\\ \\\\ (81/80) / /./ /././
+
+// Notice that we need to escape backslashes. "\\" instead of "\"
+
+// Here we declare ligatures between the 1st and 2nd chain
+// In HEJI, syntonic commas can merge with sharp/flat/natural
+// accidentals to form ligatured symbols.
+lig(1,2)
+-2 -3 bbv3 // doubleflat and 3 downs combine into a double flat with 3 down arrows HEJI symbol
+-2 -2 bbv2
+-2 -1 bbv
+-2 1 bb^
+-2 2 bb^2
+-2 3 bb^3
+-1 -3 bv3
+-1 -2 bv2
+-1 -1 bv
+-1 1 b^
+-1 2 b^2
+-1 3 b^3
+1 -3 #v3
+1 -2 #v2
+1 -1 #v
+1 1 #^
+1 2 #^2
+1 3 #^3
+2 -3 xv3
+2 -2 xv2
+2 -1 xv
+2 1 x^
+2 2 x^2
+2 3 x^3
+
+// Here we declare 4 auxiliary up/down operations.
+// These will be accessible as the aux1, aux2, aux3, aux4 up/down operations
+// respectively. You can lookup/modify the keyboard shortcuts to these
+// operations in the "xen tuner.qml" file.
+aux(0) // aux1 will modify nominals only, without modifying accidentals
+aux(1) // aux2 will modify flats/sharps only, without modifying nominals or other accs
+aux(2) // aux3 will modify syntonic comas only
+aux(0,1) // aux4 will modify both nominals and flats/sharps.
+
+// Now we declare secondary accidentals & ASCII text representations
+
+// E.g. If you attach the fingering 'bbbbb' on to a note,
+// the plugin will convert & render it into a triple-flat symbol
+// and a double-flat symbol bbb.bb.
+//
+// The triple-flat will match as degree -3 of the sharps/flats chain
+// and the double-flat will match as a secondary accidental.
+
 sec()
-'bbb' bbb Math.pow(2048/2187,3)
-'bb' bb Math.pow(2048/2187,2)
+'bbb' bbb Math.pow(2187/2048,-3) // converts fingering 'bbb' into triple-flat symbol
+'bb' bb Math.pow(2187/2048,-2)
 'b' b 2048/2187
 '###' #x Math.pow(2187/2048,3)
 '#x' #x Math.pow(2187/2048,3)
+'x#' #x Math.pow(2187/2048,3)
 '##' x Math.pow(2187/2048,2)
 'x' x Math.pow(2187/2048,2)
 '#' # 2187/2048
-'+' j+ 81/80
-'-' j- 80/81
-'<<' d77 Math.pow(63/64,2)
-'<' d7 63/64
-'>>' u77 Math.pow(64/63,2)
-'>' u7 64/63
+'/' / 81/80
+'\\\\' \\\\ 80/81
 `;
 
 function download(content, filename, contentType)

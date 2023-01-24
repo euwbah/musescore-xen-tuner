@@ -373,6 +373,14 @@ class AccidentalChain {
 }
 
 /**
+ * `LigAccVector` is a subspace/subset of {@link AccidentalVector}
+ * which corresponds to the degrees of {@link AccidentalChain}s 
+ * in an order specified by {@link Ligature.regarding}.
+ * 
+ * @typedef {number[]} LigAccVector
+ */
+
+/**
  * Represents a ligature declaration.
  */
 class Ligature {
@@ -388,13 +396,13 @@ class Ligature {
      */
     regarding;
     /**
-     * Search & replace mapping {@link AccidentalVector}s to {@link SymbolCode}s
+     * Search & replace mapping {@link LigAccVector} strings to {@link SymbolCode}s
      * 
-     * `LigAccVector` is a subspace/subset of {@link AccidentalVector}(s)
+     * {@link LigAccVector} is a subspace/subset of {@link AccidentalVector}(s)
      * which corresponds to the order of {@link AccidentalChain}s specified
      * by {@link regarding}.
      * 
-     * @type {Object.<string: LigAccVector, SymbolCode[]>}
+     * @type {Object.<string, SymbolCode[]>}
      */
     ligAvToSymbols;
 }
@@ -1037,7 +1045,7 @@ class PluginAPIElement {
      * @param {PluginAPIElement} elem other element
      * @returns {boolean} `true` if this element is the same as `elem`.
      */
-    is (elem) {}
+    is(elem) { }
 }
 
 /**
@@ -1140,12 +1148,12 @@ class PluginAPINote extends PluginAPIElement {
      * Attach the {@link PluginAPIElement} to this notehead
      * @param {PluginAPIElement} elem element to add
      */
-    add(elem) {}
+    add(elem) { }
     /**
      * Remove the {@link PluginAPIElement} from this notehead
      * @param {PluginAPIElement} elem element to remove
      */
-    remove(elem) {}
+    remove(elem) { }
 }
 
 /**
