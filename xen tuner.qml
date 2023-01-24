@@ -78,7 +78,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Tuning score/selection...";
             Fns.operationTune();
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -88,7 +88,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Cycling enharmonics";
             Fns.operationTranspose(0, 0);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -98,7 +98,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up";
             Fns.operationTranspose(1, 0);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -107,7 +107,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 1";
             Fns.operationTranspose(1, 1);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -116,7 +116,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 2";
             Fns.operationTranspose(1, 2);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -125,7 +125,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 3";
             Fns.operationTranspose(1, 3);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -134,7 +134,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 4";
             Fns.operationTranspose(1, 4);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -144,7 +144,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 5";
             Fns.operationTranspose(1, 5);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -154,7 +154,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 6";
             Fns.operationTranspose(1, 6);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -164,7 +164,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down";
             Fns.operationTranspose(-1, 0);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -173,7 +173,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 1";
             Fns.operationTranspose(-1, 1);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -182,7 +182,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 2";
             Fns.operationTranspose(-1, 2);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -191,7 +191,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 3";
             Fns.operationTranspose(-1, 3);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -200,7 +200,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 4";
             Fns.operationTranspose(-1, 4);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -210,7 +210,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -220,7 +220,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
-            showWindow();
+            afterOperation();
         }
       }
 
@@ -254,7 +254,8 @@ MuseScore {
         }
       }
 
-      function showWindow() {
-        pluginId.window.requestActivate();
+      function afterOperation() {
+        // Don't do this, it will steal focus from the score
+        // pluginId.window.requestActivate();
       }
 }

@@ -632,7 +632,6 @@ function accidentalsHash(accidentals) {
     var symCodeNums = [];
 
     Object.keys(accidentals)
-        .map(function (x) { return parseInt(x); })
         .sort(symCodeSortingFn)
         .forEach(function (symCode) {
             symCodeNums.push(symCode);
@@ -2136,6 +2135,22 @@ function removeFormattingCode(str) {
         return _decodeHTMLEscape(str.replace(/<[^>]*>/g, ''));
     else
         return null;
+}
+
+/**
+ * Use this when writing to the {@link PluginAPIElement.text} property.
+ * 
+ * Characters <, >, &, " are escaped to their HTML escape sequences.
+ * 
+ * @param {string} str String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHTML(str) {
+    var str = str.replace(/&/g, '&amp;');
+    str = str.replace(/</g, '&lt;');
+    str = str.replace(/>/g, '&gt;');
+    str = str.replace(/"/g, '&quot;');
+    return str;
 }
 
 /**
@@ -3849,22 +3864,23 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
     var zIdx = 1000;
     // go right-to-left.
     for (var i = orderedSymbols.length - 1; i >= 0; i--) {
+        var elem;
         var symCode = orderedSymbols[i];
         if (typeof (symCode) == 'string' && symCode[0] == "'") {
             // Create a fingering accidental
-            var fingering = newElement(Element.FINGERING);
-            note.add(fingering);
-            fingering.text = symCode.slice(1);
+            elem = newElement(Element.FINGERING);
+            note.add(elem);
+            elem.text = escapeHTML(symCode.slice(1));
             /*  Autoplace is required for this accidental to push back prior
                 segments. */
-            fingering.autoplace = true;
-            fingering.align = Align.LEFT | Align.VCENTER;
-            fingering.fontSize = 12;
+            elem.autoplace = true;
+            elem.align = Align.LEFT | Align.VCENTER;
+            elem.fontSize = 12;
             /*  Set offsetY to some random number to re-trigger vertical align later.
                 Otherwise, the fingering will be auto-placed above the notehead, even though
                 offsetY is set to 0. */
-            fingering.offsetY = -3;
-            fingering.z = zIdx;
+            elem.offsetY = -3;
+            elem.z = zIdx;
         } else {
             // Create a SMuFL symbol accidental
             var symId = Lookup.CODE_TO_LABELS[symCode][0];
