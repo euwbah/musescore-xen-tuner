@@ -130,6 +130,19 @@ var fallthroughUpDownCommand = true;
 var tuningConfigCache = {};
 
 /**
+ * Contains a lookup of valid characters that can occur after
+ * a backslash escape character when declaring Symbol Codes in
+ * tuning config via Text Code or ASCII.
+ * 
+ * @type {Object.<string, boolean>}
+ */
+var VALID_ASCII_ACC_ESC_CHARS = {
+    '\\': true,
+    '\'': true,
+    '/': true
+};
+
+/**
  * The default tuning config in case tunings/default.txt is invalid or not found.
  */
 var DEFAULT_TUNING_CONFIG = "   \n\
@@ -702,7 +715,7 @@ function subtractAccSym(x, y) {
                 // X does not have any sym to subtract.
                 return null;
             }
-            
+
             ret[sym] -= 1;
             if (ret[sym] < 0) {
                 return null;
@@ -827,7 +840,13 @@ function clearTuningConfigCaches() {
  * 2. ASCII symbol consisting of $ (dollar sign)
  * 3. Standard-issue SMuFL sharp symbol.
  * 
- * Backslash escapes work both inside and outside quotes.
+ * Backslash escapes must be used both inside and outside quotes.
+ * 
+ * The valid escapes are:
+ * 
+ * - \\  - backslash
+ * - \' - quote
+ * - \/ - forward slash.
  * 
  * 'abc'# is invalid syntax. A dot must separate distinct symbols,
  * and ASCII symbols are distinct from SMuFL symbols.
@@ -853,9 +872,8 @@ function parseSymbolsDeclaration(str) {
     for (var i = 0; i < str.length; i++) {
         var c = str[i];
 
-
         if (isEscape) {
-            if (c != '\\' && c != '\'') {
+            if (!VALID_ASCII_ACC_ESC_CHARS[c]) {
                 // invalid escape sequence.
                 console.error('TUNING CONFIG ERROR: Invalid escape sequence: \\' + c);
                 return null;
@@ -2434,12 +2452,12 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         traversedHash = tuningConfig.enharmonics[traversedHash];
         if (!traversedHash)
             break; // no enharmonics
-        
+
         if (traversedHash == xenNote.hash) {
             // made one loop without finding any ligatures
             break;
         }
-        
+
         if (tuningConfig.notesTable[traversedHash].isLigature) {
             xenNote = tuningConfig.notesTable[traversedHash];
             break;
@@ -3161,7 +3179,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  */
 function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     tuningConfig, tickOfThisBar, tickOfNextBar, cursor) {
-    
+
     var note = noteData.ms.internalNote;
 
     console.log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
@@ -3613,7 +3631,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     // console.log("getAccidental() tick: " + nTick + " (within " + tickOfThisBar + " - " 
     //     + tickOfNextBar + "), line: " + nLine);
 
-    if (nTick > tickOfNextBar || nTick < tickOfThisBar) {
+    if ((tickOfNextBar != -1 && nTick > tickOfNextBar) || nTick < tickOfThisBar) {
         console.error("FATAL ERROR: getAccidental() tick " + nTick +
             " not within given bar ticks: " + tickOfThisBar + " to " + tickOfNextBar);
         return null;
@@ -3959,7 +3977,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
     // STEP 1: Choose the next note.
     var nextNote = chooseNextNote(
-        direction, constantConstrictions, noteData, 
+        direction, constantConstrictions, noteData,
         keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
 
     if (!nextNote) {
@@ -4054,14 +4072,14 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     // accidentals in the new note depending on the operation.
 
     var isEnharmonic = direction == 0;
-    var isDiatonic = !isEnharmonic && constantConstrictions && 
+    var isDiatonic = !isEnharmonic && constantConstrictions &&
         constantConstrictions.length == 1 && constantConstrictions[0] == 0;
     var isNonDiatonicTranspose = !isEnharmonic && !isDiatonic;
 
     if (KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC && isDiatonic ||
         KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC && isEnharmonic ||
         KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE && isNonDiatonicTranspose) {
-        
+
         // We need to keep secondary accidentals.
         // Carry forward secondary symbols and prepend them
         accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
@@ -4475,6 +4493,8 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
 
     var count = 0;
     while (count++ < chord.length) {
+        // Iterate notes in chord in zig zag pattern.
+
         // console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
         //     return bbox.left;
         // })));
@@ -4489,19 +4509,52 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
 
         var accSymbolsRTL = []; // right-to-left
 
+        // We treat all the symbols to be attached as one big symbol with a bounding box
+        // that encapsulates all the bounding boxes of the symbols.
+
+        // total amount of sp used by all symbols attached to this notehead.
+        var symbolsWidth = 0;
+        // top most absolute position of top bbox of symbols
+        var symbolsTop = 1e7;
+        // bottom most abs pos of bottom bbox of symbols
+        var symbolsBottom = -1e7;
+
         // stores list of all accidental symbols attached to this notehead.
         for (var i = 0; i < note.elements.length; i++) {
             var elem = note.elements[i];
+            var isAccSym = false;
             // console.log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
                 if (symCode && (!usedSymbols || usedSymbols[symCode])) {
-                    accSymbolsRTL.push(elem);
+                    isAccSym = true;
                 }
             } else if (elem.name && elem.name == 'Fingering' &&
                 elem.z >= 1000 && elem.z <= 2000) {
                 // Found ASCII accidental symbols implemented as fingerings.
+                isAccSym = true;
+            }
+
+            if (isAccSym) {
                 accSymbolsRTL.push(elem);
+                var additionalWidth = 0;
+                var halfAddHeight = 0;
+                var additionalYOffset = 0;
+                var symLayoutOffset = sym.symbol && Lookup.SYMBOL_LAYOUT[sym.symbol.toString()];
+                if (symLayoutOffset) {
+                    additionalYOffset = symLayoutOffset[1];
+                    additionalWidth = symLayoutOffset[2];
+                    halfAddHeight = symLayoutOffset[3] / 2;
+                }
+                symbolsWidth += elem.bbox.right - elem.bbox.left + additionalWidth;
+                var absTopPos = elem.pagePos.y + elem.bbox.top + additionalYOffset - halfAddHeight;
+                var absBottomPos = elem.pagePos.y + elem.bbox.bottom + additionalYOffset + halfAddHeight;
+                if (absTopPos < symbolsTop) {
+                    symbolsTop = absTopPos;
+                }
+                if (absBottomPos > symbolsBottom) {
+                    symbolsBottom = absBottomPos;
+                }
             }
         }
 
@@ -4512,17 +4565,13 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
         if (accSymbolsRTL.length != 0) {
             // Found acc symbols to position on this note.
 
-            var symbolsWidth = accSymbolsRTL.reduce(function (acc, sym) {
-                return acc + (sym.bbox.right - sym.bbox.left);
-            }, 0);
-
-            // Now that we have the sorted list of symbols to add, we need
-            // to find holes in the positionedElemsBbox list to insert them.
+            // Now that we have the list of symbols to add to this notehead, 
+            // we need to find holes in the positionedElemsBbox list to insert them.
 
             var prevElemLeft = null;
             for (var i = 0; i < positionedElemsBbox.length; i++) {
                 var bbox = positionedElemsBbox[i];
-                var willCollideVertically = intervalOverlap(bbox.top - 0.4, bbox.bottom + 0.4, absNoteBbox.top, absNoteBbox.bottom);
+                var willCollideVertically = intervalOverlap(bbox.top, bbox.bottom, symbolsTop, symbolsBottom);
 
                 // console.log('check bbox: ' + bbox.left + ', willCollideVertically: ' + willCollideVertically);
                 if (!willCollideVertically) continue;
@@ -4545,19 +4594,36 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                 }
             }
 
-            // There was no gap between vertically intersecting elements 
-            // prevElemLeft contains the leftmost element left pos.
+            // The above loop will stop once a hole has been found, or once
+            // all elements have been looped and no holes are found.
+            // At this point, prevElemLeft contains the absolute X position that the
+            // 'hole' begins and expands leftward, which is the absolute left bbox
+            // of the leftmost element before the 'hole' starts.
 
             // prevX is the relative offset to assign to the curr symbol.
             var prevX = prevElemLeft - note.pagePos.x;
 
             accSymbolsRTL.forEach(function (sym) {
-                var offX = prevX - (sym.bbox.right - sym.bbox.left) - ACC_SPACE;
+                var currSymWidth = sym.bbox.right - sym.bbox.left;
+
+                var additionalXOffset = 0;
+                var additionalYOffset = 0;
+                var halfAddWidth = 0;
+                var halfAddHeight = 0;
+                var symLayoutOffset = sym.symbol && Lookup.SYMBOL_LAYOUT[sym.symbol.toString()];
+                if (symLayoutOffset) {
+                    additionalXOffset = symLayoutOffset[0];
+                    additionalYOffset = symLayoutOffset[1];
+                    halfAddWidth = symLayoutOffset[2] / 2;
+                    halfAddHeight = symLayoutOffset[3] / 2;
+                }
+                var offX = prevX - currSymWidth - ACC_SPACE + additionalXOffset;
+                var offY = additionalYOffset;
                 // console.log('offX: ' + offX);
                 registeredSymbolOffsets.push({
                     sym: sym,
                     x: offX,
-                    y: 0
+                    y: offY
                 });
 
                 if (offX < mostNegativeDistance) {
@@ -4566,10 +4632,10 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
 
                 // create abs bbox for newly positioned symbol
                 var symBbox = {
-                    left: note.pagePos.x + offX + sym.bbox.left,
-                    right: note.pagePos.x + offX + sym.bbox.right,
-                    top: note.pagePos.y + sym.bbox.top,
-                    bottom: note.pagePos.y + sym.bbox.bottom
+                    left: note.pagePos.x + sym.bbox.left + offX - halfAddWidth,
+                    right: note.pagePos.x + sym.bbox.right + offX + halfAddWidth,
+                    top: note.pagePos.y + sym.bbox.top + offY - halfAddHeight,
+                    bottom: note.pagePos.y + sym.bbox.bottom + offY + halfAddHeight
                 };
 
                 // find index to insert symBbox into positioned elements.

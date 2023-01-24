@@ -52,7 +52,8 @@ with urllib.request.urlopen(SHEET_URL) as csv_download:
                 for id in ids:
                     layout_map[id] = layout
             
-            f.write(f'    [{",".join(ids)}],\n')
+            if len(ids) != 0:
+                f.write(f'    [{",".join(ids)}],\n')
             
         f.write('];\n\n\n')
         
