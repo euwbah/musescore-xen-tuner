@@ -54,6 +54,6 @@ MuseScore {
         console.log('present working dir: ' + Qt.resolvedUrl("."));
 
         // Debug code here.
-        Fns.operationTune();
+        Fns.operationTranspose(1, 0);
       }
 }

@@ -1268,6 +1268,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     }
                 }
 
+                symbolCodes.forEach(function (x) {
+                    symbolsLookup[x] = true;
+                    tuningConfig.usedSymbols[x] = true;
+                });
+
                 degreesSymbols.push(symbolCodes);
                 offsets.push(offset);
             }
@@ -1364,6 +1369,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             if (ligatureSymbols == null) {
                 return null;
             }
+
+            ligatureSymbols.forEach(function (x) {
+                tuningConfig.usedSymbols[x] = true;
+            });
 
             ligAvToSymbols[ligAv] = ligatureSymbols;
         }
@@ -4008,8 +4017,8 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     // accidentals in the new note depending on the operation.
 
     var isEnharmonic = direction == 0;
-    var isDiatonic = !isEnharmonic && constantConstrictions.length == 1 &&
-        constantConstrictions[0] == 0;
+    var isDiatonic = !isEnharmonic && constantConstrictions && 
+        constantConstrictions.length == 1 && constantConstrictions[0] == 0;
     var isNonDiatonicTranspose = !isEnharmonic && !isDiatonic;
 
     if (KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC && isDiatonic ||
