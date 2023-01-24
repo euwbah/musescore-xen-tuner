@@ -1536,7 +1536,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var accHashTo = accidentalsHash(symCodesTo);
 
                 tuningConfig.secondaryAccList.push(accHashTo);
-                tuningConfig.secondaryAccIndexTable[accHash] = tuningConfig.secondaryAccList.length - 1;
+                tuningConfig.secondaryAccIndexTable[accHashTo] = tuningConfig.secondaryAccList.length - 1;
                 tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
                 tuningConfig.secondaryTunings[accHashTo] = cents;
                 tuningConfig.asciiToSmuflConv[asciiFrom] = accHashTo;
@@ -3413,7 +3413,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     // At the end of all the optimizations, bestOption should contain
     // the best option...
 
-    return nextNoteOptions[0];
+    return nextNoteOptions[0].nextNote;
 }
 
 /**

@@ -67,12 +67,14 @@ aux(0,1) // aux4 will modify both nominals and flats/sharps.
 // and the double-flat will match as a secondary accidental.
 
 sec()
-'bbb' bbb Math.pow(2187/2048,3) // converts fingering 'bbb' into triple-flat symbol
-'bb' bb Math.pow(2187/2048,2)
-'b' b 2187/2048
+'bbb' bbb Math.pow(2187/2048,-3) // converts fingering 'bbb' into triple-flat symbol
+'bb' bb Math.pow(2187/2048,-2)
+'b' b 2048/2187
 '###' #x Math.pow(2187/2048,3)
 '#x' #x Math.pow(2187/2048,3)
 'x#' #x Math.pow(2187/2048,3)
 '##' x Math.pow(2187/2048,2)
 'x' x Math.pow(2187/2048,2)
 '#' # 2187/2048
+'/' / 81/80
+'\\' \\ 80/81
