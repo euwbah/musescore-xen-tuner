@@ -36,6 +36,92 @@ var pluginHomePath = '';
 /** @type {PluginAPIScore} */
 var _curScore = null; // don't clash with namespace
 
+/*
+                                            _____                               
+  __  __________  _____   _________  ____  / __(_)___ _   _   ______ ___________
+ / / / / ___/ _ \/ ___/  / ___/ __ \/ __ \/ /_/ / __ `/  | | / / __ `/ ___/ ___/
+/ /_/ (__  )  __/ /     / /__/ /_/ / / / / __/ / /_/ /   | |/ / /_/ / /  (__  ) 
+\__,_/____/\___/_/      \___/\____/_/ /_/_/ /_/\__, /    |___/\__,_/_/  /____/  
+                                              /____/                                                
+*/
+
+/**
+ * When using JI ratios attached to noteheads as fingerings,
+ * this determines whether the period after the ratio is required.
+ * 
+ * If you wish to use fingerings normally (i.e. to denote fingerings)
+ * you should leave this as `true`.
+ * 
+ * If you don't want to enter a period after every JI ratio, and you
+ * don't mind having fingerings rendered as JI ratios, you can set this
+ * to false.
+ */
+var REQUIRE_PERIOD_AFTER_FINGERING_RATIO = true;
+
+/*
+Sets the maximum interval (in cents) of notes that will be
+considered enharmonically equivalent.
+
+If your tuning system is extremely huge and has very small
+intervals, you may need to set this to a smaller value so
+that notes do not get incorrectly classified as enharmonic
+equivalents.
+
+Don't set this too low, it may cause floating point errors to
+make enharmonically equivalent show up as not equivalent.
+
+Don't set this too high, it may cause notes that should not be
+considered enharmonically equivalent to show up as equivalent.
+*/
+var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.005;
+
+/*
+When in complex/non-octave tunings, certain notes can be very far off from
+the original 12edo pitches of the notes. Using cents tuning alone for
+large tuning offsets will cause an unpleasant timbre during playback.
+
+Any tuning offsets more than the specified number of semitones will include
+PlayEvent adjustments, which will internally change the MIDI note playback
+of this note during playback.
+
+However, when PlayEvents are used to offset tuning a note, the playback sounded
+when selecting/modifying the note will not include the semitone offset. 
+
+The score has to be played in order to hear the correct pitch.
+
+If you rather hear the correct pitch when selecting/modifying the note,
+in spite of weird timbres caused by playback, set this number higher
+(e.g. 40). 
+
+If you rather preserve timbre as much as possible, set this
+number to 1.
+
+3 is a good midpoint for preserving selection playback for most
+standard tunings.
+*/
+var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
+
+/**
+ * Represents additional horizontal space to put between accidentals
+ * when auto-positioning them.
+ * 
+ * (Increases the width of the accidental bounding box)
+ * 
+ * The smaller the number, the more tightly packed accidental symbols
+ * are when auto-positioning accidentals.
+ * 
+ * Number is in spatium units.
+ */
+var ACC_SPACE = 0.1;
+
+/**
+ * Represents additional horizontal space to put between the notehead
+ * and the accidental when auto-positioning accidentals.
+ * 
+ * Number is in spatium units.
+ */
+var ACC_NOTESPACE = 0.2;
+
 /**
  * If a fingering has this Z index, it signifies that it is a
  * per-note tuning fingering annotation that has already been
@@ -178,83 +264,6 @@ function generateDefaultTuningConfig() {
 
     return tuningConfig;
 }
-
-/**
- * When using JI ratios attached to noteheads as fingerings,
- * this determines whether the period after the ratio is required.
- * 
- * If you wish to use fingerings normally (i.e. to denote fingerings)
- * you should leave this as `true`.
- * 
- * If you don't want to enter a period after every JI ratio, and you
- * don't mind having fingerings rendered as JI ratios, you can set this
- * to false.
- */
-var REQUIRE_PERIOD_AFTER_FINGERING_RATIO = true;
-
-/*
-Sets the maximum interval (in cents) of notes that will be
-considered enharmonically equivalent.
-
-If your tuning system is extremely huge and has very small
-intervals, you may need to set this to a smaller value so
-that notes do not get incorrectly classified as enharmonic
-equivalents.
-
-Don't set this too low, it may cause floating point errors to
-make enharmonically equivalent show up as not equivalent.
-
-Don't set this too high, it may cause notes that should not be
-considered enharmonically equivalent to show up as equivalent.
-*/
-var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.005;
-
-/*
-When in complex/non-octave tunings, certain notes can be very far off from
-the original 12edo pitches of the notes. Using cents tuning alone for
-large tuning offsets will cause an unpleasant timbre during playback.
-
-Any tuning offsets more than the specified number of semitones will include
-PlayEvent adjustments, which will internally change the MIDI note playback
-of this note during playback.
-
-However, when PlayEvents are used to offset tuning a note, the playback sounded
-when selecting/modifying the note will not include the semitone offset. 
-
-The score has to be played in order to hear the correct pitch.
-
-If you rather hear the correct pitch when selecting/modifying the note,
-in spite of weird timbres caused by playback, set this number higher
-(e.g. 40). 
-
-If you rather preserve timbre as much as possible, set this
-number to 1.
-
-3 is a good midpoint for preserving selection playback for most
-standard tunings.
-*/
-var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
-
-/**
- * Represents additional horizontal space to put between accidentals
- * when auto-positioning them.
- * 
- * (Increases the width of the accidental bounding box)
- * 
- * The smaller the number, the more tightly packed accidental symbols
- * are when auto-positioning accidentals.
- * 
- * Number is in spatium units.
- */
-var ACC_SPACE = 0.1;
-
-/**
- * Represents additional horizontal space to put between the notehead
- * and the accidental when auto-positioning accidentals.
- * 
- * Number is in spatium units.
- */
-var ACC_NOTESPACE = 0.2;
 
 /**
  * 
@@ -1333,7 +1342,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // Check for `aux(x,y,..)` declaration
         if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
             nextDeclStartLine = i;
-            console.log('skip lig');
+            // console.log('skip lig');
             break;
         }
 
@@ -4484,7 +4493,7 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
     // stores positions of positioned symbols to be updated all at once at the end.
     /**
      * @type {{
-     *  sym: PluginAPIElement,
+     *  elem: PluginAPIElement,
      *  x: number,
      *  y: number
      * }[]}
@@ -4540,7 +4549,7 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                 var additionalWidth = 0;
                 var halfAddHeight = 0;
                 var additionalYOffset = 0;
-                var symLayoutOffset = sym.symbol && Lookup.SYMBOL_LAYOUT[sym.symbol.toString()];
+                var symLayoutOffset = elem.symbol && Lookup.SYMBOL_LAYOUT[elem.symbol.toString()];
                 if (symLayoutOffset) {
                     additionalYOffset = symLayoutOffset[1];
                     additionalWidth = symLayoutOffset[2];
@@ -4603,26 +4612,27 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
             // prevX is the relative offset to assign to the curr symbol.
             var prevX = prevElemLeft - note.pagePos.x;
 
-            accSymbolsRTL.forEach(function (sym) {
-                var currSymWidth = sym.bbox.right - sym.bbox.left;
-
+            accSymbolsRTL.forEach(function (elem) {
+                
                 var additionalXOffset = 0;
                 var additionalYOffset = 0;
                 var halfAddWidth = 0;
                 var halfAddHeight = 0;
-                var symLayoutOffset = sym.symbol && Lookup.SYMBOL_LAYOUT[sym.symbol.toString()];
+                var symLayoutOffset = elem.symbol && Lookup.SYMBOL_LAYOUT[elem.symbol.toString()];
                 if (symLayoutOffset) {
                     additionalXOffset = symLayoutOffset[0];
                     additionalYOffset = symLayoutOffset[1];
                     halfAddWidth = symLayoutOffset[2] / 2;
                     halfAddHeight = symLayoutOffset[3] / 2;
                 }
-                var offX = prevX - currSymWidth - ACC_SPACE + additionalXOffset;
+                var currSymWidth = elem.bbox.right - elem.bbox.left 
+                    + halfAddWidth * 2 + ACC_SPACE;
+                var offX = prevX - currSymWidth + additionalXOffset;
                 var offY = additionalYOffset;
                 // console.log('offX: ' + offX);
                 registeredSymbolOffsets.push({
-                    sym: sym,
-                    x: offX,
+                    elem: elem,
+                    x: offX + halfAddWidth, // centralize symbol around additional space.
                     y: offY
                 });
 
@@ -4632,10 +4642,10 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
 
                 // create abs bbox for newly positioned symbol
                 var symBbox = {
-                    left: note.pagePos.x + sym.bbox.left + offX - halfAddWidth,
-                    right: note.pagePos.x + sym.bbox.right + offX + halfAddWidth,
-                    top: note.pagePos.y + sym.bbox.top + offY - halfAddHeight,
-                    bottom: note.pagePos.y + sym.bbox.bottom + offY + halfAddHeight
+                    left: note.pagePos.x + elem.bbox.left + offX - halfAddWidth,
+                    right: note.pagePos.x + elem.bbox.right + offX + halfAddWidth,
+                    top: note.pagePos.y + elem.bbox.top + offY - halfAddHeight,
+                    bottom: note.pagePos.y + elem.bbox.bottom + offY + halfAddHeight
                 };
 
                 // find index to insert symBbox into positioned elements.
@@ -4671,16 +4681,16 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
     // Now, we need to apply the offsets
 
     registeredSymbolOffsets.forEach(function (symOff) {
-        if (symOff.sym.name == 'Fingering') {
+        if (symOff.elem.name == 'Fingering') {
             // because the HEWM accidental has autoplace on,
             // the offsetX needs to be further left.
             // TODO: Check if there's some kind of Score Formatting rules that
             //       affects this offset. It can't possibly be alright to hardcode this.
-            symOff.sym.offsetX = symOff.x - 0.65;
+            symOff.elem.offsetX = symOff.x - 0.65;
         } else {
-            symOff.sym.offsetX = symOff.x;
+            symOff.elem.offsetX = symOff.x;
         }
-        symOff.sym.offsetY = symOff.y;
+        symOff.elem.offsetY = symOff.y;
     });
 
     return mostNegativeDistance;

@@ -1,0 +1,62 @@
+// Hybrid of HEJI, Johnston and HEWM
+// 3 sharps/flats
+// 3 syntonic comma up/down notated as johnston +/-
+// 2 septimal comma up/down notated with extended HEJI
+// Higher limit accidentals are entered using secondary accidentals
+// and are represented as ASCII.
+
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2/1
+bbb bb b (2187/2048) # x #x
+j-.j-.j- j-.j- j- (81/80) j+ j+.j+ j+.j+.j+
+d77 d7 (64/63) u7 u77
+aux(0)
+aux(1)
+aux(2)
+aux(3)
+sec()
+// ascii-representations of 7-limit and below are converted to
+// smufl symbols.
+'bbb' bbb Math.pow(2048/2187,3)
+'bb' bb Math.pow(2048/2187,2)
+'b' b 2048/2187
+'###' #x Math.pow(2187/2048,3)
+'#x' #x Math.pow(2187/2048,3)
+'##' x Math.pow(2187/2048,2)
+'x' x Math.pow(2187/2048,2)
+'#' # 2187/2048
+'+' j+ 81/80
+'-' j- 80/81
+'<<' d77 Math.pow(63/64,2)
+'<' d7 63/64
+'>>' u77 Math.pow(64/63,2)
+'>' u7 64/63
+// these are not part of the primary accidentals
+'^' 33/32
+'v' 32/33
+'}' 27/26
+'{' 26/27
+'/' 18/17
+'\\' 17/18
+')' 19/18
+'(' 18/19
+']' 24/23
+'[' 23/24
+'!' 261/256
+';' 256/261
+'"' 32/31
+'?' 31/32
+'%' 37/36
+'&' 36/37
+'$' 82/81
+'@' 81/82
+'\'' 129/128
+',' 128/129
+'*' 48/47
+':' 47/48
+'|' 54/53
+'.' 53/54
+'z' 243/236
+'s' 236/243
+'k' 244/243
+'y' 243/244

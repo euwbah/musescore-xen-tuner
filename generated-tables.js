@@ -257,8 +257,8 @@ var TEXT_TO_CODE = {
 
 
 var SYMBOL_LAYOUT = {
-    'accidentalJohnstonPlus': [0.0,0.3,0.2,0.0],
-    'accidentalJohnstonMinus': [0.0,0.3,0.2,0.0],
+    'accidentalJohnstonPlus': [0.0,0.25,0.3,0.0],
+    'accidentalJohnstonMinus': [0.0,0.25,0.3,0.0],
 };
 
 function ImportGenerated() {
