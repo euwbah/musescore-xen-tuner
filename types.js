@@ -170,6 +170,11 @@ class XenNote {
      * @type {string}
      */
     hash;
+    /**
+     * If `true`, this {@link XenNote} is ligatured.
+     * @type {boolean}
+     */
+    isLigature;
 }
 
 /**

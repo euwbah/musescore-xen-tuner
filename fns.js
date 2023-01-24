@@ -1641,6 +1641,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     orderedSymbols: [],
                     accidentals: null,
                     hash: createXenHash(nomIdx, {}),
+                    isLigature: false,
                 },
                 cents: nominalCents,
                 equavesAdjusted: 0,
@@ -1742,7 +1743,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     nominal: nomIdx,
                     orderedSymbols: orderedSymbols,
                     accidentals: orderedSymbols.length == 0 ? null : accidentalSymbols,
-                    hash: createXenHash(nomIdx, accidentalSymbols)
+                    hash: createXenHash(nomIdx, accidentalSymbols),
+                    isLigature: false,
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
@@ -1839,7 +1841,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                             nominal: nomIdx,
                             orderedSymbols: ligOrderedSymbols,
                             accidentals: ligOrderedSymbols.length == 0 ? null : ligaturedSymbols,
-                            hash: createXenHash(nomIdx, ligOrderedSymbols)
+                            hash: createXenHash(nomIdx, ligOrderedSymbols),
+                            isLigature: true,
                         },
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
@@ -2374,6 +2377,27 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         console.error("\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config. \n Please check your tuning config. \n-----------------------\n");
         // console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
+    }
+
+    // If new accidentals created from fingerings, make sure ligatures apply.
+
+    var traversedHash = xenNote.hash;
+
+    while (true) {
+        // Loop all enharmonics
+        traversedHash = tuningConfig.enharmonics[traversedHash];
+        if (!traversedHash)
+            break; // no enharmonics
+        
+        if (traversedHash == xenNote.hash) {
+            // made one loop without finding any ligatures
+            break;
+        }
+        
+        if (tuningConfig.notesTable[traversedHash].isLigature) {
+            xenNote = tuningConfig.notesTable[traversedHash];
+            break;
+        }
     }
 
     return {

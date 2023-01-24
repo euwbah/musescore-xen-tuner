@@ -53,7 +53,11 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 
 Once you have set all those up, you will need to specify configurations used in your score, such as the [tuning system](#how-to-tuning-configuration), [key signatures](#how-to-key-signatures) (if any), or whether to always use explicit accidentals.
 
-You can configure these by adding a System Text or Staff Text element containing the configuration text itself. You can also enter the name/path of a `.txt` file in the `tunings/` folder to refer to a configuration from a `.txt` file. These texts don't have to be visible (you can press `V` to toggle visibility).
+You can configure these by adding a System Text or Staff Text element containing the configuration text itself. You can also enter the name/path of a `.txt` file in the `tunings/` folder to refer to a configuration from a `.txt` file.
+
+> 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
+
+These texts don't have to be visible (you can press `V` to toggle visibility).
 
 A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on.
 
