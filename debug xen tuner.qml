@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.1.2"
+      version: "0.2.0"
       description: "Debug Tune function.\n\n" +
         "The docking Xen Tuner plugin is hard to debug as the shortcuts break everytime you re-run " +
         "the plugin in the plugin creator. Use this instead to test functions without having to " +
