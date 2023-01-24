@@ -132,26 +132,11 @@ var ACC_SPACE = 0.1;
 var ACC_NOTESPACE = 0.2;
 
 /**
- * If a fingering has this Z index, it signifies that it is a
- * per-note tuning fingering annotation that has already been
- * processed.
+ * Font size of text-based ASCII accidentals. In px.
  * 
- * This currently no purpose other than to set the Z index of
- * the fingering to the non-default value so that it won't be
- * repeatedly attempted to be processed as an ASCII-representation
- * accidental entry, which is computationally intensive.
+ * Text-based accidentals are rendered with fingering text.
  */
-var PROCESSED_FINGERING_ANNOTATION_Z = 3903;
-
-/**
- * This is the default Z index for fingerings as of MuseScore 3.6.2.
- * 
- * If MuseScore changes this, we need to change this as well.
- * 
- * The default fingering z index is used to mark that a fingering
- * has not been processed, and that we will need to process it.
- */
-var DEFAULT_FINGERING_Z_INDEX = 3900;
+var ASCII_ACC_FONT_SIZE = 11;
 
 /**
  * By default, whenever an accidental is entered via ascii
@@ -211,20 +196,6 @@ var KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC = true;
 var fallthroughUpDownCommand = true;
 
 /**
- * Cached mapping of tuning config strings to `TuningConfig` objects that the string
- * refers to.
- * 
- * This object is dynamically created and populated as tuning configs are loaded.
- * 
- * If the `'tuningconfig'` metaTag exists in the score, populate from there as well.
- * 
- * The `'tuningconfig'` metaTag can be set by the Save Tuning Cache plugin.
- * 
- * @type {TuningConfigLookup}
- */
-var tuningConfigCache = {};
-
-/**
  * Contains a lookup of valid characters that can occur after
  * a backslash escape character when declaring Symbol Codes in
  * tuning config via Text Code or ASCII.
@@ -245,6 +216,42 @@ A4: 440                         \n\
 0 200 300 500 700 800 1000 1200 \n\
 bb b (100) # x                  \n\
 ";
+
+/**
+ * If a fingering has this Z index, it signifies that it is a
+ * per-note tuning fingering annotation that has already been
+ * processed.
+ * 
+ * This currently no purpose other than to set the Z index of
+ * the fingering to the non-default value so that it won't be
+ * repeatedly attempted to be processed as an ASCII-representation
+ * accidental entry, which is computationally intensive.
+ */
+var PROCESSED_FINGERING_ANNOTATION_Z = 3903;
+
+/**
+ * This is the default Z index for fingerings as of MuseScore 3.6.2.
+ * 
+ * If MuseScore changes this, we need to change this as well.
+ * 
+ * The default fingering z index is used to mark that a fingering
+ * has not been processed, and that we will need to process it.
+ */
+var DEFAULT_FINGERING_Z_INDEX = 3900;
+
+/**
+ * Cached mapping of tuning config strings to `TuningConfig` objects that the string
+ * refers to.
+ * 
+ * This object is dynamically created and populated as tuning configs are loaded.
+ * 
+ * If the `'tuningconfig'` metaTag exists in the score, populate from there as well.
+ * 
+ * The `'tuningconfig'` metaTag can be set by the Save Tuning Cache plugin.
+ * 
+ * @type {TuningConfigLookup}
+ */
+var tuningConfigCache = {};
 
 /**
  * Returns the default tuning config to apply when none is specified
@@ -2818,27 +2825,37 @@ function calcCentsOffset(noteData, tuningConfig) {
 
         var text = fingering.text;
 
-        if (text[0] && (text[0] == '+' || text[0] == '-')) {
-            // Cents offset fingering
-            var cents = parseFloat(eval(text.slice(1)));
-            if (!isNaN(cents)) {
-                fingeringCentsOffset += cents * (text[0] == '+' ? 1 : -1);
-            }
-            fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
-        } else if (!REQUIRE_PERIOD_AFTER_FINGERING_RATIO || text.endsWith('.')) {
-            // Ratio.
-            if (REQUIRE_PERIOD_AFTER_FINGERING_RATIO)
-                text = text.slice(0, -1);
-            var ratio = parseFloat(eval(text));
-            if (!isNaN(ratio) && ratio != 0) {
-                if (ratio > 0) {
-                    fingeringJIOffset = Math.log(ratio) * 1200 / Math.log(2);
-                } else {
-                    // negative ratio is treated as a negative cents offset
-                    fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
+        try {
+            if (text[0] && (text[0] == '+' || text[0] == '-')) {
+                // Cents offset fingering
+                var cents = parseFloat(eval(text.slice(1)));
+                if (!isNaN(cents)) {
+                    fingeringCentsOffset += cents * (text[0] == '+' ? 1 : -1);
                 }
+                fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
+            } else if (!REQUIRE_PERIOD_AFTER_FINGERING_RATIO || text.endsWith('.')) {
+                // Ratio.
+                if (REQUIRE_PERIOD_AFTER_FINGERING_RATIO)
+                    text = text.slice(0, -1);
+                var ratio = parseFloat(eval(text));
+                if (!isNaN(ratio) && ratio != 0) {
+                    if (ratio > 0) {
+                        fingeringJIOffset = Math.log(ratio) * 1200 / Math.log(2);
+                    } else {
+                        // negative ratio is treated as a negative cents offset
+                        fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
+                    }
+                }
+                fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
             }
-            fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
+        }
+        catch (e) {
+            // ignore possible syntax errors. ascii-repr accidental
+            // entry may begin with + or - and may match this form
+            //
+            // Even though the fingering element is removed from the note
+            // immediately after rendering down, it will still show up
+            // in PluginAPINote wrapper object, until endCmd() is called.
         }
     });
 
@@ -3913,7 +3930,7 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
                 segments. */
             elem.autoplace = true;
             elem.align = Align.LEFT | Align.VCENTER;
-            elem.fontSize = 12;
+            elem.fontSize = ASCII_ACC_FONT_SIZE;
             /*  Set offsetY to some random number to re-trigger vertical align later.
                 Otherwise, the fingering will be auto-placed above the notehead, even though
                 offsetY is set to 0. */
@@ -4686,7 +4703,7 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                         + 'pagePos: ' + JSON.stringify(elem.pagePos) + ', bbox: ' + JSON.stringify(elem.bbox));
                     console.log('prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x);
                 }
-                
+
                 var additionalXOffset = 0;
                 var additionalYOffset = 0;
                 var halfAddWidth = 0;
