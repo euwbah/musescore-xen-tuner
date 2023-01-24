@@ -102,6 +102,15 @@ standard tunings.
 var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
 
 /**
+ * All symbol/ascii accidentals must be at least this far apart
+ * from each other. 
+ * 
+ * Some accidentals are very very thin and the default auto-positioning
+ * will make them too tight and cluttered to read.
+ */
+var MIN_ACC_WIDTH = 0.6;
+
+/**
  * Represents additional horizontal space to put between accidentals
  * when auto-positioning them.
  * 
@@ -377,6 +386,25 @@ function findGraceChord(note) {
 
     return graceChord;
 }
+
+/*
+  _          __                       _           _                   
+ / |_       [  |  _                  (_)         (_)                  
+`| |-' .--.  | | / ] .---.  _ .--.   __   ____   __   _ .--.   .--./) 
+ | | / .'`\ \| '' < / /__\\[ `.-. | [  | [_   ] [  | [ `.-. | / /'`\; 
+ | |,| \__. || |`\ \| \__., | | | |  | |  .' /_  | |  | | | | \ \._// 
+ \__/_'.__.'[__|  \_]'.__.'[___||__][___][_____][___][___||__].',__`  
+ .' _ '.                                                     ( ( __)) 
+ | (_) '___                                                           
+ .`___'/ _/                                                           
+| (___)  \_                      _                                    
+`._____.\__|                    (_)                                   
+ _ .--.   ,--.   _ .--.  .--.   __   _ .--.   .--./)                  
+[ '/'`\ \`'_\ : [ `/'`\]( (`\] [  | [ `.-. | / /'`\;                  
+ | \__/ |// | |, | |     `'.'.  | |  | | | | \ \._//                  
+ | ;.__/ \'-;__/[___]   [\__) )[___][___||__].',__`                   
+[__|                                        ( ( __))                  
+*/
 
 
 /**
@@ -2718,6 +2746,16 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
     return noteData;
 }
 
+/*
+
+████████ ██    ██ ███    ██ ██ ███    ██  ██████  
+   ██    ██    ██ ████   ██ ██ ████   ██ ██       
+   ██    ██    ██ ██ ██  ██ ██ ██ ██  ██ ██   ███ 
+   ██    ██    ██ ██  ██ ██ ██ ██  ██ ██ ██    ██ 
+   ██     ██████  ██   ████ ██ ██   ████  ██████  
+                                                  
+*/
+
 /**
  * Given current `NoteData` and a `TuningConfig`, calculate the
  * required note's tuning offset in cents.
@@ -4360,7 +4398,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
  * @returns {boolean} `true` if intervals overlap, `false` otherwise.
  */
 function intervalOverlap(a1, a2, b1, b2) {
-    // console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
+    console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
     return (a1 - b2) * (a2 - b1) <= 0;
 }
 
@@ -4525,12 +4563,12 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
         // })));
         var note = chord[isZig ? ascIdx : descIdx];
 
-        var absNoteBbox = {
-            left: note.pagePos.x + note.bbox.left,
-            right: note.pagePos.x + note.bbox.right,
-            top: note.pagePos.y + note.bbox.top,
-            bottom: note.pagePos.y + note.bbox.bottom
-        };
+        // var absNoteBbox = {
+        //     left: note.pagePos.x + note.bbox.left,
+        //     right: note.pagePos.x + note.bbox.right,
+        //     top: note.pagePos.y + note.bbox.top,
+        //     bottom: note.pagePos.y + note.bbox.bottom
+        // };
 
         var accSymbolsRTL = []; // right-to-left
 
@@ -4572,8 +4610,22 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                     halfAddHeight = symLayoutOffset[3] / 2;
                 }
                 symbolsWidth += elem.bbox.right - elem.bbox.left + additionalWidth;
-                var absTopPos = elem.pagePos.y + elem.bbox.top + additionalYOffset - halfAddHeight;
-                var absBottomPos = elem.pagePos.y + elem.bbox.bottom + additionalYOffset + halfAddHeight;
+
+                var absTopPos, absBottomPos;
+                if (elem.name == 'Fingering') {
+                    // When fingerings are created, they are above the notehead, meaning that
+                    // we can't use the current Y position of the fingering to determine
+                    // whether it will vertically collide with said note.
+                    // Instead, we use the Y positions of the notehead as a guideline.
+
+                    // We assume that the tallest symbol will protrude the notehead height by 
+                    // +/- 0.5sp. (About there for the pipe symbol |).
+                    absTopPos = note.pagePos.y + note.bbox.top - 0.5 + additionalYOffset - halfAddHeight;
+                    absBottomPos = note.pagePos.y + note.bbox.bottom + 0.5 + additionalYOffset + halfAddHeight;
+                } else {
+                    absTopPos = elem.pagePos.y + elem.bbox.top + additionalYOffset - halfAddHeight;
+                    absBottomPos = elem.pagePos.y + elem.bbox.bottom + additionalYOffset + halfAddHeight;
+                }
                 if (absTopPos < symbolsTop) {
                     symbolsTop = absTopPos;
                 }
@@ -4629,6 +4681,11 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
             var prevX = prevElemLeft - note.pagePos.x;
 
             accSymbolsRTL.forEach(function (elem) {
+                if (elem.text) {
+                    console.log('positioning ascii acc: ' + elem.text + ', prevX: ' + prevX
+                        + 'pagePos: ' + JSON.stringify(elem.pagePos) + ', bbox: ' + JSON.stringify(elem.bbox));
+                    console.log('prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x);
+                }
                 
                 var additionalXOffset = 0;
                 var additionalYOffset = 0;
@@ -4641,14 +4698,21 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                     halfAddWidth = symLayoutOffset[2] / 2;
                     halfAddHeight = symLayoutOffset[3] / 2;
                 }
-                var currSymWidth = elem.bbox.right - elem.bbox.left 
-                    + halfAddWidth * 2 + ACC_SPACE;
-                var offX = prevX - currSymWidth + additionalXOffset;
+                var actualSymWidth = elem.bbox.right - elem.bbox.left;
+                var effectiveSymWidth = actualSymWidth + halfAddWidth * 2 + ACC_SPACE;
+                var spaceCentralizationOffset = halfAddWidth;
+
+                if (effectiveSymWidth < MIN_ACC_WIDTH) {
+                    spaceCentralizationOffset += (MIN_ACC_WIDTH - effectiveSymWidth) / 2;
+                    effectiveSymWidth = MIN_ACC_WIDTH;
+                }
+
+                var offX = prevX - effectiveSymWidth + additionalXOffset;
                 var offY = additionalYOffset;
                 // console.log('offX: ' + offX);
                 registeredSymbolOffsets.push({
                     elem: elem,
-                    x: offX + halfAddWidth, // centralize symbol around additional space.
+                    x: offX + spaceCentralizationOffset,
                     y: offY
                 });
 
