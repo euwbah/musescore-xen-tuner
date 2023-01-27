@@ -4099,7 +4099,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
         setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
 
-        while (cursor.segment && cursor.tick < tickOfNextBar) {
+        while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
             console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
             if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
