@@ -25,12 +25,21 @@ so that autocomplete is improved.
 
 
 /**
- * A number representing a uniquely identifiable accidental symbol. 
- * A single symbol code maps to all MuseScore accidental enums/SMuFL IDs 
- * that looks identical.
+ * A number or string representing a uniquely identifiable accidental symbol.
+ * 
+ * If this value is a number, it corresponds to a SMuFL symbol. Similar-looking
+ * SMuFL symbols have the same symbol code.
+ * 
+ * If this value is a string, it represents an ASCII accidental to be attached to
+ * the note verbatim. Internally, ASCII accidental SymbolCodes are prefixed with a
+ * quote (`'`) to signify that they are not SMuFL symbols.
+ * 
+ * Remember to prepend the quote `'` to tokenized ASCII accidental fingering texts
+ * before looking up tables.
+ * 
  * 
  * [See list of symbol codes](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
- * @typedef {number} SymbolCode
+ * @typedef {number|string} SymbolCode
  */
 
 /**
@@ -40,7 +49,7 @@ The keys are NOT ORDERED.
 
 The keys are in left-to-right display order as per accidental display order determined by {@link TuningConfig}.
 
-This object can be hashed into the AccidentalSymbols hash, which can be appended to a nominal number to produce the {@link XenNote.hash}. 
+This object can be hashed into the {@link AccidentalHash}, which can be appended to a nominal number to produce the {@link XenNote.hash}. 
 The hashed symbols list is sorted by increasing {@link SymbolCode}.
  * @typedef {Object.<number, number>} AccidentalSymbols
  */
@@ -81,11 +90,33 @@ class MSNote {
      */
     internalNote;
     /**
-     * List of fingering elements attached to this note.
+     * List of non-accidental fingering elements attached to this note.
+     * 
+     * Fingerings that function as accidentals will show up in
+     * {@link MSNote.accidentals} instead.
+     * 
      * @type {PluginAPIElement[]}
      */
     fingerings;
 }
+
+/**
+ * Represents a hashed {@link AccidentalSymbols} object or {@link SymbolCode[]} list.
+ * 
+ * This is a space-separated value where entries come in pairs.
+ * 
+ * `<SymbolCode> <number of occurrences>`
+ * 
+ * E.g. `"6 1 41 2"` represents one flat and two up arrows.
+ * 
+ * `"6 1 'b 1 '6 1"` represents one flat, one 'b' ascii symbol, and one '6' ascii symbol.
+ * 
+ * The symbol codes must be sorted in increasing order. Numerical SymbolCodes
+ * come first, followed by string-based ASCII symbol codes, sorted in increasing
+ * alphabetical order.
+ * 
+ * @typedef {string} AccidentalHash
+ */
 
 /**
  * Represents a single abstract composite accidental being applied to a note, 
@@ -128,7 +159,13 @@ class XenNote {
      * @type {number}
      */
     nominal;
-    /** @type {SymbolCode[]} */
+    /** 
+     * A list of symbols in left-to-right display order.
+     * 
+     * If no symbols present, this is an empty list.
+     * 
+     * @type {SymbolCode[]} 
+     */
     orderedSymbols;
     /**
      * If null, this note represents a nominal of the {@link TuningConfig}
@@ -139,11 +176,35 @@ class XenNote {
      * @type {string}
      */
     hash;
+    /**
+     * If `true`, this {@link XenNote} is ligatured.
+     * @type {boolean}
+     */
+    isLigature;
 }
 
 /**
- * Represents a semantically parsed note after {@link TuningConfig} lookup is
- * applied to a {@link MSNote} to calculate its {@link XenNote} pitch class.
+ * Contains degrees of secondary accidentals present in a {@link NoteData}
+ * 
+ * The keys of this lookup are the indices of the secondary accidental,
+ * such that {@link TuningConfig.secondaryAccList}[idx] will yield the
+ * secondary accidental that has been matched.
+ * 
+ * The values of this lookup are positive, non-zero numbers, indicating
+ * how many times that particular secondary accidental has been matched.
+ * 
+ * @typedef {Object.<number, number>} SecondaryAccMatches
+ */
+
+/**
+ * Contains information after a note is parsed in {@link readNoteData}.
+ * 
+ * This is where the {@link TuningConfig} lookup is applied to a {@link MSNote}
+ * to calculate its {@link XenNote} pitch class, and other secondary accidentals
+ * that may apply.
+ * 
+ * During the parsing, new accidentals may be created on the note as the
+ * {@link parseNote} function fleshes out the fingering-based accidental entry.
  */
 class NoteData {
     /**
@@ -156,8 +217,39 @@ class NoteData {
     xen;
     /** 
      * Number of xen equaves relative to tuning note.
-     * .@type {number} */
+     * @type {number} */
     equaves;
+    /**
+     * {@link SymbolCode}[] list containing secondary accidental symbols 
+     * in left-to-right display order.
+     * 
+     * If no symbols are present, this will be an empty array.
+     * 
+     * @type {SymbolCode[]}
+     */
+    secondaryAccSyms;
+    /**
+     * Contains degrees of matched secondary accidentals.
+     * 
+     * If no secondary accidentals are present, this will be an empty object.
+     * 
+     * @type {SecondaryAccMatches}
+     */
+    secondaryAccMatches;
+    /**
+     * If fingering accidental entry was performed, this will contain all accidentals
+     * symbols to be displayed & attached to the note in left-to-right display order.
+     * 
+     * Both primary and secondary accidentals are included.
+     * 
+     * As of now, this is just a concatenation of {@link secondaryAccSyms}
+     * and {@link XenNote.orderedSymbols xen.orderedSymbols}.
+     * 
+     * If no accidental entry was performed during, this will be `null`.
+     * 
+     * @type {SymbolCode[]?}
+     */
+    updatedSymbols;
 }
 
 /**
@@ -264,7 +356,7 @@ class AccidentalChain {
      * 
      * Central element is null.
      * 
-     * @type {(SymbolCode|null)[]}
+     * @type {(SymbolCode[]|null)[]}
      */
     degreesSymbols;
     /**
@@ -287,6 +379,14 @@ class AccidentalChain {
 }
 
 /**
+ * `LigAccVector` is a subspace/subset of {@link AccidentalVector}
+ * which corresponds to the degrees of {@link AccidentalChain}s 
+ * in an order specified by {@link Ligature.regarding}.
+ * 
+ * @typedef {number[]} LigAccVector
+ */
+
+/**
  * Represents a ligature declaration.
  */
 class Ligature {
@@ -302,13 +402,13 @@ class Ligature {
      */
     regarding;
     /**
-     * Search & replace mapping {@link AccidentalVector}s to {@link SymbolCode}s
+     * Search & replace mapping {@link LigAccVector} strings to {@link SymbolCode}s
      * 
-     * `LigAccVector` is a subspace/subset of {@link AccidentalVector}(s)
+     * {@link LigAccVector} is a subspace/subset of {@link AccidentalVector}(s)
      * which corresponds to the order of {@link AccidentalChain}s specified
      * by {@link regarding}.
      * 
-     * @type {Object.<string: LigAccVector, SymbolCode[]>}
+     * @type {Object.<string, SymbolCode[]>}
      */
     ligAvToSymbols;
 }
@@ -383,17 +483,80 @@ class TuningConfig {
      * @type {ConstantConstrictions[]}
      */
     auxList;
+
     /**
-     * Lookup of all the accidental symbols that affect tuning/{@link XenNote} spelling.
+     * Lookup of all the accidental symbols/ASCII that affect {@link XenNote} spelling.
      * 
-     * Any symbol not in this lookup will be ignored by the plugin.
-     * 
-     * TODO: implement cosmetic symbols &mdash; symbols that do not affect tuning or
-     * {@link XenNote} spelling but are auto-positioned/formatted as accidentals)
+     * When tokenizing a note, if the plugin finds symbols that do not belong
+     * to this lookup, it will exclude them from affecting the XenNote spelling.
      * 
      * @type {Object.<SymbolCode, boolean>}
      */
     usedSymbols;
+
+    /**
+     * Lookup of all the symbols used in secondary accidentals that do not affect {@link XenNote} spelling.
+     * But the plugin should still recognize these as accidentals and format them as such.
+     * 
+     * These symbols are not included in {@link usedSymbols}.
+     * 
+     * @type {Object.<SymbolCode, boolean>}
+     */
+    usedSecondarySymbols;
+
+    /**
+     * These are all the secondary accidentals in the order which they are declared.
+     * 
+     * The plugin will search for secondary accidentals in this order.
+     * 
+     * @type {AccidentalHash[]}
+     */
+    secondaryAccList;
+
+    /**
+     * Lookup mapping entries in {@link secondaryAccList} to their index.
+     * 
+     * E.g. if `6 2 '> 3` is the 3rd element of `secondaryAccList`, then
+     * `secondaryAccIndexTable['6 2 '> 3'] === 2`.
+     * 
+     * @type {Object.<AccidentalHash, number>}
+     */
+    secondaryAccIndexTable;
+
+    /**
+     * Lookup mapping secondary accidentals to properly ordered
+     * {@link SymbolCode}[] arrays. These symbol code arrays represent
+     * the left-to-right order that the symbol codes should be displayed.
+     * 
+     * @type {Object.<AccidentalHash, SymbolCode[]>}
+     */
+    secondaryAccTable;
+
+    /**
+     * Contains lookup for tunings of secondary accidentals.
+     * 
+     * @type {Object.<AccidentalHash, number>}
+     */
+    secondaryTunings;
+
+    /**
+     * Contains lookup for converting ascii verbatim input to SMuFL symbols.
+     * 
+     * ASCII verbatim input are NOT SymbolCodes, they are literally ascii strings
+     * that the user types in.
+     * 
+     * @type {Object.<string, SymbolCode[]>}
+     */
+    asciiToSmuflConv;
+
+    /**
+     * List of keys in asciiToSmuflConv, in order of declaration.
+     * 
+     * The keys coming earlier in the list will be searched and matched first.
+     * 
+     * @type {string[]}
+     */
+    asciiToSmuflConvList;
 }
 
 /**
@@ -697,12 +860,34 @@ class PositionedElement {
  * 
  * Used while it is being parsed/constructed.
  * 
- * @typedef XenNotesEquaves
+ * @typedef {XNE[]} XenNotesEquaves
+ */
+
+/** 
+ * @typedef XNE
  * @type {object}
  * @property {AccidentalVector} av
  * @property {XenNote} xen
  * @property {number} cents - Number of cents from the reference note modulo equave
  * @property {number} equavesAdjusted - Number of equaves adjusted to get cents within equave 0
+ */
+
+/**
+ * Represents a tokenized [HEWM](http://www.tonalsoft.com/enc/h/hewm_appendix.aspx)
+ * accidental string. The keys of this object are the unique ASCII characters in the
+ * accidental string, and the value is the number of times it appears.
+ * 
+ * For example,
+ * 
+ * ```js
+ * {
+ *   'b': 2,
+ *   '+': 1,
+ *   '?': 1
+ * }
+ * ```
+ * 
+ * @typedef {Object.<string, number>} HewmAccidental
  */
 
 class QRectF {
@@ -739,6 +924,40 @@ class PluginAPISymbolID {
 
     }
 }
+
+/**
+ * An enumeration label of the {@link ELEMENT} enumeration.
+ * 
+ * @typedef {string} ElementType
+ */
+
+/**
+ * [ElementType enumeration](https://musescore.github.io/MuseScore_PluginAPI_Docs/plugins/html/namespace_ms.html#a16b11be27a8e9362dd122c4d879e01ae)
+ * 
+ * Values here are placeholder. This is just for autocomplete purposes.
+ * Do not actually use these numerical values.
+ * 
+ * This is an incomplete list. See the link above for the full list.
+ * 
+ * @type {Object.<ElementType, number>}
+ */
+const ELEMENT = {
+    FINGERING: 0,
+    NOTE: 0,
+    TEXT: 0,
+    SYMBOL: 0,
+    STAFF_TEXT: 0,
+    SYSTEM_TEXT: 0,
+    TEMPO_TEXT: 0,
+    DYNAMIC: 0,
+}
+
+/**
+ * Instantiates a new element of the given type.
+ * @param {ElementType} elemType - type of element to create
+ * @return {PluginAPIElement} newly created {@link PluginAPIElement}
+ */
+function newElement(elemType) { }
 
 /**
  * Represents any element in the score.
@@ -794,6 +1013,37 @@ class PluginAPIElement {
      * @type {number?}
      */
     velocity;
+    /**
+     * Z-index of this element.
+     * 
+     * MuseScore uses this to control what draws on top of what.
+     * 
+     * However this plugin uses this to ascribe certain metadata/flags
+     * to score elements.
+     * 
+     * The user is not recommended to change Z index as it will affect
+     * the plugin's ability to identify & update accidental symbols.
+     * 
+     * Symbols & fingering elements that constitute primary & secondary
+     * accidentals on a note use Z-index to sort them left-to-right in the
+     * correct order. The Z-index of accidental symbols cannot be changed.
+     * 
+     * For Fingerings and Symbols, the Z-index range 1000-2000 is reserved
+     * for accidental elements that have been processed and sorted in the
+     * correct order.
+     * 
+     * The z-index 3900 is assumed to be the default un-processed fingering
+     * annotation.
+     * 
+     * @type {number}
+     */
+    z;
+    /**
+     * Enables/disables Automatic placement
+     * 
+     * @type {boolean}
+     */
+    autoplace;
 
     /**
      * Checks if two element wrapper objects point to the same element in the score.
@@ -801,7 +1051,7 @@ class PluginAPIElement {
      * @param {PluginAPIElement} elem other element
      * @returns {boolean} `true` if this element is the same as `elem`.
      */
-    is (elem) {}
+    is(elem) { }
 }
 
 /**
@@ -900,6 +1150,16 @@ class PluginAPINote extends PluginAPIElement {
      * @type {PlayEvent[]
      */
     playEvents;
+    /**
+     * Attach the {@link PluginAPIElement} to this notehead
+     * @param {PluginAPIElement} elem element to add
+     */
+    add(elem) { }
+    /**
+     * Remove the {@link PluginAPIElement} from this notehead
+     * @param {PluginAPIElement} elem element to remove
+     */
+    remove(elem) { }
 }
 
 /**

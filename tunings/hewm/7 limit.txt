@@ -1,0 +1,66 @@
+// Pure HEWM with ASCII accidentals (save for sharps/flats)
+// 3 standard sharps/flats
+// 3 syntonic commas up/down notated as ASCII + -
+// 2 septimal commas up/down notated as ASCII > <
+// Higher limit accidentals are entered using secondary accidentals
+// and are represented as ASCII.
+
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2/1
+bbb bb b (2187/2048) # x #x
+'-'.'-'.'-' '-'.'-' '-' (81/80) '+' '+'.'+' '+'.'+'.'+'
+'<'.'<' '<' (64/63) '>' '>'.'>'
+aux(0)
+aux(1)
+aux(2)
+aux(3)
+sec()
+// ascii-representations of 7-limit and below are converted to
+// smufl symbols.
+'bbb' bbb Math.pow(2048/2187,3)
+'bb' bb Math.pow(2048/2187,2)
+'b' b 2048/2187
+'###' #x Math.pow(2187/2048,3)
+'#x' #x Math.pow(2187/2048,3)
+'##' x Math.pow(2187/2048,2)
+'x' x Math.pow(2187/2048,2)
+'#' # 2187/2048
+
+// Pure single-element ASCII secondary accidentals will auto-define conversion rules 
+// to match text input to converted ASCII accidentals.
+// These 5 & 7 limit accidentals will match into primary accidentals
+// until it exceeds the defined accidental chains.
+'+' 81/80
+'-' 80/81
+'<' 63/64
+'>' 64/63
+
+// These remaining symbols are purely secondary accidentals.
+'^' 33/32
+'v' 32/33
+'}' 27/26
+'{' 26/27
+'/' 18/17
+'\\' 17/18
+')' 19/18
+'(' 18/19
+']' 24/23
+'[' 23/24
+'!' 261/256
+';' 256/261
+'"' 32/31
+'?' 31/32
+'%' 37/36
+'&' 36/37
+'$' 82/81
+'@' 81/82
+'\'' 129/128
+',' 128/129
+'*' 48/47
+':' 47/48
+'|' 54/53
+'.' 53/54
+'z' 243/236
+'s' 236/243
+'k' 244/243
+'y' 243/244

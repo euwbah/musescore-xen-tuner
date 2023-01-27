@@ -8,6 +8,429 @@
 
 - Almost everything is in one file: `fns.js`
 
+## Important quirks of QJSEngine
+
+- ECMA 5 only. Maybe even older.
+- `char` is **not** a valid variable name.
+- Semicolons are **compulsory**
+
+----
+
+# Version 0.2
+
+One of the main issues of the v0.1 plugin is that every accidental vector in the tuning config must be permuted for all nominals to populate the tuning config. This is really only necessary if the user wishes to use the up/down transpose feature with these symbols.
+
+However, when writing in HCJI/large tunings, it's common that there are some symbols which are 'secondary' and used less frequently.
+
+Also, in v0.1, the handling of fingerings is very hacky. The plugin needs a better way to handle fingerings that can regard them as accidentals.
+
+## Feature plan
+
+### Add comments in tuning config
+
+```txt
+// this is comment
+
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x // also comment
+'--' '-' (20c) '+' '++'
+// this is a comment
+```
+
+### ASCII Accidentals
+
+Fingering annotations should be able to function just like SMuFL symbols. The plugin should allow the user to define ASCII accidentals in the Tuning Config alongside Symbol Codes.
+
+For example:
+
+```txt
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+'--' '-' (20c) '+' '++'
+```
+
+The above example defines the second accidental chain to comprise fingerings containing plus/minus characters
+
+Due to restrictions of tuning config parsing, spaces cannot be used inside an ASCII fingering.
+
+The Z-index of ASCII accidentals will be changed to match the Z-index range of standard symbol accidentals so that they will be auto-placed together with other symbols in the correct user-defined order.
+
+⚠️ **This will break tuning configs made for v0.1**. Because of the new syntax, **backslashes and single quotes must be escaped** when declaring Symbol Codes/Text Codes/ASCII accidentals in a tuning config.
+
+To differentiate accidental fingerings from standard fingerings/JI ratios/cent offset annotations, a processed ASCII accidental fingering element will have Z-index between 1000 and 2000. That way, `getAccidental` will simply search for any fingerings with Z-index between 1000 and 2000, and immediately regard them as accidentals. This allows `getAccidental` to remain stateless.
+
+🟧 **IMPORTANT:** When using ASCII accidentals in the score, the "Minimum Distance" property of Fingerings must be set to -999sp. You can set this once per score by using the "Set as style" button in the Inspector (`F8`).
+
+![](imgs/minimum-distance-set-style-default.png)
+
+**Failure to do so will result in ASCII accidentals appearing on top of the staff instead of to the left of the note.**
+
+### Restrictions on ASCII Accidentals
+
+- Cannot be purely numerical, otherwise the plugin will parse them as symbol code IDs.
+- Cannot have spaces
+
+### Secondary Accidentals
+
+Once all primary symbols/fingerings have been matched to form the main XenNote hash, the secondary symbols are remaining symbols that are not part of the main Tuning Space.
+
+Because they are not part of a XenNote, we cannot access them via up/down operations, however we can input secondary symbols using fingering text or by dragging additional symbols from the Master Palette.
+
+A secondary accidental can only have a single interval size. They can be stacked as many times as needed, providing a way to extend accidental chains to infinity.
+
+They can be used to add higher-limit accidentals that need not be part of any accidental chain.
+
+If ASCII-to-Symbol conversion is not desired, we can declare secondary symbols like this:
+
+```txt
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+'--' '-' (20c) '+' '++'
+sec()
+'#'.# 250c // secondary sharp ASCII and symbol together
+# 100c // secondary sharp symbol
+'#' 100c // secondary sharp ASCII
+```
+
+The plugin greedily matches symbols in the order that they are declared.
+
+For example, let's say we have a note that contains 3 ASCII sharp symbols and 2 SMuFL sharp symbols:
+
+1. The 1st SMuFL sharp symbol will match the first accidental chain (100c)
+2. The 2nd SMuFL sharp symbol and 1st ASCII symbol will match first secondary accidental (250c)
+3. The remaining 2nd and 3rd ASCII symbols will match the third secondary accidental (100c each)
+
+...which results in a total 550c offset.
+
+By default, secondary accidentals will not be removed/modified when the user uses up/down operations on a note. However, this should be a user-configurable boolean flag.
+
+### ASCII to Symbol conversions
+
+We can also use secondary accidental declarations to declare how ASCII accidentals convert into SMuFL symbols. Because of this, secondary symbols opens up the possibility of user-configurable methods of entering accidentals via fingerings.
+
+```txt
+A4: 440
+0 200c 300c 500c 700c 800c 1000c 1200c
+bb b (100c) # x
+'--' '-' (20c) '+' '++'
+sec()
+'#' # 100c
+'d' b -50c
+```
+
+In the above example, we define 2 secondary accidentals + ASCII conversions. One on each line.
+
+In these two declarations, the symbol and ASCII variants are declared together in the same line. This syntax means that we want the plugin to always convert the ASCII variant into the SMuFL variant upon processing the fingering text.
+
+Note that during the conversion process, the value of the accidental can change. E.g. if we input 'd' as ASCII verbatim in fingering text, this will be rendered into the SMuFL flat (b) symbol, which instead signifies -100c instead of -50.
+
+However, if we type render 'dd' instead, both of which will be converted into flat symbols, the second flat symbol is in fact not part of any accidental chain, because the accidental chain only defines a single flat symbol.
+
+This means that after typing 'Cdd' as an accidental, this will be converted to the XenNote 'Cb', with an extra flat-symbol secondary accidental. The flat symbol corresponds to -100c, and the secondary flat-symbol will correspond to an additional -50c, which means this note is 150c below C.
+
+When we're declaring ASCII to symbol conversions take note of what you can and can't do:
+
+- Unlike declaring a secondary accidental, the ASCII accidental to be converted must be fully ASCII and cannot be a hybrid accidental like `'>@'.#`.
+- [Restrictions on ASCII accidentals](#restrictions-on-ascii-accidentals) apply
+- If a main accidental chain contains an ASCII accidental that is also declared as a converted secondary accidental, the main accidental chain will match first, eating up the ASCII accidental. Remaining identical ASCII accidentals will then be converted.
+- If ASCII accidentals take the form of another fingering syntax (e.g. cent offset, JI ratio tuning, or accidental vector entry mode), those fingering annotations will no longer work and will instead be parsed as ASCII accidentals.
+- It is possible to convert from ASCII to ASCII/Hybrid/SMuFL. The 'convert-from' text is merely a user-configurable representation of what you would like to enter when typing it in as ASCII. For example, if you have declared some obscure accidental degree which goes like `'hello world'.#.'123abc'.^./`, and you find that really hard to key-in, you can declare an ASCII conversion to configure a short-hand, e.g.:
+
+```txt
+A4: 10000
+0 1c 2c 3c
+'bye world'.b.'987zyx'.v.\\ (100c) 'hello world'.#.'123abc'.^./
+sec()
+'/hw' 'hello world'.#.'123abc'.^./ 420c
+```
+
+This declares that you want the plugin to convert the fingering that goes `/hw` into that long chain of symbols and fingerings. Note that the first instance of the obscure accidental will be parsed as degree +1 of the first accidental chain, which gives it the value 100c. Only subsequent instances of the obscure accidental will be parsed as the secondary accidental.
+
+`/hw` itself will have no value, as the plugin will assume that all instances of the shorthand would have been converted during the `readFingeringAccidentalInput()` function already.
+
+### Implicit conversions
+
+If a single-element, pure-ASCII accidental is declared as a secondary accidental, its ASCII to SymbolCode conversion is implicitly declared.
+
+For example, `'+' 100c` will declare `'+'` as a secondary ASCII accidental and implicitly declare that '+' in verbatim accidental input will be converted into the `'+'` SymbolCode.
+
+This means that `'+' '+' 100c` is an unnecessary declaration.
+
+This auto-conversion declaration only happens if the secondary accidental is a single-element, pure-ASCII accidental.
+
+For example, `'+'.#` is a hybrid accidental comprising of one ASCII SymbolCode and one SMuFL SymbolCode, so it will not be auto-converted.
+
+`'+'.'+'` comprises only ASCII, however it is made of two distinct SymbolCodes, each one containing one '+' ASCII character. Thus, this is not single-element, and will not be auto-converted.
+
+The reason is because there is no way that the plugin can identify when the user wants to input `'+'.'+'` vs `'++'`. Thus, the user will have to declare how they want to input these multi-symbol/hybric accidentals via ASCII input.
+
+Here's a more thorough example:
+
+```txt
+sec()
+'+++' j+.'++' 90c
+'+' 10c
+```
+
+In the above declared secondary symbols, first a conversion is declared that converts three consecutive pluses into one Johnston plus symbol followed by a single ASCII accidental which consist of two plus characters.
+
+In the second line, we define a secondary accidental which is just a single ASCII plus character.
+
+Assuming this declaration, let's see what happens when the user enters various inputs:
+
+Verbatim entry of '+' will be converted into a single ASCII SymCode: `'+'`
+'++' will be converted into `'+'.'+'`.
+'+++' will be converted into `j+.'++'`
+'++++' will be converted into `'+'.j+.'++'`
+'+++++' will be converted into `'+'.'+'.j+.'++'`
+'++++++' will be converted into `j+.'++'.j+.'++'`
+
+...and so on.
+
+Note that we cannot implicitly declare conversions for pure-ASCII single-element accidentals declared in a primary accidental chain. The user needs to have control over the order of which strings are searched and matched, in the event where certain search strings are substrings of other search strings. This is the reason why the user has to go through additional steps to manually declare conversions.
+
+### How to configure `TuningConfig` to input accidentals as verbatim fingerings
+
+To allow the input of ASCII accidentals using user-created fingering text, there is some setup the user has to do.
+
+While SMuFL symbols are accessible from the Master Palette (Symbols), it's not that easy to input ASCII accidentals (simply adding fingerings is not enough). All ASCII accidentals will need to be pre-processed by the plugin.
+
+Thus, all ASCII accidentals must have ASCII-to-SymbolCodes conversions declared in order for them to be directly input by the user. Otherwise, they will only be available via up/down operations and must be part of a main accidental chain.
+
+#### :warning: WARNING: Extreme complexity
+
+The issue with implementing secondary accidentals is that it greatly increases the complexity of not only development &mdash; Users who want to take advantage of the new ASCII accidentals, verbatim ascii input, and secondary accidental features must know how the plugin parses these tokens and understand how to declare them correctly and in the correct order.
+
+For example, there IS a difference between declaring the accidental chain:
+
+```txt
+'-' (20c) '+' '+'.'+'
+```
+
+and:
+
+```txt
+'-' (20c) '+' '++'
+```
+
+In the first case, the two 'plus' symbols are rendered as separate fingering elements, but in the second case the '++' is a single fingering element containing both pluses.
+
+Now consider adding the following secondary accidental:
+
+```txt
+sec()
+'+' 21c
+'++' 41c
+```
+
+The question is: how does the plugin differentiate between the secondary accidentals and the single-element vs multi-element versions of the ASCII plus signs?
+
+How should the user enter the symbols as verbatim ASCII fingering text while having the plugin discern whether the plus is to be regarded as a single-element primary accidental, a multi-element primary accidental, a secondary accidental, or even part of a hybrid accidental?
+
+It's really an impossible task where different notation systems will have different goals.
+
+As such, verbatim accidental entries must be **MANUALLY MAPPED**. Even if the entire accidental degree comprises plain ASCII symbols, every ASCII-to-Symbols conversion must be manually stated in the `sec()` declaration.
+
+Because it is manually mapped, the user can choose to decide which patterns have greater priority. For example, if we declare:
+
+```txt
+sec()
+'++' '++' 50c
+'+' '+' 20c
+```
+
+Now the plugin knows that we need to first match consecutive double plusses in the verbatim accidental input string. These consecutive double plusses will then be mapped to the `'++'` ASCII accidental token.
+
+Now, if the user were to enter `'+++'` as the verbatim input, the plugin will first match the first two plusses as the `'++'` token, and the third plus will be matched as the `'+'` token.
+
+Likewise: `'++++'` will be processed as `'++'.'++'`.
+
+`'+++++'` will be processed as `'++'.'++'.'+'`.
+
+However, if we merely declare:
+
+```txt
+'+' '+' 20c
+```
+
+...then, `'++'` will be processed as `'+'.'+'`, and `'+++'` will be processed as `'+'.'+'.'+'`, etc...
+
+Now for the final blow:
+
+```txt
+'+++' j+.'++' 70c
+'++' '+'.t 50c
+'+' '+' 20c
+```
+
+This declares that 3 consecutive pluses gets converted to one Johnston plus symbol on the left followed by an ASCII double-plus on the right.
+
+2 consecutive pluses gets converted to one ASCII plus on the left followed by a Stockhausen quarter sharp on the right.
+
+Evidently, this allows the user to choose exactly how they want to enter their verbatim accidentals and how it gets converted, be it to ASCII, Symbols or Hybrid accidentals.
+
+Once the ASCII input is processed, they get tokenized into `SymbolCode`s, and the `readNoteData` function will match these `SymbolCode`s based on the tuning config to figure out which ones will contribute as primary accidentals to affect the `XenNote` TPC spelling, and which ones are secondary accidentals.
+
+The user must know how to declare the appropriate conversions, and must know that if conversions are not declared, then there will be no way of entering ASCII accidentals verbatim via fingering text. However, even without conversions, if ASCII accidentals are part of the primary accidental chains of a Tuning Config, they can still be accessible via up/down/J operations.
+
+## How to implement v0.2
+
+### Changes to data structures
+
+There are some changes we need to make to internal data structures to support ASCII & hybrid accidentals.
+
+#### `SymbolCode` v0.2
+
+`SymbolCode`s can now be either a number or a string. `SymbolCode`s of ASCII symbols are represented as strings with a quote (`'`) prefix.
+
+E.g. SymCode `3` is the triple sharp "#x" symbol, whereas SymCode `"'3"` is literally an ASCII '3' symbol.
+
+This is to differentiate numerical ASCII accidentals from actual `SymbolCode` numbers. (JavaScript doesn't discriminate type of object keys)
+
+#### `XenHash` v0.2
+
+The above change effected on `SymbolCode` affects this data structure as well.
+
+For example, nominal 0 with a flat symbol and an ASCII 'b' will have its `XenHash` looking like this: `0 6 1 'b 1`.
+
+
+#### `AccidentalSymbols` v0.2
+
+Similar to `XenHash`, symbol code keys in the `AccidentalSymbols` object will be prefixed with a quote (`'`) to signify that the symbol is an ASCII symbol.
+
+```js
+{ // AccidentalSymbols
+  6: 1, // one SMuFL flat symbol
+  "'b": 1 // one ASCII 'b' symbol
+}
+```
+
+#### `MSNote` v0.2
+
+`MSNote.accidentals` will now include ASCII accidentals (differentiated by having 1000 &le; Z index &le; 2000).
+
+`MSNote.fingerings` will contain only non-accidental fingerings.
+
+#### `NoteData` v0.2
+
+Two new properties are added: `secondaryAccSyms` and `secondaryAccMatches`. These contain information on how to display and tune secondary accidentals on a note.
+
+#### `TuningConfig` v0.2
+
+The `usedSecondarySymbols`, `secondaryAccList`, `secondaryAccIndexTable`, `secondaryAccTable`, and `secondaryTunings` properties contain information on secondary accidentals.
+
+`asciiToSmuflConv` and `asciiToSmuflConvList` contain information on how to convert accidentals input as verbatim ASCII fingerings into tokenized symbols.
+
+Conversions are declared together with secondary accidentals. If a secondary accidental is a single-element pure-ascii accidental, its accidental conversion will be elided and automatically implicitly defined in `asciiToSmuflConv`. Otherwise, the user will need to manually declare ascii input to accidental `SymbolCode`s conversions.
+
+### Order of operations
+
+There's a lot going on with the verbatim ASCII fingering accidental entry and the new secondary accidental thing. Here's a big-picture overview of what happens:
+
+- User uses a verbatim accidental fingering to input accidentals on a note.
+- `readFingeringAccidentalInput()` will convert this verbatim fingering into a `SymbolCode` array, tokenizing individual symbols and fingering accidental elements.
+- These SymbolCode elements are matched by `readNoteData()`, which breaks down the Symbol/Fingering elements into primary and secondary accidentals.
+- The primary accidentals affect the `XenNote` spelling.
+- The secondary accidentals do not.
+
+### Verbatim ASCII accidental entry: `readFingeringAccidentalInput()`
+
+In v0.1, we can drag symbols from the Palette to enter symbols verbatim. In the same way, we need to support verbatim entry of ASCII accidentals via fingering text.
+
+The parsing & rendering of accidentals input as fingerings is done in the `readFingeringAccidentalInput()` function.
+
+This function parses:
+
+- Accidental vector fingerings `a<x>,<y>,<z>,...`
+- Verbatim fingerings
+
+Accidental vector fingerings are trivial to parse and already implemented.
+
+The parsing for verbatim fingerings isn't that bad thanks to the aforementioned constraint on how [ASCII conversions for verbatim entry must be manually declared](#warning-warning-extreme-complexity).
+
+However, care must be taken to splice the search-and-replace string after every match.
+
+For example, let the verbatim input be: `abcde`, and we declare that `bc` maps to `X` and `ad` maps to `Y`.
+
+If we simply search-and-remove `bc` from `abcde`, we get `ade`, and it appears as if `ad` is now part of the verbatim string.
+
+However, that is not the case at all, as `a` and `d` are clearly supposed to be two separate entities.
+
+This means that the search-and-match process should work like this:
+
+```txt
+Assume we start with 'aefbcdefbcg' verbatim.
+Assume we declare the search and replace in this order:
+
+bc => X
+ef => Y
+a => A
+d => D
+g => G
+
+abcdefg -> aef, X, def, X, g
+aef & def -> a, Y & d, Y
+a -> A, d -> D, g -> G
+
+result: GDAYYXX
+```
+
+The method would be to split the string at every match. Then, every search string will be searched over the list of split strings, further splitting the strings. Once a string reaches 0 length, it is removed.
+
+This is repeated until every `asciiToSmuflConvList` search string has been searched for.
+
+There are two possible behaviors that the advanced user can select by adjusting the `CLEAR_ACCIDENTALS_AFTER_VERBATIM_ENTRY` boolean flag:
+
+The default behaviour would be to delete old accidental symbols & fingerings, and replace them with the ASCII-entered text.
+
+The second behaviour would be where prior accidentals are preserved and the newly entered accidentals add to the existing accidentals.
+
+### New tokenizing & parsing method
+
+Now that there are all sorts of symbols in various forms, figuring out how to parse accidentals attached to a note has got a lot harder.
+
+First, the old approach of consolidating all the symbols into one AccidentalSymbols object and looking that up the NotesTable to retrieve the XenNote will simply no longer work.
+
+First, when we tokenize a note, we can assume that all fingering and symbol accidentals have been rendered down into individual fingering/symbol elements with Z-index ranging 1000-2000. The tokenizer will search all fingering and symbol elements with Z-index 1000-2000, and yield the `AccidentalsSymbols` object containing all these symbols + fingerings.
+
+This also applies to the new `getAccidental` function, which will now return all supported symbols in the spreadsheet & fingerings with Z-index between 1000 and 2000, even if the symbol/fingering is not part of the tuning config. (This means that a non-recognized symbol will function like a natural sign. By default, fingerings have Z-index 3900, so they shouldn't affect reading accidentals)
+
+After tokenizing, we need to parse.
+
+- Filter out all symbols that are not in `TuningConfig.usedSymbols` or `TuningConfig.usedSecondarySymbols`. We shall refer to this as the filtered `AccidentalSymbols` object.
+- This filtered `AccidentalSymbols` object acts as a tally of which symbols have yet to be matched.
+- If invalid/unrecognized symbols are present, the plugin will silently ignore them, as the matching is done on a best-effort basis.
+- First we need to populate the `primaryAccidentalSymbols`. The nominal of this note and the primary symbols come together to form the `XenHash` that can be looked up in the tuning config.
+- Iterate one accidental chain at a time, in the order the chains were declared. For each chain:
+  - Iterate the `degreesSymbols` of the chain.
+  - Find the degree that matches the most number of symbols in the filtered `AccidentalSymbols` object.
+  - Call it a match, and update the `primaryAccidentalSymbols` to include the matched symbols.
+  - Subtract the matched symbols from the `AccidentalSymbols`.
+- Next, we need to populate the `secondaryAccidentalSymbols`. These symbols do not affect the `XenNote` xen pitch class, but they do affect the pitch and can carry over to the next note as they return from the `getAccidental` function.
+- Iterate each secondary accidental in the order they were declared. For each secondary accidental:
+  - Match as many symbols as possible from the filtered `AccidentalSymbols` object.
+  - Keep track of how many times the symbols were matched. Note that a single secondary accidental can comprise multiple symbols of different forms (e.g. hybrid ascii + smufl).
+  - Append to the `secondaryAccidentalSymbols` object the `AccidentalHash` that was matched, and the number of times it was matched.
+  - The `AccidentalHash` can be looked up in `TuningConfig.secondaryTunings` to get the cent offset effected by the secondary accidental.
+  - Subtract the matched symbols from the `AccidentalSymbols`.
+
+Once all declared `AccidentalChains` are matched, then we parse the rest as secondary accidentals, and we perform the same search-and-replace in the order which the user has declared the secondary symbols.
+
+Any remaining symbols after searching and tokenizing everything are simply ignored.
+
+### Accidental display order
+
+There are two halves of accidental display. First, the primary `XenNote` accidental display order is the same as in v0.1. Those are RTL in order of declarations of accidental chains, and each symbol of a multi-symbol/element accidental is LTR in the user-defined order.
+
+Next, there are the secondary accidentals. These are to be displayed in right-to-left order in the order that the user declared the secondary accidentals.
+
+The first declared secondary accidental is to be immediately to the left of the left most accidental from the primary accidental chain, or if there are no primary accidentals, then simply it will be the right-most accidental.
+
+# Version 0.1
+
 ## Case Study/Example
 
 This tuning system/staff text specifies a 315-note subset of 2.3.5 JI:
@@ -558,7 +981,6 @@ staff number, MIDI note, ontime, duration, velocity, cents offset
 The first line contains the number of midi ticks per quarter note, and the second line onwards contains midi play events or tempo changes.
 
 Tempo changes are denoted by having `-2` staff index. Tempo is given in BPM, and `tick` refers to the tick at which the tempo change occurs.
-
 
 ## Data Structures
 

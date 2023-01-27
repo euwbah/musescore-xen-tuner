@@ -15,9 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Xen Tuner.  If not, see <http://www.gnu.org/licenses/>.
 
-// When there's some syntax error in fns.js and its not showing up,
-// uncomment this line.
-// import "fns.js" as Aaaimport "fns.ms.js" as Fns
+// When there's some syntax error the imported files and its not showing up,
+// uncomment these lines
+// import "generated-tables.js" as AAAAAaa
+// import "lookup-tables.js" as Aaa
+// import "fns.js" as Bbb
+
 import "fns.ms.js" as Fns
 import MuseScore 3.0
 import QtQuick 2.9
@@ -28,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.1.2"
+      version: "0.2.0"
       pluginType: "dock"
       dockArea: "left"
       description: "Starts the XenTuner plugin.\n\n" +
@@ -75,7 +78,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Tuning score/selection...";
             Fns.operationTune();
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -85,7 +88,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Cycling enharmonics";
             Fns.operationTranspose(0, 0);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -95,7 +98,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up";
             Fns.operationTranspose(1, 0);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -104,7 +107,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 1";
             Fns.operationTranspose(1, 1);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -113,7 +116,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 2";
             Fns.operationTranspose(1, 2);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -122,7 +125,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 3";
             Fns.operationTranspose(1, 3);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -131,7 +134,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 4";
             Fns.operationTranspose(1, 4);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -141,7 +144,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 5";
             Fns.operationTranspose(1, 5);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -151,7 +154,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) up aux 6";
             Fns.operationTranspose(1, 6);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -161,7 +164,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down";
             Fns.operationTranspose(-1, 0);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -170,7 +173,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 1";
             Fns.operationTranspose(-1, 1);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -179,7 +182,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 2";
             Fns.operationTranspose(-1, 2);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -188,7 +191,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 3";
             Fns.operationTranspose(-1, 3);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -197,7 +200,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 4";
             Fns.operationTranspose(-1, 4);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -207,7 +210,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
-            showWindow();
+            afterOperation();
         }
       }
       Shortcut {
@@ -217,7 +220,7 @@ MuseScore {
         onActivated: {
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
-            showWindow();
+            afterOperation();
         }
       }
 
@@ -251,7 +254,8 @@ MuseScore {
         }
       }
 
-      function showWindow() {
-        pluginId.window.requestActivate();
+      function afterOperation() {
+        // Don't do this, it will steal focus from the score
+        // pluginId.window.requestActivate();
       }
 }

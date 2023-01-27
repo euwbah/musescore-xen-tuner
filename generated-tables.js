@@ -257,10 +257,12 @@ var TEXT_TO_CODE = {
 
 
 var SYMBOL_LAYOUT = {
-    'accidentalNatural': [1.0,0.0,0.0,2.2],
-    'medRenNatural': [1.0,0.0,0.0,2.2],
-    'accidentalNaturalArabic': [1.0,0.0,0.0,2.2],
-    'NATURAL': [1.0,0.0,0.0,2.2],
+    'accidentalRaiseOneSeptimalComma': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
+    'accidentalLowerOneSeptimalComma': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
+    'accidentalLowerTwoSeptimalCommas': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
+    'accidentalJohnstonPlus': [[0.0,0.0,0.15,0.0], [0.0,0.3,0.15,0.0]],
+    'accidentalJohnstonMinus': [[0.0,0.0,0.15,0.0], [0.0,0.3,0.15,0.0]],
+    'accidentalJohnstonEl': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
 };
 
 function ImportGenerated() {

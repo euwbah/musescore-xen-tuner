@@ -50,9 +50,13 @@ with urllib.request.urlopen(SHEET_URL) as csv_download:
             
             if len(layout) == 4:
                 for id in ids:
-                    layout_map[id] = layout
+                    layout_map[id] = [layout, layout]
+            elif len(layout) == 8:
+                for id in ids:
+                    layout_map[id] = [layout[:4], layout[4:]]
             
-            f.write(f'    [{",".join(ids)}],\n')
+            if len(ids) != 0:
+                f.write(f'    [{",".join(ids)}],\n')
             
         f.write('];\n\n\n')
         
@@ -65,8 +69,10 @@ with urllib.request.urlopen(SHEET_URL) as csv_download:
         
         f.write('var SYMBOL_LAYOUT = {\n')
         
-        for k, v in layout_map.items():
-            f.write(f'    {k}: [{",".join([str(x) for x in v])}],\n')
+        for symbol_code, [space_layout, line_layout] in layout_map.items():
+            space_lay_str = ','.join([str(x) for x in space_layout])
+            line_lay_str = ','.join([str(x) for x in line_layout])
+            f.write(f'    {symbol_code}: [[{space_lay_str}], [{line_lay_str}]],\n')
         
         f.write('};\n')
         

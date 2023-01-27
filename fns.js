@@ -36,65 +36,14 @@ var pluginHomePath = '';
 /** @type {PluginAPIScore} */
 var _curScore = null; // don't clash with namespace
 
-/**
- * If true, the plugin will allow `cmd('pitch-up')` and `cmd('pitch-down')` to be
- * sent when the selection doesn't include notes and up/down operations are being sent.
- * 
- * Set this to false when the user is editing text elements, so that the user can
- * press up/down to navigate the text without being interrupted.
- */
-var fallthroughUpDownCommand = true;
-
-/**
- * Cached mapping of tuning config strings to `TuningConfig` objects that the string
- * refers to.
- * 
- * This object is dynamically created and populated as tuning configs are loaded.
- * 
- * If the `'tuningconfig'` metaTag exists in the score, populate from there as well.
- * 
- * The `'tuningconfig'` metaTag can be set by the Save Tuning Cache plugin.
- * 
- * @type {TuningConfigLookup}
- */
-var tuningConfigCache = {};
-
-/**
- * The default tuning config in case tunings/default.txt is invalid or not found.
- */
-var DEFAULT_TUNING_CONFIG = "   \n\
-A4: 440                         \n\
-0 200 300 500 700 800 1000 1200 \n\
-bb b (100) # x                  \n\
-";
-
-/**
- * Returns the default tuning config to apply when none is specified
- * 
- * @returns {TuningConfig}
- */
-function generateDefaultTuningConfig() {
-    fileIO.source = pluginHomePath + "tunings/default.txt";
-    var defaultTxt = fileIO.read();
-    /** @type {TuningConfig} */
-    var tuningConfig;
-    if (defaultTxt.length == 0) {
-        console.log("default.txt not found, generating default tuning config...");
-        tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
-    } else {
-        console.log('Generated default tuning config from default.txt');
-        tuningConfig = parseTuningConfig(defaultTxt, true, true);
-        if (tuningConfig == null) {
-            console.error("ERROR: default.txt is invalid. Please fix your tuning config. Generating default tuning config...");
-            tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
-        }
-    }
-
-    console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote + 
-        ', nominal: ' + tuningConfig.tuningNominal);
-
-    return tuningConfig;
-}
+/*
+                                            _____                               
+  __  __________  _____   _________  ____  / __(_)___ _   _   ______ ___________
+ / / / / ___/ _ \/ ___/  / ___/ __ \/ __ \/ /_/ / __ `/  | | / / __ `/ ___/ ___/
+/ /_/ (__  )  __/ /     / /__/ /_/ / / / / __/ / /_/ /   | |/ / /_/ / /  (__  ) 
+\__,_/____/\___/_/      \___/\____/_/ /_/_/ /_/\__, /    |___/\__,_/_/  /____/  
+                                              /____/                                                
+*/
 
 /**
  * When using JI ratios attached to noteheads as fingerings,
@@ -153,6 +102,15 @@ standard tunings.
 var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
 
 /**
+ * All symbol/ascii accidentals must be at least this far apart
+ * from each other. 
+ * 
+ * Some accidentals are very very thin and the default auto-positioning
+ * will make them too tight and cluttered to read.
+ */
+var MIN_ACC_WIDTH = 0.6;
+
+/**
  * Represents additional horizontal space to put between accidentals
  * when auto-positioning them.
  * 
@@ -172,6 +130,156 @@ var ACC_SPACE = 0.1;
  * Number is in spatium units.
  */
 var ACC_NOTESPACE = 0.2;
+
+/**
+ * Font size of text-based ASCII accidentals. In px.
+ * 
+ * Text-based accidentals are rendered with fingering text.
+ */
+var ASCII_ACC_FONT_SIZE = 11;
+
+/**
+ * By default, whenever an accidental is entered via ascii
+ * input, it will clear all prior accidentals attached to the note.
+ * 
+ * This mimics the same behavior as entering accidentals via 
+ * AccidentalVector method.
+ * 
+ * However, if you want the new accidentals to pile up on top of
+ * existing accidentals instead of replacing the old ones, set this
+ * to false.
+ */
+var CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY = true;
+
+/**
+ * If `true`, the non-diatonic up/down operations will keep prior secondary
+ * accidentals that were attached to the note.
+ * 
+ * This defaults to `false` as the intention of a non-diatonic up/down is to
+ * modify the existing accidentals on the note.
+ * 
+ * It would seem weird to keep some of the old accidentals only because
+ * they are 'secondary' accidentals, then have the user manually delete them
+ * later.
+ * 
+ * However, in HCJI where comma shifts are notated as secondary accidentals,
+ * (which is not recommended), then the user may find this feature handy
+ * and set this to `true`.
+ */
+var KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE = false;
+/**
+ * If `false`, the plugin will delete secondary accidentals after a
+ * diatonic transpose is performed. (That is, aux(0))
+ * 
+ * This defaults to `true` to keep in line with the expected behavior
+ * that a "diatonic" transpose should only change the nominal and
+ * not affect the accidentals.
+ */
+var KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC = true;
+/**
+ * If `false`, the plugin will delete secondary accidentals after a
+ * enharmonic cycle operation is performed.
+ * 
+ * This defaults to `true` to keep in line with the expectation that
+ * enharmonic notes should have the same pitch. Thus, any secondary
+ * accidentals present must remain to keep the pitch consistent.
+ */
+var KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC = true;
+
+/**
+ * If true, the plugin will allow `cmd('pitch-up')` and `cmd('pitch-down')` to be
+ * sent when the selection doesn't include notes and up/down operations are being sent.
+ * 
+ * Set this to false when the user is editing text elements, so that the user can
+ * press up/down to navigate the text without being interrupted.
+ */
+var fallthroughUpDownCommand = true;
+
+/**
+ * Contains a lookup of valid characters that can occur after
+ * a backslash escape character when declaring Symbol Codes in
+ * tuning config via Text Code or ASCII.
+ * 
+ * @type {Object.<string, boolean>}
+ */
+var VALID_ASCII_ACC_ESC_CHARS = {
+    '\\': true,
+    '\'': true,
+    '/': true
+};
+
+/**
+ * The default tuning config in case tunings/default.txt is invalid or not found.
+ */
+var DEFAULT_TUNING_CONFIG = "   \n\
+A4: 440                         \n\
+0 200 300 500 700 800 1000 1200 \n\
+bb b (100) # x                  \n\
+";
+
+/**
+ * If a fingering has this Z index, it signifies that it is a
+ * per-note tuning fingering annotation that has already been
+ * processed.
+ * 
+ * This currently no purpose other than to set the Z index of
+ * the fingering to the non-default value so that it won't be
+ * repeatedly attempted to be processed as an ASCII-representation
+ * accidental entry, which is computationally intensive.
+ */
+var PROCESSED_FINGERING_ANNOTATION_Z = 3903;
+
+/**
+ * This is the default Z index for fingerings as of MuseScore 3.6.2.
+ * 
+ * If MuseScore changes this, we need to change this as well.
+ * 
+ * The default fingering z index is used to mark that a fingering
+ * has not been processed, and that we will need to process it.
+ */
+var DEFAULT_FINGERING_Z_INDEX = 3900;
+
+/**
+ * Cached mapping of tuning config strings to `TuningConfig` objects that the string
+ * refers to.
+ * 
+ * This object is dynamically created and populated as tuning configs are loaded.
+ * 
+ * If the `'tuningconfig'` metaTag exists in the score, populate from there as well.
+ * 
+ * The `'tuningconfig'` metaTag can be set by the Save Tuning Cache plugin.
+ * 
+ * @type {TuningConfigLookup}
+ */
+var tuningConfigCache = {};
+
+/**
+ * Returns the default tuning config to apply when none is specified
+ * 
+ * @returns {TuningConfig}
+ */
+function generateDefaultTuningConfig() {
+    fileIO.source = pluginHomePath + "tunings/default.txt";
+    var defaultTxt = fileIO.read();
+    /** @type {TuningConfig} */
+    var tuningConfig;
+    if (defaultTxt.length == 0) {
+        console.log("default.txt not found, generating default tuning config...");
+        tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
+    } else {
+        console.log('Generated default tuning config from default.txt');
+        tuningConfig = parseTuningConfig(defaultTxt, true, true);
+        if (tuningConfig == null) {
+            console.error("ERROR: default.txt is invalid. Please fix your tuning config. Generating default tuning config...");
+            tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
+        }
+    }
+
+    // console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote +
+    //     ', nominal: ' + tuningConfig.tuningNominal);
+
+    return tuningConfig;
+}
 
 /**
  * 
@@ -231,6 +339,12 @@ function isEnharmonicallyEquivalent(cents1, cents2) {
 /**
  * Convert user-input {@link SymbolCode} or Text Code ({@link Lookup.TEXT_TO_CODE}) into SymbolCode ID.
  * 
+ * This function only reads SMuFL symbol {@link SymbolCode}s or Text Codes.
+ * 
+ * In v0.2, an update was made such that SymbolCodes can now be ASCII as well.
+ * 
+ * The full parsing implementation of symbols is in {@link parseSymbolsDeclaration}.
+ * 
  * @param {string} codeOrText
  * @returns {SymbolCode?} {@link SymbolCode} or null if invalid.
  */
@@ -240,6 +354,9 @@ function readSymbolCode(codeOrText) {
     if (!code)
         code = parseInt(codeOrText) || null;
 
+    if (code >= Lookup.CODE_TO_LABELS.length) {
+        return null;
+    }
     return code;
 }
 
@@ -277,6 +394,25 @@ function findGraceChord(note) {
     return graceChord;
 }
 
+/*
+  _          __                       _           _                   
+ / |_       [  |  _                  (_)         (_)                  
+`| |-' .--.  | | / ] .---.  _ .--.   __   ____   __   _ .--.   .--./) 
+ | | / .'`\ \| '' < / /__\\[ `.-. | [  | [_   ] [  | [ `.-. | / /'`\; 
+ | |,| \__. || |`\ \| \__., | | | |  | |  .' /_  | |  | | | | \ \._// 
+ \__/_'.__.'[__|  \_]'.__.'[___||__][___][_____][___][___||__].',__`  
+ .' _ '.                                                     ( ( __)) 
+ | (_) '___                                                           
+ .`___'/ _/                                                           
+| (___)  \_                      _                                    
+`._____.\__|                    (_)                                   
+ _ .--.   ,--.   _ .--.  .--.   __   _ .--.   .--./)                  
+[ '/'`\ \`'_\ : [ `/'`\]( (`\] [  | [ `.-. | / /'`\;                  
+ | \__/ |// | |, | |     `'.'.  | |  | | | | \ \._//                  
+ | ;.__/ \'-;__/[___]   [\__) )[___][___||__].',__`                   
+[__|                                        ( ( __))                  
+*/
+
 
 /**
  * Reads the {@link PluginAPINote} and tokenizes it into a {@link MSNote}.
@@ -294,8 +430,11 @@ function tokenizeNote(note) {
     //     ', pagePos: ' + JSON.stringify(note.pagePos));
 
     var hasAcc = false;
+
+    /** @type {AccidentalSymbols} */
     var accidentals = {};
 
+    /** @type {PluginAPIElement[]} */
     var fingerings = [];
 
     // Removed. This plugin no longer attempts to deal with musescore's accidentals.
@@ -317,7 +456,22 @@ function tokenizeNote(note) {
         if (elem.name == 'Fingering') {
             // Found fingering.
 
-            fingerings.push(elem);
+            if (elem.z >= 1000 && elem.z <= 2000) {
+                // This is an ASCII accidental symbol.
+                // remember to prepend "'" to signify that it is an
+                // ASCII SymbolCode
+                var asciiSymCode = "'" + removeFormattingCode(elem.text);
+                if (accidentals[asciiSymCode])
+                    accidentals[asciiSymCode] += 1;
+                else
+                    accidentals[asciiSymCode] = 1;
+
+                hasAcc = true;
+            } else {
+                // This is some other fingering annotation
+                // or an unprocessed accidental vector/ascii input fingering.
+                fingerings.push(elem);
+            }
         } else if (elem.symbol) {
             // Check if it is an accidental symbol.
             // Don't worry about registering accidentals not in the tuning config.
@@ -332,14 +486,11 @@ function tokenizeNote(note) {
                     accidentals[acc] = 1;
 
                 hasAcc = true;
-
-                // console.log('found elem: ' + elem.symbol.toString() + 
-                //     ', bbox: ' + JSON.stringify(elem.bbox) +
-                //     ', pagePos: ' + JSON.stringify(elem.pagePos));
             }
         }
     }
 
+    /** @type {MSNote} */
     var msNote = { // MSNote
         midiNote: note.pitch,
         tpc: note.tpc,
@@ -355,37 +506,63 @@ function tokenizeNote(note) {
 }
 
 /**
- * Filters accidentalHash to remove symbols that aren't used by the tuning config.
+ * Filters accidentals to remove symbols that aren't used by the tuning config.
  * 
- * **WARNING:** If the resulting accidentalHash is empty, returns `null`.
- * In some accidentalHash use cases, '' is required instead of null. 
+ * **WARNING:** If the resulting accidental is empty, returns `null`.
+ * In some {@link AccidentalHash} use cases, '' is required instead of null. 
  * Make sure to check what is required.
  * 
- * @param {string} accHash Accidental Hash to remove unused symbols from.
+ * @param {AccidentalHash|SymbolCode[]|AccidentalSymbols} accHashOrSymbols Accidentals to remove unused symbols from.
  * @param {TuningConfig} tuningConfig
- * @returns {string} 
- *  Accidental Hash with unused symbols removed.
+ * @returns {(AccidentalHash|SymbolCode[]|AccidentalSymbols)?} 
+ *  Returns an {@link AccidentalHash}, {@link SymbolCode}[], or {@link AccidentalSymbols} 
+ *  depending on what was passed in.
  * 
+ *  Returns `null` if there are no symbols left after filtering.
  */
-function removeUnusedSymbols(accHash, tuningConfig) {
-    if (!accHash) return null;
-    var accHashWords = accHash.split(' ');
-    var usedSymbols = tuningConfig.usedSymbols || {};
-    var newAccHashWords = [];
+function removeUnusedSymbols(accHashOrSymbols, tuningConfig) {
+    if (!accHashOrSymbols) return null;
+    if (typeof (accHashOrSymbols) == 'string') {
+        // Accidental Hash 
+        var accHashWords = accHashOrSymbols.split(' ');
+        var newAccHashWords = [];
 
-    for (var i = 0; i < accHashWords.length; i += 2) {
-        var symCode = accHashWords[i];
+        for (var i = 0; i < accHashWords.length; i += 2) {
+            var symCode = accHashWords[i];
 
-        if (usedSymbols[symCode]) {
-            // If symbol is used by tuning config, add to hash.
-            newAccHashWords.push(symCode); // add the sym code
-            newAccHashWords.push(accHashWords[i + 1]);// add the num of symbols
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
+                // If symbol is used by tuning config, add to hash.
+                newAccHashWords.push(symCode); // add the sym code
+                newAccHashWords.push(accHashWords[i + 1]);// add the num of symbols
+            }
         }
+
+        if (newAccHashWords.length == 0) return null;
+
+        return newAccHashWords.join(' ');
+    } else if (Array.isArray(accHashOrSymbols)) {
+        // SymbolCode[]
+        var newSymbols = [];
+        accHashOrSymbols.forEach(function (symCode) {
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
+                newSymbols.push(symCode);
+            }
+        });
+
+        return newSymbols.length == 0 ? null : newSymbols;
+    } else {
+        // AccidentalSymbols object
+        var newAccSymbols = {};
+        for (var symCode in accHashOrSymbols) {
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
+                newAccSymbols[symCode] = accHashOrSymbols[symCode];
+            }
+        }
+
+        if (Object.keys(newAccSymbols).length == 0) return null;
+
+        return newAccSymbols;
     }
-
-    if (newAccHashWords.length == 0) return null;
-
-    return newAccHashWords.join(' ');
 }
 
 /**
@@ -394,11 +571,25 @@ function removeUnusedSymbols(accHash, tuningConfig) {
  * The result is appended to the nominal of a note to construct a {@link XenNote}.
  * 
  * You can also specify a list of unsorted {@link SymbolCode}s that are present.
- * (useful for hashing accidentals from user-input)
+ * (useful for hashing accidentals from user-input).
+ * 
+ * Accidentals hash format:
+ * 
+ * ```txt
+ * 3 1 5 2 // this means SymCode 3 appears once, and SymCode 5 appears twice.
+ * 'asdf 1 // this means the ASCII accidental 'asdf' appears once.
+ * 7 2 '7 2 // this means the SymCode 7 appears 2 times, and the
+ *          // ASCII symbol '7' appears 2 times.
+ * ```
+ * 
+ * To differentiate between ASCII and SMuFL internally, ASCII accidental 
+ * {@link SymbolCode}s are represented with a prefixed quote (`'`).
  * 
  * @param {AccidentalSymbols|SymbolCode[]} accidentals 
  *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
- * @returns {string} {@link AccidentalSymbols} hash string.
+ * @returns {string}
+ * {@link AccidentalSymbols} hash string.
+ * If no accidentals are present, returns an empty string.
  */
 function accidentalsHash(accidentals) {
 
@@ -413,6 +604,25 @@ function accidentalsHash(accidentals) {
         return '';
     }
 
+    var symCodeSortingFn = function (a, b) {
+        // Note that object keys are always strings, so we need to
+        // differentiate between ASCII and SMuFL by checking for the
+        // prefixed quote.
+        if (a.length && a[0] == "'" && b.length && b[0] == "'") {
+            // strings are sorted in increasing alphabetical order
+            return a.localeCompare(b);
+        } else if (!(a.length && a[0] == "'") && !(b.length && b[0] == "'")) {
+            // numbers are sorted in increasing numerical order
+            return parseInt(a) - parseInt(b);
+        } else if ((a.length && a[0] == "'") && !(b.length && b[0] == "'")) {
+            // strings always after numbers
+            return 1;
+        } else {
+            // numbers always before strings
+            return -1;
+        }
+    };
+
     if (accidentals.length != undefined) {
         // `accidentals` param is a list of individual symbol codes
 
@@ -423,7 +633,7 @@ function accidentalsHash(accidentals) {
 
         // simply sort and count number of occurences.
 
-        accidentals.sort();
+        accidentals.sort(symCodeSortingFn);
 
         var occurences = 0;
         var prevSymCode = -1;
@@ -457,14 +667,164 @@ function accidentalsHash(accidentals) {
     var symCodeNums = [];
 
     Object.keys(accidentals)
-        .map(function (x) { return parseInt(x); })
-        .sort()
+        .sort(symCodeSortingFn)
         .forEach(function (symCode) {
             symCodeNums.push(symCode);
             symCodeNums.push(accidentals[symCode]);
         });
 
     return symCodeNums.join(' ');
+}
+
+/**
+ * Adds accidentals from two different collections together.
+ * 
+ * Returns a new {@link AccidentalSymbols} object.
+ * 
+ * @param {AccidentalSymbols} x 
+ * @param {AccidentalSymbols | SymbolCode[]} y
+ * @returns {AccidentalSymbols}
+ */
+function addAccSym(x, y) {
+    if (!x)
+        return y;
+    if (!y)
+        return x;
+
+    var ret = {};
+
+    for (var symCode in x) {
+        ret[symCode] = x[symCode];
+    }
+
+    if (Array.isArray(y)) {
+        // y is SymbolCode[]
+        y.forEach(function (symCode) {
+            if (ret[symCode] == undefined) {
+                ret[symCode] = 1;
+            } else {
+                ret[symCode]++;
+            }
+        });
+    } else {
+        // y is AccidentalSymbols
+        for (var symCode in y) {
+            if (ret[symCode] == undefined) {
+                ret[symCode] = y[symCode];
+            } else {
+                ret[symCode] += y[symCode];
+            }
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Subtract x - y.
+ * 
+ * Removes as many accidental symbols there are in Y from X, and returns
+ * a new object.
+ * 
+ * If X does not have enough symbols & not possible to subtract because the
+ * number of symbols will go into the negative, returns `null`.
+ * 
+ * @param {AccidentalSymbols} x The acc syms to subtract from
+ * @param {AccidentalSymbols|SymbolCode[]} y 
+ *  The symbols to subtract. Can be specified either as {@link AccidentalSymbols}
+ *  or {@link SymbolCode}[] array.
+ * @returns {AccidentalSymbols?} The result of x - y, or `null` if not possible.
+ */
+function subtractAccSym(x, y) {
+    // console.log('subtractAccSym\n' + JSON.stringify(x) + ' - ' + JSON.stringify(y));
+    if (!x)
+        return null;
+    if (!y)
+        return x;
+
+    var ret = {};
+
+    for (var sym in x) {
+        // shallow copy x into ret.
+        ret[sym] = x[sym];
+    }
+
+    if (y.length != undefined) {
+        // y is SymbolCode[]
+        for (var i = 0; i < y.length; i++) {
+            var sym = y[i];
+            // remove sym from ret.
+            if (ret[sym] == undefined) {
+                // X does not have any sym to subtract.
+                return null;
+            }
+
+            ret[sym] -= 1;
+            if (ret[sym] < 0) {
+                return null;
+            } else if (ret[sym] == 0) {
+                delete ret[sym];
+            }
+        }
+    } else {
+        // y is AccidentalSymbols
+        for (var sym in y) {
+            if (ret[sym] == undefined) {
+                // X does not have any sym to subtract.
+                return null;
+            }
+            ret[sym] -= y[sym];
+            if (ret[sym] < 0) {
+                return null;
+            } else if (ret[sym] == 0) {
+                delete ret[sym];
+            }
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Convert a {@link SymbolCode}[] array into an {@link AccidentalSymbols} object.
+ * 
+ * @param {SymbolCode[]} symList Array of {@link SymbolCode}s
+ * @returns {AccidentalSymbols?}
+ * An {@link AccidentalSymbols} object, or `null` if the array is empty.
+ */
+function accidentalSymbolsFromList(symList) {
+    if (symList.length == 0) return null;
+
+    var accSymbols = {};
+
+    symList.forEach(function (symCode) {
+        if (accSymbols[symCode] == undefined) {
+            accSymbols[symCode] = 0;
+        }
+        accSymbols[symCode]++;
+    });
+
+    return accSymbols;
+}
+
+/**
+ * Convert an {@link AccidentalHash} string to an {@link AccidentalSymbols} object.
+ * 
+ * @param {AccidentalHash?} accHash Accidental Hash string
+ * @returns {AccidentalSymbols?}
+ * An {@link AccidentalSymbols} object, or `null` if the string is empty, or
+ * null value was passed.
+ */
+function accidentalSymbolsFromHash(accHash) {
+    if (!accHash) return null;
+    var accHashWords = accHash.split(' ');
+    var accSymbols = {};
+
+    for (var i = 0; i < accHashWords.length; i += 2) {
+        accSymbols[accHashWords[i]] = parseInt(accHashWords[i + 1]);
+    }
+
+    return accSymbols;
 }
 
 /**
@@ -489,7 +849,7 @@ function saveMetaTagCache() {
         // don't save tuning configs with more than 1000 steps. MuseScore will crash.
         if (tuningConfigCache[tuningConfigStr].stepsList.length < 1000) {
             toSave[tuningConfigStr] = tuningConfigCache[tuningConfigStr];
-        } 
+        }
     });
     _curScore.setMetaTag('tuningconfigs', JSON.stringify(toSave));
 }
@@ -510,6 +870,153 @@ function saveMetaTagCache() {
 function clearTuningConfigCaches() {
     tuningConfigCache = {};
     _curScore.setMetaTag('tuningconfigs', '');
+}
+
+/**
+ * Parses a string that declares {@link SymbolCode}s in a Tuning Config.
+ * 
+ * E.g. '\\\'+.'.'$'.# represents 3 symbols. Left to right, they are
+ * 
+ * 1. ASCII symbol consisting of \'+. (quote, plus, period).\
+ *    \\ escapes into backslash\
+ *    \' escapes into quote.
+ * 2. ASCII symbol consisting of $ (dollar sign)
+ * 3. Standard-issue SMuFL sharp symbol.
+ * 
+ * Backslash escapes must be used both inside and outside quotes.
+ * 
+ * The valid escapes are:
+ * 
+ * - \\  - backslash
+ * - \' - quote
+ * - \/ - forward slash.
+ * 
+ * 'abc'# is invalid syntax. A dot must separate distinct symbols,
+ * and ASCII symbols are distinct from SMuFL symbols.
+ * 
+ * The plugin will not check for this syntax error and will instead
+ * parse it as a single ASCII symbol: 'abc#'.
+ * 
+ * If failed to parse, logs error messages to the console.
+ * 
+ * @param {string} str Text that represents a symbol.
+ * @returns {SymbolCode[]?} Array of {@link SymbolCode}s, or `null` if the string is invalid.
+ */
+function parseSymbolsDeclaration(str) {
+    var symCodes = [];
+    var isQuoted = false; // true if pending a closing quote.
+    var isEscape = false; // true if pending an escape sequence.
+
+    // stores current single symbol being processed.
+    // the period seperates each symbol.
+    var currStr = '';
+    var currIsQuoted = false;
+
+    for (var i = 0; i < str.length; i++) {
+        var c = str[i];
+
+        if (isEscape) {
+            if (!VALID_ASCII_ACC_ESC_CHARS[c]) {
+                // invalid escape sequence.
+                console.error('TUNING CONFIG ERROR: Invalid escape sequence: \\' + c);
+                return null;
+            }
+            isEscape = false;
+            currStr += c; // add character verbatim.
+        } else if (c == '\\') {
+            isEscape = true;
+        } else if (c == '\'') {
+            isQuoted = !isQuoted;
+            currIsQuoted = true;
+        } else if (c == '.') {
+            if (isQuoted) {
+                // still inside quotes, add period verbatim.
+                currStr += c;
+                continue;
+            }
+
+            // period separates symbols.
+            if (currIsQuoted) {
+                // Push an ASCII symbol code.
+                // Prepend with a quote.
+                symCodes.push("'" + currStr);
+            } else {
+                // Push a SMuFL symbol code.
+                var code = readSymbolCode(currStr);
+
+                if (code == null) {
+                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                    return null;
+                }
+
+                symCodes.push(code);
+            }
+
+            currStr = '';
+            currIsQuoted = false;
+        } else {
+            // otherwise just add the character.
+            currStr += c;
+        }
+    }
+
+    if (isQuoted) {
+        console.error('TUNING CONFIG ERROR: symbol missing closing quote: ' + str);
+        return null;
+    }
+
+    if (currStr.length > 0) {
+        // last symbol 
+
+        // period separates symbols.
+        if (currIsQuoted) {
+            // Push an ASCII symbol code.
+            symCodes.push("'" + currStr);
+        } else {
+            // Push a SMuFL symbol code.
+            var code = readSymbolCode(currStr);
+
+            if (code == null) {
+                console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                return null;
+            }
+
+            symCodes.push(code);
+        }
+
+        return symCodes;
+    }
+
+    return null;
+}
+
+/**
+ * 
+ * @param {string} str Parses cents or ratio text into cents offset.
+ * @returns {number?} Cents offset, or null if invalid syntax.
+ */
+function parseCentsOrRatio(str) {
+    var str = str.trim();
+    var offset = null;
+    if (str.endsWith('c')) {
+        // in cents
+        offset = parseFloat(eval(str.slice(0, -1)));
+    } else {
+        var ratio = parseFloat(eval(str));
+        if (ratio < 0) {
+            offset = -Math.log(-ratio) / Math.log(2) * 1200;
+        } else if (ratio == 0) {
+            offset = 0;
+        } else {
+            offset = Math.log(ratio) / Math.log(2) * 1200;
+        }
+    }
+    if (!isNaN(offset)) {
+        return offset;
+    } else {
+        console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + str);
+        return null;
+    }
 }
 
 /**
@@ -600,7 +1107,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         var filePath = textOrPath;
-        
+
         if (textOrPath.endsWith('.txt')) {
             filePath = textOrPath.slice(0, textOrPath.length - 4);
         } else if (textOrPath.endsWith('.json')) {
@@ -612,7 +1119,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         fileIO.source = pluginHomePath + 'tunings/' + filePath + '.json';
 
         text = fileIO.read().trim();
-        
+
         try {
             var jsonTuningConfig = JSON.parse(text);
 
@@ -625,7 +1132,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         // Otherwise, try read .txt
-        
+
         fileIO.source = pluginHomePath + 'tunings/' + filePath + '.txt';
 
         text = fileIO.read().trim();
@@ -637,6 +1144,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     } else {
         console.log('Reading tuning config from ' + fileIO.source + ':\n' + text);
     }
+
+    // remove comments from tuning config text.
+    // comments start with two slashes
+    text = text.replace(/^(.*?)\/\/.*$/gm, '$1')
+        // remove empty lines
+        .replace(/^(?:[\t ]*(?:\r?\n|\r))+/gm, '');
+
 
     /** @type {TuningConfig} */
     var tuningConfig = { // TuningConfig
@@ -661,6 +1175,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             // Natural symbol should always be included.
             2: true
         },
+        usedSecondarySymbols: {},
+        secondaryAccList: [],
+        secondaryAccIndexTable: {},
+        secondaryAccTable: {},
+        secondaryTunings: {},
+        asciiToSmuflConv: {},
+        asciiToSmuflConvList: [],
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -713,23 +1234,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     var hasInvalid = false;
     var nominals = lines[1].split(' ').map(function (x) {
-        var f;
-        if (x.endsWith('c')) {
-            // in cents
-            f = parseFloat(eval(x.slice(0, -1)));
-        } else {
-            // in ratio, convert to cents.
-            var ratio = parseFloat(eval(x));
-
-            if (ratio < 0) {
-                f = -Math.log(-ratio) / Math.log(2) * 1200;
-            } else if (ratio == 0) {
-                f = 0;
-            } else {
-                f = Math.log(ratio) / Math.log(2) * 1200
-            }
-        }
-        if (isNaN(f)) hasInvalid = true;
+        var f = parseCentsOrRatio(x);
+        if (f == null) hasInvalid = true;
         return f
     });
 
@@ -756,7 +1262,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux)\([0-9,]+\)/);
+        var matches = line.match(/(lig|aux|sec)\([0-9,]*\)/);
         if (matches != null) {
             nextDeclStartLine = i;
             break;
@@ -777,22 +1283,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var matchIncrement = word.match(/^\((.+)\)$/);
 
             if (matchIncrement != null) {
-                var maybeIncrement;
-                if (matchIncrement[1].endsWith('c')) {
-                    // in cents
-                    maybeIncrement = parseFloat(eval(matchIncrement[1].slice(0, -1)));
-                } else {
-                    var ratio = parseFloat(eval(matchIncrement[1]));
-                    if (ratio < 0) {
-                        maybeIncrement = -Math.log(-ratio) / Math.log(2) * 1200;
-                    } else if (ratio == 0) {
-                        maybeIncrement = 0;
-                    } else {
-                        maybeIncrement = Math.log(ratio) / Math.log(2) * 1200
-                    }
-                }
+                var maybeIncrement = parseCentsOrRatio(matchIncrement[1]);
 
-                if (isNaN(maybeIncrement)) {
+                if (maybeIncrement == null) {
                     console.error('TUNING CONFIG ERROR: invalid accidental chain increment: ' + matchIncrement[1]);
                     return null;
                 }
@@ -809,21 +1302,20 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
                 var symbols_offset = word.split('(');
 
+                if (symbols_offset.length > 2) {
+                    // '(' was used as an ASCII accidental somewhere.
+                    // Combine the first N-1 splits as the accidental symbol.
+                    symbols_offset = [
+                        symbols_offset.slice(0, symbols_offset.length - 1).join('('),
+                        symbols_offset[symbols_offset.length - 1]
+                    ];
+                }
+
                 hasInvalid = false;
 
-                // each symbol is either a text code or symbol code number
-                var symbolCodes = symbols_offset[0].split('.').map(function (x) {
-                    var code = readSymbolCode(x);
+                var symbolCodes = parseSymbolsDeclaration(symbols_offset[0]);
 
-                    if (code == null) hasInvalid = true;
-
-                    symbolsLookup[code] = true;
-                    tuningConfig.usedSymbols[code] = true;
-                    return code;
-                });
-
-                if (hasInvalid) {
-                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + symbols_offset[0]);
+                if (symbolCodes == null) {
                     return null;
                 }
 
@@ -831,26 +1323,18 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
                 if (symbols_offset.length > 1) {
                     var offsetText = symbols_offset[1].slice(0, symbols_offset[1].length - 1);
-                    var maybeOffset;
-                    if (offsetText.endsWith('c')) {
-                        // in cents
-                        maybeOffset = parseFloat(eval(offsetText.slice(0, -1)));
-                    } else {
-                        var ratio = parseFloat(eval(offsetText));
-                        if (ratio < 0) {
-                            maybeOffset = -Math.log(-ratio) / Math.log(2) * 1200;
-                        } else if (ratio == 0) {
-                            maybeOffset = 0;
-                        } else {
-                            maybeOffset = Math.log(ratio) / Math.log(2) * 1200
-                        }
-                    }
-                    if (!isNaN(maybeOffset)) {
+                    var maybeOffset = parseCentsOrRatio(offsetText);
+                    if (maybeOffset != null) {
                         offset = maybeOffset;
                     } else {
                         console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + offsetText);
                     }
                 }
+
+                symbolCodes.forEach(function (x) {
+                    symbolsLookup[x] = true;
+                    tuningConfig.usedSymbols[x] = true;
+                });
 
                 degreesSymbols.push(symbolCodes);
                 offsets.push(offset);
@@ -890,8 +1374,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
-        if (line.match(/aux\([0-9,]+\)/) != null) {
+        if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
             nextDeclStartLine = i;
+            // console.log('skip lig');
             break;
         }
 
@@ -943,20 +1428,15 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var words = line.split(' ').map(function (x) { return x.trim() });
             var ligAv = words.slice(0, words.length - 1).map(function (x) { return parseInt(x) });
 
-            hasInvalid = false;
-            var ligatureSymbols = words[words.length - 1]
-                .split('.')
-                .map(function (x) {
-                    var code = readSymbolCode(x);
-                    if (code == null) hasInvalid = true;
-                    tuningConfig.usedSymbols[code] = true;
-                    return code;
-                });
+            var ligatureSymbols = parseSymbolsDeclaration(words[words.length - 1]);
 
-            if (hasInvalid) {
-                console.error('TUNING CONFIG ERROR: invalid ligature symbol: ' + words[words.length - 1]);
+            if (ligatureSymbols == null) {
                 return null;
             }
+
+            ligatureSymbols.forEach(function (x) {
+                tuningConfig.usedSymbols[x] = true;
+            });
 
             ligAvToSymbols[ligAv] = ligatureSymbols;
         }
@@ -982,12 +1462,20 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var line = lines[i].trim();
 
+        if (line.match(/sec\([0-9,]*\)/) != null) {
+            nextDeclStartLine = i;
+            break;
+        }
+
         // Check for `aux(x,y,..)` declaration
 
         var match = line.match(/aux\(([0-9,]+)\)/);
 
         if (match == null) {
-            console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting aux(x?, y?, ...), got "' + line + '" instead.');
+            // Aux declarations finished. 
+            // Parse secondary symbols.
+            nextDeclStartLine = i;
+            break;
         }
 
         hasInvalid = false;
@@ -1029,6 +1517,116 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             constantConstrictions.push(0);
 
         tuningConfig.auxList.push(constantConstrictions);
+    }
+
+    nextDeclStartLine = i;
+
+
+    // PARSE SECONDARY SYMBOLS, ASCII CONVERSIONS
+    //
+    //
+
+    /*
+        sec()
+        '#' # 100c  // declares a secondary symbol with conversion.
+                    // convert all ascii '#' to SMuFL #
+                    // maps secondary # symbols to 100c
+
+        '>' 31c     // declares a secondary ASCII symbol without conversion.
+        u7 32c      // declares a secondary SMuFL symbol without conversion.
+    */
+
+    for (var i = nextDeclStartLine; i < lines.length; i++) {
+        if (nextDeclStartLine == null) break;
+
+        var line = lines[i].trim();
+
+        // Check for `sec()` declaration
+        if (line != 'sec()') {
+            console.error('TUNING CONFIG ERROR: Expected sec(), got "' + line + '" instead.');
+            return null;
+        }
+
+        for (var j = i + 1; j < lines.length; j++) {
+            var line = lines[j].trim();
+
+            var words = line.split(' ').map(function (x) { return x.trim() });
+
+            if (words.length == 2) {
+                // Declaring a secondary symbol without conversion
+                var symCodes = parseSymbolsDeclaration(words[0]);
+                var cents = parseCentsOrRatio(words[1]);
+
+                if (symCodes == null || cents == null) {
+                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    return null;
+                }
+
+                var accHash = accidentalsHash(symCodes);
+
+                tuningConfig.secondaryAccList.push(accHash);
+                tuningConfig.secondaryAccIndexTable[accHash] = tuningConfig.secondaryAccList.length - 1;
+                tuningConfig.secondaryAccTable[accHash] = symCodes;
+                tuningConfig.secondaryTunings[accHash] = cents;
+
+                symCodes.forEach(function (c) {
+                    tuningConfig.usedSecondarySymbols[c] = true;
+                });
+
+                // if the declared SymbolCode is a single-element, pure ASCII symbol,
+                // implicitly declare the ASCII-to-SymCode conversion.
+
+                // in these cases, it is obvious that if the user enters the
+                // ASCII of the accidental itself, the user will want that exact
+                // ASCII to be entered as a symbol.
+
+                if (symCodes.length == 1 && typeof (symCodes[0]) == 'string') {
+                    var asciiFrom = symCodes[0].slice(1);
+                    tuningConfig.asciiToSmuflConv[asciiFrom] = symCodes;
+                    tuningConfig.asciiToSmuflConvList.push(asciiFrom);
+                }
+
+            } else if (words.length == 3) {
+                // Declaring a secondary symbol with conversion.
+                // Conversion always goes from ASCII
+
+                // The first word must be the ascii to be converted
+                var symCodesASCIIFrom = parseSymbolsDeclaration(words[0]);
+                var symCodesTo = parseSymbolsDeclaration(words[1]);
+                var cents = parseCentsOrRatio(words[2]);
+
+                if (symCodesASCIIFrom == null || symCodesTo == null || cents == null) {
+                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    return null;
+                }
+
+                if (symCodesASCIIFrom.length != 1 || typeof (symCodesASCIIFrom[0]) != 'string') {
+                    console.error('TUNING CONFIG ERROR: Convert-from ASCII must be a single pure ASCII symbol.\n'
+                        + 'Received a multi-symbol/hybrid accidental instead' + line);
+                    return null;
+                }
+
+                // remove the preceding quote from the ascii SymbolCode
+                var asciiFrom = symCodesASCIIFrom[0].slice(1);
+                var accHashTo = accidentalsHash(symCodesTo);
+
+                tuningConfig.secondaryAccList.push(accHashTo);
+                tuningConfig.secondaryAccIndexTable[accHashTo] = tuningConfig.secondaryAccList.length - 1;
+                tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
+                tuningConfig.secondaryTunings[accHashTo] = cents;
+                tuningConfig.asciiToSmuflConv[asciiFrom] = symCodesTo;
+                tuningConfig.asciiToSmuflConvList.push(asciiFrom);
+
+                symCodesTo.forEach(function (c) {
+                    tuningConfig.usedSecondarySymbols[c] = true;
+                });
+            } else {
+                console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                return null;
+            }
+        }
+
+        i = j + 1;
     }
 
     //
@@ -1096,7 +1694,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         - cents (cents from nominal modulo equave)
         - equavesAdjusted (non-zero if cents was wrapped around the equave)
     */
-    
+
 
     /**
      * @type {XenNotesEquaves}
@@ -1118,6 +1716,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     orderedSymbols: [],
                     accidentals: null,
                     hash: createXenHash(nomIdx, {}),
+                    isLigature: false,
                 },
                 cents: nominalCents,
                 equavesAdjusted: 0,
@@ -1219,7 +1818,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     nominal: nomIdx,
                     orderedSymbols: orderedSymbols,
                     accidentals: orderedSymbols.length == 0 ? null : accidentalSymbols,
-                    hash: createXenHash(nomIdx, accidentalSymbols)
+                    hash: createXenHash(nomIdx, accidentalSymbols),
+                    isLigature: false,
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
@@ -1316,7 +1916,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                             nominal: nomIdx,
                             orderedSymbols: ligOrderedSymbols,
                             accidentals: ligOrderedSymbols.length == 0 ? null : ligaturedSymbols,
-                            hash: createXenHash(nomIdx, ligOrderedSymbols)
+                            hash: createXenHash(nomIdx, ligOrderedSymbols),
+                            isLigature: true,
                         },
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
@@ -1471,28 +2072,17 @@ function parseKeySig(text) {
 
 
     nomSymbols.forEach(function (s) {
-        var symbols = s.split('.');
-
-        var symCodes = [];
+        var symCodes = parseSymbolsDeclaration(s);
 
         if (parseInt(symCodes[0]) <= 2) {
             // Any natural/none/null accidental code should be
             // regarded as no accidentals for this nominal.
+            // just checking the first symbol should be good enough.
             keySig.push(null);
             return;
         }
 
-        var valid = true;
-
-        symbols.forEach(function (s) {
-            var symbolCode = readSymbolCode(s);
-            if (symbolCode == null) {
-                valid = false;
-            }
-            symCodes.push(symbolCode);
-        });
-
-        if (!valid) {
+        if (symCodes == null) {
             keySig.push(null);
         } else {
             keySig.push(accidentalsHash(symCodes));
@@ -1568,18 +2158,52 @@ function parseChangeReferenceTuning(text) {
 }
 
 /**
- * Removes formatting code from System/Staff text.
+ * Removes HTML/XML formatting code from text and decodes HTML escape sequences.
  * 
- * Make sure formatting code is removed before parsing System/Staff text!
+ * Make sure formatting code is removed before parsing System/Staff/Fingering text!
  * 
  * @param {string} str Raw System/Staff text contents
  * @returns {string} Text with formatting code removed
  */
 function removeFormattingCode(str) {
     if (typeof (str) == 'string')
-        return str.replace(/<[^>]*>/g, '');
+        return _decodeHTMLEscape(str.replace(/<[^>]*>/g, ''));
     else
         return null;
+}
+
+/**
+ * Use this when writing to the {@link PluginAPIElement.text} property.
+ * 
+ * Characters <, >, &, " are escaped to their HTML escape sequences.
+ * 
+ * @param {string} str String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHTML(str) {
+    var str = str.replace(/&/g, '&amp;');
+    str = str.replace(/</g, '&lt;');
+    str = str.replace(/>/g, '&gt;');
+    str = str.replace(/"/g, '&quot;');
+    return str;
+}
+
+/**
+ * Decodes html espace sequences.
+ * 
+ * **DO NOT USE DIRECTLY**. Use `removeFormattingCode()` instead!
+ * 
+ * Text in musescore is HTML Encoded (since it is represented in XML).
+ * 
+ * @param {string} str String containing html escape sequences
+ */
+function _decodeHTMLEscape(str) {
+    var str = str.replace(/&amp;/g, '&');
+    str = str.replace(/&lt;/g, '<');
+    str = str.replace(/&gt;/g, '>');
+    str = str.replace(/&quot;/g, '"');
+
+    return str;
 }
 
 /**
@@ -1617,7 +2241,7 @@ function parsePossibleConfigs(text, tick) {
 
         return { // ConfigUpdateEvent
             tick: tick,
-            config: function(parms) {
+            config: function (parms) {
                 parms.currTuning.tuningNominal = maybeConfig.tuningNominal;
                 parms.currTuning.tuningNote = maybeConfig.tuningNote;
                 parms.currTuning.tuningFreq = maybeConfig.tuningFreq;
@@ -1642,7 +2266,7 @@ function parsePossibleConfigs(text, tick) {
             // all staves, while individual staves can use ChangeReferenceTuning
             // to emulate transposing instruments.
             tick: tick - 1,
-            config: function(parms) {
+            config: function (parms) {
                 parms.currTuning = maybeConfig;
             }
         };
@@ -1656,7 +2280,7 @@ function parsePossibleConfigs(text, tick) {
 
         return { // ConfigUpdateEvent
             tick: tick,
-            config: function(parms) {
+            config: function (parms) {
                 parms.currKeySig = maybeConfig;
             }
         }
@@ -1711,32 +2335,6 @@ function getNominal(msNote, tuningConfig) {
  *      declared TuningConfig, returns `null`.
  */
 function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
-    /*
-    Example repr. of the note Ebbbb\\4 with implicit accidentals:
-    {
-        ms: { // MSNote
-            midiNote: 64, // E4
-            tpc: 18, // E
-            nominalsFromA4: -3, // E4 is 3 nominals below A4.
-            accidentals: null,
-            tick: 1337,
-            internalNote: PluginAPI::Note // copy of internal musescore note object
-        },
-        xen: { // XenNote
-            nominal: 4, // E
-            // Left-to-right order of symbols
-            // comma downs are on the left because they are defined in the second chain.
-            orderedSymbols: [34, 34, 6, 6]
-            accidentals: {
-                6: 2, // two double flats
-                34: 2, // two comma downs
-            },
-            hash: "4 6 2 34 2"
-        },
-        equaves: -1 // E4 is in the equave below tuning note A4
-    }
-    */
-
     // Convert nominalsFromA4 to nominals from tuning note.
 
     var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
@@ -1744,37 +2342,156 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
     var nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
 
-    var accidentalsHash = getAccidental(
+    var currAccStateHash = getAccidental(
         cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0, null, reusedBarState);
 
-    // console.log("Found effective accidental: " + accidentalsHash);
+    var accSyms = accidentalSymbolsFromHash(currAccStateHash);
+    accSyms = removeUnusedSymbols(accSyms, tuningConfig);
 
-    if (accidentalsHash == null && keySig && keySig[nominal] != null
-        // Check if KeySig has a valid number of nominals.
-        && keySig.length == tuningConfig.numNominals) {
-        // If no prior accidentals found within the bar,
-        // look to key signature.
-        accidentalsHash = keySig[nominal];
-    }
-
-    if (accidentalsHash != null) {
-        var acHashSplit = accidentalsHash.split(' ');
-        if (acHashSplit.length == 2 && acHashSplit[0] == '2') {
-            // treat any number of natural symbols = no accidental
-            accidentalsHash = null;
+    // Check fingerings for accidental declarations
+    var maybeFingeringAccSymbols = readFingeringAccidentalInput(msNote, tuningConfig);
+    if (maybeFingeringAccSymbols != null) {
+        console.log('found fingering acc input: ' + JSON.stringify(maybeFingeringAccSymbols.symCodes));
+        if (!CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY &&
+            maybeFingeringAccSymbols.type == "ascii" && retrievedAccHash != null) {
+            // We need to combine existing accidentals and newly created ones
+            accSyms = addAccSym(accSyms, maybeFingeringAccSymbols.symCodes);
+        } else {
+            // Simply replace existing accidentals with newly created ones
+            accSyms = accidentalSymbolsFromList(maybeFingeringAccSymbols.symCodes);
         }
     }
 
-    // Remove unused symbols from the hash.
-    accidentalsHash = removeUnusedSymbols(accidentalsHash, tuningConfig);
+    // If no accidental found, check key signature
+    if (accSyms == null && keySig && keySig[nominal] != null
+        // Check if KeySig has a valid number of nominals.
+        && keySig.length == tuningConfig.numNominals) {
+        accSyms = accidentalSymbolsFromHash(keySig[nominal]);
+    }
+
+    if (accSyms != null) {
+        // make sure that if the only symbols present are natural symbols,
+        // we make accSyms null.
+        var syms = Object.keys(accSyms);
+        if (syms.length == 1 && syms[0] == '2') {
+            accSyms = null;
+        }
+    }
+
+    /** @type {SymbolCode[]} */
+    var primarySyms = []; // left-to-right display order
+    /** @type {SymbolCode[]} */
+    var secondarySyms = []; // left-to-right display order
+    /** @type {SecondaryAccMatches} */
+    var secondaryAccMatches = {};
+    if (accSyms != null) {
+        // First, check for ligatures, they count as primary accidentals.
+        tuningConfig.ligatures.forEach(function (lig) {
+            var mostSymbolsMatched = 0;
+            /** @type {SymbolCode[]} */
+            var bestSymbolMatch = null;
+            /** @type {AccidentalSymbols} */
+            var bestSubtracted = accSyms;
+            for (var key in lig.ligAvToSymbols) {
+                var syms = lig.ligAvToSymbols[key];
+                var trySubtract = subtractAccSym(accSyms, syms);
+                if (trySubtract != null && syms.length > mostSymbolsMatched) {
+                    mostSymbolsMatched = syms.length;
+                    bestSymbolMatch = syms;
+                    bestSubtracted = trySubtract;
+                }
+            }
+            if (bestSymbolMatch != null) {
+                // If a match was found, add the best match to the primary symbols.
+                // The matched accidentals go to the left of the earlier accidentals
+                // from earlier chains.
+                primarySyms = bestSymbolMatch.concat(primarySyms);
+
+                // Remove the best match from the list of symbols to be matched.
+                accSyms = bestSubtracted;
+            }
+        });
+
+        // Search first declared acc Chain
+        for (var i = 0; i < tuningConfig.accChains.length; i++) {
+            var chain = tuningConfig.accChains[i];
+
+            // Find the best accidental match for this chain, which is assumed
+            // to be the one with most symbols matched.
+            var mostSymbolsMatched = 0;
+            /** @type {SymbolCode[]} */
+            var bestSymbolMatch = null;
+            /** @type {AccidentalSymbols} */
+            var bestSubtracted = accSyms;
+
+            chain.degreesSymbols.forEach(function (syms) {
+                if (syms == null) {
+                    return; // skip central natural index.
+                }
+                var trySubtract = subtractAccSym(accSyms, syms);
+                if (trySubtract != null && syms.length > mostSymbolsMatched) {
+                    mostSymbolsMatched = syms.length;
+                    bestSymbolMatch = syms;
+                    bestSubtracted = trySubtract;
+                }
+            });
+
+            if (bestSymbolMatch != null) {
+                // If a match was found, add the best match to the primary symbols.
+                // The matched accidentals go to the left of the earlier accidentals
+                // from earlier chains.
+                primarySyms = bestSymbolMatch.concat(primarySyms);
+
+                // Remove the best match from the list of symbols to be matched.
+                accSyms = bestSubtracted;
+            }
+        }
+
+        // Search from first declared secondary accidental.
+        for (var i = 0; i < tuningConfig.secondaryAccList.length; i++) {
+            var accHash = tuningConfig.secondaryAccList[i];
+            var syms = tuningConfig.secondaryAccTable[accHash];
+
+            // secondary accidentals can be stacked indefinitely.
+            // match this secondary accidental's symbols until no more
+            // are matchable.
+
+            var numTimesMatched = 0;
+
+            var count = 0;
+            while (count++ < 10) {
+                var trySubtract = subtractAccSym(accSyms, syms);
+
+                if (trySubtract == null) {
+                    break;
+                }
+
+                accSyms = trySubtract;
+                numTimesMatched++;
+            }
+
+            // Register secondary accidental matches.
+
+            if (numTimesMatched > 0) {
+                var secAccIndex = tuningConfig.secondaryAccIndexTable[accHash];
+                for (var j = 0; j < numTimesMatched; j++) {
+                    secondarySyms = syms.concat(secondarySyms);
+                }
+
+                secondaryAccMatches[secAccIndex] = numTimesMatched;
+            }
+        }
+    }
 
     // Create hash manually.
     // Don't use the createXenHash function, that works on the AccidentalSymbols object
     // instead of the hash.
     var xenHash = nominal;
 
-    if (accidentalsHash != null) {
-        xenHash += ' ' + accidentalsHash;
+    var primarySymsHash = accidentalsHash(primarySyms);
+
+    if (primarySymsHash != '') {
+        xenHash += ' ' + primarySymsHash;
     }
 
     var xenNote = tuningConfig.notesTable[xenHash];
@@ -1785,40 +2502,167 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         return null;
     }
 
+    // If new accidentals created from fingerings, make sure ligatures apply.
+
+    var traversedHash = xenNote.hash;
+
+    while (true) {
+        // Loop all enharmonics
+        traversedHash = tuningConfig.enharmonics[traversedHash];
+        if (!traversedHash)
+            break; // no enharmonics
+
+        if (traversedHash == xenNote.hash) {
+            // made one loop without finding any ligatures
+            break;
+        }
+
+        if (tuningConfig.notesTable[traversedHash].isLigature) {
+            xenNote = tuningConfig.notesTable[traversedHash];
+            break;
+        }
+    }
+
     return {
         ms: msNote,
         xen: xenNote,
-        equaves: equaves
+        equaves: equaves,
+        secondaryAccSyms: secondarySyms,
+        secondaryAccMatches: secondaryAccMatches,
+        updatedSymbols: maybeFingeringAccSymbols == null ? null :
+            secondarySyms.concat(xenNote.orderedSymbols)
     };
 }
 
 /**
- * Checks if an accidental fingering text is attached to the note.
+ * Parses a user-input string which converts into an array of {@link SymbolCode}s.
  * 
- * If so, replaces the fingering text with actual accidental symbols.
+ * The entire user input must be matched with not a single character left over.
+ * Otherwise, this is not a valid ASCII accidental input string.
  * 
- * The accidental fingering text is a string prefixed by 'a', followed
+ * @param {string} str Text containing ascii representation of accidentals.
+ * @param {TuningConfig} tuningConfig
+ * @returns {SymbolCode[]?} List of symbols, or null if the string couldn't be fully parsed.
+ */
+function parseAsciiAccInput(str, tuningConfig) {
+    /** 
+     * A list of strings.
+     * 
+     * Every time a match is found, the string will be split into the parts
+     * before and after the match.
+     * @type {string[]} 
+     */
+    var strParts = [str];
+
+    /**
+     * Stores converted {@link SymbolCode}s
+     * @type {SymbolCode[]}
+     */
+    var convertedSymbols = [];
+
+    tuningConfig.asciiToSmuflConvList.forEach(function (searchStr) {
+        // contains strParts for the next iteration.
+        var newStrParts = [];
+        var numMatches = 0;
+        strParts.forEach(function (sourceStr) {
+            var splitStr = sourceStr.split(searchStr);
+            numMatches += splitStr.length - 1;
+            for (var i = 0; i < splitStr.length; i++) {
+                var strPart = splitStr[i];
+                if (strPart != '') {
+                    newStrParts.push(strPart);
+                }
+            }
+        });
+
+        if (numMatches > 0) {
+            var symCodes = tuningConfig.asciiToSmuflConv[searchStr];
+            for (var i = 0; i < numMatches; i++) {
+                // It doesn't really matter what order the individual SymCodes are in.
+                // It will get parsed properly by readNoteData().
+                convertedSymbols = convertedSymbols.concat(symCodes);
+            }
+
+            strParts = newStrParts;
+        }
+    });
+
+    if (strParts.length != 0) {
+        // fail silently. Not all fingerings are meant to be accidentals.
+        return null;
+    }
+
+    return convertedSymbols;
+}
+
+/**
+ * Checks if user enters accidentals via using fingering text attached
+ * to this note.
+ * 
+ * If so, returns an {@link SymbolCode[]} list containing
+ * accidental symbols that should replace existing accidentals.
+ * 
+ * When parsing accidentals, this {@link SymbolCode}[] object, if any, 
+ * should be used in place of the original tokenized {@link AccidentalSymbols}
+ * on the {@link MSNote}
+ * 
+ * Accidental fingering text could either be an {@link AccidentalVector}, 
+ * or ASCII-representation accidental entry.
+ * 
+ * For ASCII-representation accidental entry, the user must declare conversion rules
+ * in the secondary accidentals section of the tuning config.
+ * 
+ * AccidentalVector fingering is prefixed by 'a', followed
  * by the accidental vector that is comma-separated.
- * 
- * (Spaces can't be typed into a fingering)
  * 
  * Recap: The Nth integer of the accidental vector represents the degree 
  * of the Nth accidental chain to be applied to this note.
  * 
+ * Unprocessed fingerings have z-index of DEFAULT_FINGERING_Z_INDEX
  * 
  * @param {MSNote} msNote
- * @returns {MSNote} 
- *  If accidentals were created, returns the retokenized `MSNote`, 
- *  Otherwise, returns the original `MSNote`.
+ * @param {TuningConfig} tuningConfig
+ * @returns {{
+ *  type: 'av' | 'ascii',
+ *  symCodes: SymbolCode[]
+ * }?}
+ * Returns `null`, if there are no fingerings that affect the accidentals of this note.
+ * Otherwise, returns an object containing the `symbols` property which contains
+ * a list of symbol codes that this fingering applies on to the note, and the 
+ * `type` property which is either 'av' or 'ascii' depending on what kind of
+ * fingering created the new accidental symbols.
  */
-function renderFingeringAccidental(msNote, tuningConfig, newElement) {
-    var elemToRemove = null;
-    var av = null;
-
+function readFingeringAccidentalInput(msNote, tuningConfig) {
     for (var i = 0; i < msNote.fingerings.length; i++) {
+        // Loop through all non-accidental fingerings attached to this note.
+
         var fingering = msNote.fingerings[i];
         var text = fingering.text;
+        text = removeFormattingCode(text);
+
+        if (fingering.z != DEFAULT_FINGERING_Z_INDEX) {
+            // only process unprocessed fingerings.
+            continue;
+        }
+
+        // first, we try to match the fingering to user-declared ASCII
+        // representations as declared in the sec() accidentals declarations
+
+        var maybeSymCodes = parseAsciiAccInput(text, tuningConfig);
+
+        if (maybeSymCodes != null) {
+            // These new accidental symbols are converted from the 
+            // ascii-representation fingering.
+            msNote.internalNote.remove(fingering);
+            return {
+                symCodes: maybeSymCodes,
+                type: 'ascii',
+            };
+        }
+
         if (text.startsWith('a')) {
+            // test accidental vector fingering.
+
             // Each space-separated number represents the degree of the
             // nth accidental chain.
             var isValid = true;
@@ -1834,9 +2678,9 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
                     });
 
             if (isValid) {
-                // We found a fingering text accidental.
+                // We found an accidental vector fingering.
 
-                av = [];
+                var av = [];
 
                 // If the number of degrees is less than the number of chains,
                 // assume the rest to be 0.
@@ -1850,42 +2694,43 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
                         av.push(0);
                 }
 
-                elemToRemove = fingering;
-                break;
+                // remove the fingering.
+                msNote.internalNote.remove(fingering);
+
+                var orderedSymbols = [];
+
+                // Loop from left most (last) acc chain to right most acc chain.
+                for (var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
+                    var accChain = tuningConfig.accChains[accChainIdx];
+                    var deg = av[accChainIdx];
+                    if (deg != 0) {
+                        var degIdx = deg + accChain.centralIdx;
+                        var symCodes = accChain.degreesSymbols[degIdx]; // left-to-right
+                        orderedSymbols = orderedSymbols.concat(symCodes);
+                    }
+                }
+
+                return {
+                    symCodes: orderedSymbols,
+                    type: 'av',
+                };
             }
         }
     }
 
-    if (av == null) return msNote;
+    // nothing found
 
-    // remove the fingering.
-    msNote.internalNote.remove(elemToRemove);
-
-    var orderedSymbols = [];
-
-    // Loop from left most (last) acc chain to right most acc chain.
-    for (var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
-        var accChain = tuningConfig.accChains[accChainIdx];
-        var deg = av[accChainIdx];
-        if (deg != 0) {
-            var degIdx = deg + accChain.centralIdx;
-            var symCodes = accChain.degreesSymbols[degIdx]; // left-to-right
-            orderedSymbols = orderedSymbols.concat(symCodes);
-        }
-    }
-
-    console.log('Set accidental from fingering: ' + orderedSymbols);
-
-    setAccidental(msNote.internalNote, orderedSymbols,
-        newElement, tuningConfig.usedSymbols);
-
-    return tokenizeNote(msNote.internalNote);
+    return null;
 }
 
 /**
  * Parse a MuseScore Note into `NoteData`.
  * 
- * If a fingering accidental is found, it is rendered on to the note.
+ * Checks for fingering-based accidental entry and adds accidental symbols/fingerings
+ * if accidental vector fingerings or ascii-representation fingerings are present.
+ * 
+ * If fingering accidental entry is performed, the note will have its accidentals
+ * replaced/updated with the new symbols.
  * 
  * @param {PluginAPINote} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
@@ -1898,15 +2743,32 @@ function renderFingeringAccidental(msNote, tuningConfig, newElement) {
  * @returns {NoteData} NoteData object
  */
 function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState) {
-    var msNote = renderFingeringAccidental(tokenizeNote(note), tuningConfig, newElement);
+    var msNote = tokenizeNote(note);
     var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
 
+    if (noteData && noteData.updatedSymbols) {
+        // update new symbols if fingering-based accidental entry is performed.
+        setAccidental(note, noteData.updatedSymbols, newElement, tuningConfig);
+    }
     return noteData;
 }
+
+/*
+
+████████ ██    ██ ███    ██ ██ ███    ██  ██████  
+   ██    ██    ██ ████   ██ ██ ████   ██ ██       
+   ██    ██    ██ ██ ██  ██ ██ ██ ██  ██ ██   ███ 
+   ██    ██    ██ ██  ██ ██ ██ ██  ██ ██ ██    ██ 
+   ██     ██████  ██   ████ ██ ██   ████  ██████  
+                                                  
+*/
 
 /**
  * Given current `NoteData` and a `TuningConfig`, calculate the
  * required note's tuning offset in cents.
+ * 
+ * This function also applies per-note tuning offsets denoted by
+ * fingering annotations.
  * 
  * @param {NoteData} noteData The note to be tuned
  * @param {TuningConfig} tuningConfig The tuning configuration
@@ -1927,56 +2789,86 @@ function calcCentsOffset(noteData, tuningConfig) {
     // apply NoteData equave offset.
     xenCentsFromA4 += noteData.equaves * tuningConfig.equaveSize;
 
-    // 2 different fingering tuning annotations can be applied to a note.
-    // (and can be applied simultaneously).
-    //
-    // They are applied in this order:
-    //
-    // 1. The fingering JI interval/ratio tuning overrides the tuning entirely,
-    // tuning the note as the specified ratio against the reference note.
-    // Its octave is automatically reduced/expanded to be as close as possible to 
-    // xenCentsFromA4. By default, this fingering must be suffixed by a period
-    // unless the REQUIRE_PERIOD_AFTER_FINGERING_RATIO flag is set to false.
-    // 
-    // 2. The fingering cents offset simply offsets tuning by the specified
-    //    amount of cents.
+    // apply secondary accidentals
+    Object.keys(noteData.secondaryAccMatches).forEach(function (secAccIdx) {
+        var accHash = tuningConfig.secondaryAccList[secAccIdx];
+        xenCentsFromA4 +=
+            noteData.secondaryAccMatches[secAccIdx] // number of matched accidentals
+            * tuningConfig.secondaryTunings[accHash];
+    });
+
+    /*
+    Different fingering tuning annotations can be applied to a note.
+    (and can be applied simultaneously).
+    
+    They are applied in this order:
+    
+    1. The fingering JI interval/ratio tuning overrides the tuning entirely,
+    tuning the note as the specified ratio against the reference note.
+    Its octave is automatically reduced/expanded to be as close as possible to 
+    xenCentsFromA4. By default, this fingering must be suffixed by a period
+    unless the REQUIRE_PERIOD_AFTER_FINGERING_RATIO flag is set to false.
+    
+    2. The fingering cents offset simply offsets tuning by the specified
+       amount of cents.
+    */
 
     var fingeringCentsOffset = 0;
     var fingeringJIOffset = null; // this is in cents
 
     noteData.ms.fingerings.forEach(function (fingering) {
+        if (fingering.z >= 1000 && fingering.z <= 2000) {
+            // don't read ASCII accidentals as fingering
+            // annotations.
+            return;
+        }
+
         var text = fingering.text;
 
-        if (text[0] && (text[0] == '+' || text[0] == '-')) {
-            // Cents offset fingering
-            var cents = parseFloat(eval(text.slice(1)));
-            if (!isNaN(cents)) {
-                fingeringCentsOffset += cents * (text[0] == '+' ? 1 : -1);
-            }
-        } else if (!REQUIRE_PERIOD_AFTER_FINGERING_RATIO || text.endsWith('.')) {
-            // Ratio.
-            if (REQUIRE_PERIOD_AFTER_FINGERING_RATIO)
-                text = text.slice(0, -1);
-            var ratio = parseFloat(eval(text));
-            if (!isNaN(ratio) && ratio != 0) {
-                if (ratio > 0) {
-                    fingeringJIOffset = Math.log(ratio) * 1200 / Math.log(2);
-                } else {
-                    // negative ratio is treated as a negative cents offset
-                    fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
+        try {
+            if (text[0] && (text[0] == '+' || text[0] == '-')) {
+                // Cents offset fingering
+                var cents = parseFloat(eval(text.slice(1)));
+                if (!isNaN(cents)) {
+                    fingeringCentsOffset += cents * (text[0] == '+' ? 1 : -1);
                 }
+                fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
+            } else if (!REQUIRE_PERIOD_AFTER_FINGERING_RATIO || text.endsWith('.')) {
+                // Ratio.
+                if (REQUIRE_PERIOD_AFTER_FINGERING_RATIO)
+                    text = text.slice(0, -1);
+                var ratio = parseFloat(eval(text));
+                if (!isNaN(ratio) && ratio != 0) {
+                    if (ratio > 0) {
+                        fingeringJIOffset = Math.log(ratio) * 1200 / Math.log(2);
+                    } else {
+                        // negative ratio is treated as a negative cents offset
+                        fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
+                    }
+                }
+                fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
             }
+        }
+        catch (e) {
+            // ignore possible syntax errors. ascii-repr accidental
+            // entry may begin with + or - and may match this form
+            //
+            // Even though the fingering element is removed from the note
+            // immediately after rendering down, it will still show up
+            // in PluginAPINote wrapper object, until endCmd() is called.
         }
     });
 
     if (fingeringJIOffset) {
+        // 1. If JI ratio is present on the note, override the tuning of the note.
+
         // We need to octave reduce/expand this until it is as close as possible to 
         // xenCentsFromA4.
 
         xenCentsFromA4 = fingeringJIOffset - Math.round((fingeringJIOffset - xenCentsFromA4) / 1200) * 1200;
     }
 
-    // Apply cents offset.
+    // 2. Apply cents offset.
 
     xenCentsFromA4 += fingeringCentsOffset;
 
@@ -2085,7 +2977,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
             var n = chord.notes[i];
             if (n.is(note)) // skip self
                 continue;
-            
+
             var p = n.pitch;
             for (var nPevIdx = 0; nPevIdx < n.playEvents.length; nPevIdx++) {
                 var pev = n.playEvents[nPevIdx];
@@ -2094,7 +2986,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         }
     }
 
-    
+
     if (midiPitchesInChord[note.pitch + midiOffset]) {
         // If the original midi offset won't work because another note in the same chord already has the 
         // same midi pitch, work in a zig-zag fashion to find a 'hole' to insert the note.
@@ -2314,6 +3206,9 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * Retrieve the next note up/down/enharmonic from the current {@link PluginAPINote}, and
  * returns {@link XenNote} and {@link PluginAPINote.line} offset to be applied on the note.
  * 
+ * This function does not read/regard secondary accidentals. The returned {@link NextNote} will
+ * not contain any secondary accidentals.
+ * 
  * The returned `lineOffset` property represents change in `Note.line`.
  * This is a negated value of the change in nominal ( +pitch = -line )
  * 
@@ -2350,27 +3245,21 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * 
  *  (Only applicable if direction is `1`/`-1`. Not applicable for enharmonic)
  * 
- * @param {PluginAPINote} note The current `PluginAPI::Note` MuseScore note object to be modified
+ * @param {NoteData} noteData parsed note data of the note to be transposed.
  * @param {KeySig} keySig Current key signature
  * @param {TuningConfig} tuningConfig Tuning Config object
  * @param {number} tickOfThisBar Tick of first segment of the bar
  * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
  * @param {Cursor} cursor MuseScore cursor object
  * @param {BarState} reusedBarState
- * @param {*} newElement 
- *  Reference to `PluginAPI::newElement`.
- *  
- *  Rationale: The parseNote function may create accidental symbols if an
- *  accidental fingering text is attached on the note.
  * @returns {NextNote?} 
  *  `NextNote` object containing info about how to spell the newly modified note.
  *  Returns `null` if no next note can be found.
  */
-function chooseNextNote(direction, constantConstrictions, note, keySig,
-    tuningConfig, tickOfThisBar, tickOfNextBar, cursor, newElement) {
+function chooseNextNote(direction, constantConstrictions, noteData, keySig,
+    tuningConfig, tickOfThisBar, tickOfNextBar, cursor) {
 
-    var noteData = parseNote(note, tuningConfig, keySig,
-        tickOfThisBar, tickOfNextBar, cursor, newElement);
+    var note = noteData.ms.internalNote;
 
     console.log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
 
@@ -2525,22 +3414,28 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
 
     var currAV = tuningConfig.avTable[noteData.xen.hash];
 
-    // Returns the XenNote hash option so far.
-    var bestOption = null;
-
     if (tuningConfig.equaveSize < 0) {
         equaveOffset = -equaveOffset;
         console.log('equaveSize < 0, reversing equaveOffset: ' + equaveOffset);
     }
 
-    // AccidentalVector Distance is measured as sum of squares
-    var bestOptionAccDist = 100000;
-    var bestNumSymbols = 10000;
-    var bestLineOffset = 90000;
-    var bestSumOfDegree = direction == 1 ? -10000 : 10000;
+    /** 
+     * A list of next note options with pre-calculated metrics.
+     * 
+     * To be sorted based on the metrics to obtain the best option.
+     * 
+     * @type {{
+     *      nextNote: NextNote,
+     *      avDist: number,
+     *      numSymbols: number,
+     *      lineOffset: number,
+     *      sumOfDegree: number
+     * }[]} 
+     */
+    var nextNoteOptions = [];
 
-    for (var i = 0; i < Math.max(5, validOptions.length); i++) {
-        var option = validOptions[i % validOptions.length]; // contains XenNote hash of enharmonic option.
+    for (var i = 0; i < validOptions.length; i++) {
+        var option = validOptions[i]; // contains XenNote hash of enharmonic option.
 
         var newXenNote = tuningConfig.notesTable[option];
 
@@ -2552,6 +3447,14 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
         var nominalOffset = newXenNote.nominal - noteData.xen.nominal +
             totalEqvOffset * tuningConfig.numNominals;
 
+        var nextNoteObj = {
+            xen: newXenNote,
+            nominal: newXenNote.nominal,
+            equaves: noteData.equaves + totalEqvOffset,
+            lineOffset: -nominalOffset,
+            matchPriorAcc: false
+        };
+
         // check each option to see if it would match a prior accidental
         // on the new line. An AccidentalVector match is considered a match,
         // The `regarding` constriction is not so strict to the point where
@@ -2559,7 +3462,6 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
 
         var priorAcc = getAccidental(
             cursor, note, tickOfThisBar, tickOfNextBar, 2, note.line - nominalOffset);
-
 
         if (priorAcc == null && keySig) {
             var keySigAcc = keySig[newXenNote.nominal];
@@ -2573,22 +3475,12 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
         var optionAV = tuningConfig.avTable[option];
 
         if (priorAcc != null) {
-            // This is used to look up the accidental's effect on the accidentalVector
-            // it doesn't matter what nominal it uses since all identical accidental
-            // hashes will result in the same accidentalVector.
             var priorAccHash = '0 ' + priorAcc;
 
             if (arraysEqual(optionAV, tuningConfig.avTable[priorAccHash])) {
                 // Direct accidental match. Return this.
-                return {
-                    xen: newXenNote,
-                    nominal: newXenNote.nominal,
-                    equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
-                    lineOffset: -nominalOffset,
-                    // This flag means that no explicit accidental needs to be
-                    // placed on this new modified note.
-                    matchPriorAcc: true
-                }
+                nextNoteObj.matchPriorAcc = true;
+                return nextNoteObj;
             }
         } else {
             // If there's no prior accidental nor key signature accidental on this line,
@@ -2596,18 +3488,13 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             // This avoids unnecessary enharmonics.
 
             if (option.split(' ').length == 1) {
-                return {
-                    xen: newXenNote,
-                    nominal: newXenNote.nominal,
-                    equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
-                    lineOffset: -nominalOffset,
-                    matchPriorAcc: true
-                }
+                nextNoteObj.matchPriorAcc = true;
+                return nextNoteObj;
             }
         }
 
-        // Otherwise, choose the best accidental option according to the above stated choosing rules
-        // in JSDoc.
+        // If no immediate match found, calculate metrics and
+        // add this to the list of options to be sorted.
 
         // Compute AV distance, choose option with smallest distance
 
@@ -2617,67 +3504,59 @@ function chooseNextNote(direction, constantConstrictions, note, keySig,
             avDist += (currAV[j] - optionAV[j]) * (currAV[j] - optionAV[j]);
         }
 
+        // The lower the sum of degrees the better.
         var sumOfDeg = currAV.reduce(function (acc, deg) {
             return acc + deg;
         });
 
-        var nextNoteObj = {
-            xen: newXenNote,
-            nominal: newXenNote.nominal,
-            equaves: noteData.equaves + newNoteEqvsAdj - currNoteEqvsAdj + equaveOffset,
+        nextNoteOptions.push({
+            nextNote: nextNoteObj,
+            avDist: avDist,
+            numSymbols: newXenNote.orderedSymbols.length,
             lineOffset: -nominalOffset,
-            matchPriorAcc: false
-        };
-
-        if (bestOptionAccDist - avDist > 0.02) {
-            // console.log('best av dist');
-            bestOption = nextNoteObj;
-            bestOptionAccDist = avDist;
-            // reset other lower-tier metrics
-            bestNumSymbols = 90000;
-            bestLineOffset = 90000;
-            bestSumOfDegree = direction == 1 ? -10000 : 10000;
-        } else if (Math.abs(avDist - bestOptionAccDist) <= 0.02) {
-            // If distances are very similar, choose the option with
-            // lesser symbols
-            var numSymbols = newXenNote.orderedSymbols.length;
-
-            if (numSymbols < bestNumSymbols) {
-                // console.log('best num symbols');
-                bestOption = nextNoteObj;
-                bestNumSymbols = numSymbols;
-                bestLineOffset = 90000; // reset
-                bestSumOfDegree = direction == 1 ? -10000 : 10000;
-            } else if (numSymbols == bestNumSymbols) {
-                // if everything else the same, pick
-                // the one that has the least lineOffset
-
-                if (Math.abs(nominalOffset) < bestLineOffset) {
-                    // console.log('best line offset');
-                    bestOption = nextNoteObj;
-                    bestLineOffset = Math.abs(nominalOffset);
-                    bestSumOfDegree = direction == 1 ? -10000 : 10000;
-                } else if (Math.abs(nominalOffset) == bestLineOffset) {
-                    // If all else are the same, pick the option that
-                    // matches the direction of transpose.
-
-                    // Up should favor sharps, down should favor flats.
-
-                    if ((direction == 1 && sumOfDeg > bestSumOfDegree) ||
-                        (direction == -1 && sumOfDeg < bestSumOfDegree)) {
-                        // console.log('best sum of degree');
-                        bestOption = nextNoteObj;
-                        bestSumOfDegree = sumOfDeg;
-                    }
-                }
-            }
-        }
+            sumOfDegree: sumOfDeg
+        });
     }
+
+    // Sort them such that the best option is at the front
+    nextNoteOptions.sort(function (a, b) {
+        // Lower AV Dist is better. Give +/- 0.5 leeway for
+        // 'similar' AV dist.
+        if (a.avDist - b.avDist <= -0.5) {
+            return -1;
+        } else if (a.avDist - b.avDist >= 0.5) {
+            return 1;
+        }
+
+        // AV dist similar, choose the one with lesser symbols
+        if (a.numSymbols < b.numSymbols) {
+            return -1;
+        } else if (a.numSymbols > b.numSymbols) {
+            return 1;
+        }
+
+        // Symbols similar, choose the one with lesser line offset
+        if (Math.abs(a.lineOffset) < Math.abs(b.lineOffset)) {
+            return -1;
+        } else if (Math.abs(a.lineOffset) > Math.abs(b.lineOffset)) {
+            return 1;
+        }
+
+        // Line offset similar, choose the one with sumOfDegree
+        // that matches the direction of transpose.
+        //
+        // Up should favor upward accidentals (sharps)
+        if (a.sumOfDegree > b.sumOfDegree) {
+            return direction == 1 ? -1 : 1;
+        } else {
+            return direction == 1 ? 1 : -1;
+        }
+    });
 
     // At the end of all the optimizations, bestOption should contain
     // the best option...
 
-    return bestOption;
+    return nextNoteOptions[0].nextNote;
 }
 
 /**
@@ -2831,7 +3710,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     // console.log("getAccidental() tick: " + nTick + " (within " + tickOfThisBar + " - " 
     //     + tickOfNextBar + "), line: " + nLine);
 
-    if (nTick > tickOfNextBar || nTick < tickOfThisBar) {
+    if ((tickOfNextBar != -1 && nTick > tickOfNextBar) || nTick < tickOfThisBar) {
         console.error("FATAL ERROR: getAccidental() tick " + nTick +
             " not within given bar ticks: " + tickOfThisBar + " to " + tickOfNextBar);
         return null;
@@ -3003,11 +3882,11 @@ function getAccidental(cursor, note, tickOfThisBar,
  * 
  *  `null` or `[]` to remove all accidentals.
  * @param {Function} newElement reference to the `PluginAPI.newElement()` function
- * @param {Object.<string, boolean>?} usedSymbols
+ * @param {TuningConfig} tuningConfig
  *  If provided, any accidentals symbols that are not included in the tuning config
  *  will not be altered/removed by this function.
  */
-function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
+function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
 
     var elements = note.elements;
     var elemsToRemove = [];
@@ -3017,8 +3896,13 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
     for (var i = 0; i < elements.length; i++) {
         if (elements[i].symbol) {
             var symCode = Lookup.LABELS_TO_CODE[elements[i].symbol.toString()];
-            if (symCode && (!usedSymbols || usedSymbols[symCode])) {
+            if (tuningConfig.usedSymbols[symCode] || tuningConfig.usedSecondarySymbols[symCode]) {
                 // This element is an accidental symbol, remove it.
+                elemsToRemove.push(elements[i]);
+            }
+        } else if (elements[i].name == 'Fingering') {
+            if (elements[i].z >= 1000 && elements[i].z < 2000) {
+                // This fingering is an accidental symbol, remove it.
                 elemsToRemove.push(elements[i]);
             }
         }
@@ -3028,28 +3912,43 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
         note.remove(elem);
     });
 
+
     if (!orderedSymbols || orderedSymbols.length == 0) return;
 
     // Create new SymId symbols and attach to note.
     var zIdx = 1000;
     // go right-to-left.
     for (var i = orderedSymbols.length - 1; i >= 0; i--) {
-        var symId = Lookup.CODE_TO_LABELS[orderedSymbols[i]][0];
-        var elem = newElement(Element.SYMBOL);
-        elem.symbol = SymId[symId];
-        note.add(elem);
-        elem.z = zIdx;
-
-        // var pageXBefore = elem.pagePos.x;
+        var elem;
+        var symCode = orderedSymbols[i];
+        if (typeof (symCode) == 'string' && symCode[0] == "'") {
+            // Create a fingering accidental
+            elem = newElement(Element.FINGERING);
+            note.add(elem);
+            elem.text = escapeHTML(symCode.slice(1));
+            /*  Autoplace is required for this accidental to push back prior
+                segments. */
+            elem.autoplace = true;
+            elem.align = Align.LEFT | Align.VCENTER;
+            elem.fontSize = ASCII_ACC_FONT_SIZE;
+            /*  Set offsetY to some random number to re-trigger vertical align later.
+                Otherwise, the fingering will be auto-placed above the notehead, even though
+                offsetY is set to 0. */
+            elem.offsetY = -3;
+            elem.z = zIdx;
+        } else {
+            // Create a SMuFL symbol accidental
+            var symId = Lookup.CODE_TO_LABELS[symCode][0];
+            var elem = newElement(Element.SYMBOL);
+            elem.symbol = SymId[symId];
+            note.add(elem);
+            elem.z = zIdx;
+        }
 
         // Just put some arbitrary 1.4sp offset
         // between each symbol for now.
         elem.offsetX = -1.4 * (zIdx - 999);
 
-        // I've checked that setting an element's offset also updates
-        // its pagePos immediately. Thus, pagePos is a reliable source
-        // of an element's most updated position.
-        // console.log('pagePos.x difference: ' + (elem.pagePos.x - pageXBefore));
         zIdx++;
     }
 }
@@ -3067,11 +3966,13 @@ function setAccidental(note, orderedSymbols, newElement, usedSymbols) {
  */
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
-    if (noteData.xen.accidentals != null) {
-        setAccidental(note, noteData.xen.orderedSymbols, newElement, tuningConfig.usedSymbols);
+    var symbols = noteData.secondaryAccSyms.concat(noteData.xen.orderedSymbols);
+    console.log('makeAccidentalsExplicit: ' + JSON.stringify(symbols));
+    if (symbols.length != 0) {
+        setAccidental(note, symbols, newElement, tuningConfig);
     } else {
         // If no accidentals, also make the natural accidental explicit.
-        setAccidental(note, [2], newElement, tuningConfig.usedSymbols);
+        setAccidental(note, [2], newElement, tuningConfig);
     }
 }
 
@@ -3080,10 +3981,13 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * 
  * @param {PluginAPINote} note `PluginAPI::Note` to set pitch, tuning & accidentals of
  * @param {number} lineOffset Nominals offset from current note's pitch
- * @param {SymbolCode[]} orderedSymbols Ordered accidental symbols as per XenNote.orderedSymbols.
+ * @param {SymbolCode[]} orderedSymbols 
+ * Left-to-right ordered {@link SymbolCode}s. Obtained by concatenating
+ * {@link NoteData.secondaryAccSyms} and {@link XenNote.orderedSymbols}.
  * @param {*} newElement 
+ * @param {TuningConfig} tuningConfig
  */
-function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
+function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) {
     console.log('modifyNote(' + (note.line + lineOffset) + ')');
     var newLine = note.line + lineOffset;
 
@@ -3101,7 +4005,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
 
     note.line = newLine; // Finally...
 
-    setAccidental(note, orderedSymbols, newElement, usedSymbols);
+    setAccidental(note, orderedSymbols, newElement, tuningConfig);
 }
 
 /**
@@ -3139,6 +4043,7 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, usedSymbols) {
 function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tuningConfig = parms.currTuning;
     var keySig = parms.currKeySig; // may be null/invalid
+    /** @type {ConstantConstrictions} */
     var constantConstrictions = parms.currTuning.auxList[aux]; // may be null/undefined
     var bars = parms.bars;
     var noteTick = getTick(note);
@@ -3149,10 +4054,13 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
     console.log('executeTranspose(' + direction + ', ' + aux + '). Check same: ' + JSON.stringify(constantConstrictions));
 
+    var noteData = parseNote(note, tuningConfig, keySig,
+        tickOfThisBar, tickOfNextBar, cursor, newElement);
+
     // STEP 1: Choose the next note.
     var nextNote = chooseNextNote(
-        direction, constantConstrictions, note, keySig, tuningConfig, tickOfThisBar,
-        tickOfNextBar, cursor, newElement);
+        direction, constantConstrictions, noteData,
+        keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor);
 
     if (!nextNote) {
         // If no next note (e.g. no enharmonic)
@@ -3191,7 +4099,8 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
         setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
 
-        while (cursor.segment && cursor.tick < tickOfNextBar) {
+        while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
+            console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
             if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
                 cursor.next();
@@ -3242,7 +4151,25 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         accSymbols = [2];
     }
 
-    modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig.usedSymbols);
+    // Here we need to check whether or not to include prior secondary
+    // accidentals in the new note depending on the operation.
+
+    var isEnharmonic = direction == 0;
+    var isDiatonic = !isEnharmonic && constantConstrictions &&
+        constantConstrictions.length == tuningConfig.accChains.length && constantConstrictions.indexOf(0) == -1;
+    var isNonDiatonicTranspose = !isEnharmonic && !isDiatonic;
+
+    if (KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC && isDiatonic ||
+        KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC && isEnharmonic ||
+        KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE && isNonDiatonicTranspose) {
+
+        // We need to keep secondary accidentals.
+        // Carry forward secondary symbols and prepend them
+        accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
+        console.log('keeping acc symbols: ' + JSON.stringify(accSymbols));
+    }
+
+    modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
 
     //
     // STEP 4
@@ -3374,12 +4301,16 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                     // go from leftmost to rightmost chord
                     for (var chdIdx = 0; chdIdx < chds.length; chdIdx++) {
+                        /** 
+                         * All these notes are on the same line => all have the same nominal.
+                         * @type {MSNote[]} 
+                         */
                         var msNotes = chds[chdIdx].map(
                             function (note) {
                                 return tokenizeNote(note);
                             }
                         );
-                        // All these notes are on the same line => all have the same nominal.
+                        // All these notes have the same nominal.
                         var nominal = getNominal(msNotes[0], tuningConfig);
 
                         // Before we proceed, make sure that all explicit accidentals 
@@ -3407,8 +4338,9 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                 if (prevExplicitAcc == null) {
                                     prevExplicitAcc = accHash;
                                 } else if (prevExplicitAcc != accHash) {
-                                    // this chord contains notes with different
-                                    // explicit accidentals. We cannot proceed.
+                                    // this chord contains notes on the same line
+                                    // with different explicit accidentals.
+                                    // We should not remove these accidentals.
                                     proceed = false;
                                     break;
                                 }
@@ -3431,7 +4363,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                                 var currAccState = accidentalState[lineNum];
 
-                                console.log('currAccState: ' + currAccState + ', accHash: ' + accHash 
+                                console.log('currAccState: ' + currAccState + ', accHash: ' + accHash
                                     + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
 
                                 if (currAccState && currAccState == accHash) {
@@ -3439,7 +4371,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     // accidental state and this note, this note's
                                     // accidental is redundant. Remove it.
 
-                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                 } else if (!currAccState && keySig) {
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
@@ -3448,13 +4380,13 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     var realKeySig = removeUnusedSymbols(keySig[nominal], tuningConfig) || '';
                                     console.log('realKeySig: ' + realKeySig);
                                     if (realKeySig == accHash) {
-                                        setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                        setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                     }
                                 } else if (isNatural && !currAccState && (!keySig || !keySig[nominal])) {
                                     // This note has a natural accidental, but it is not
                                     // needed, since the prior accidental state/key sig is natural.
 
-                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig.usedSymbols);
+                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                 } else {
                                     // Otherwise, if we find an explicit accidental
                                     // that is necessary, update the accidental state.
@@ -3565,12 +4497,83 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
 }
 
 /**
+ * Retrieves custom position & size offsets (according to {@link Lookup.SYMBOL_LAYOUT}
+ * or {@link Lookup.ASCII_LAYOUT}) of an accidental symbol/fingering element respectively.
+ * 
+ * @param {PluginAPIElement} elem Symbol or fingering element
+ * 
+ * @param {boolean} staffLineIntersectsNote
+ * `true` if the note is a 'line note' (EGBDF treble clef).
+ * 
+ * `false` if the note is a 'space note' (FACE treble clef).
+ * 
+ * @returns {{
+ *  additionalXOffset: number,
+ *  additionalYOffset: number,
+ *  halfAddWidth: number,
+ *  halfAddHeight: number
+ * }}
+ * 
+ * `additionalXOffset` and `additionalYOffset` are X and Y position offsets,
+ * (X offset will affect push-back of further-left symbols)
+ * 
+ * `halfAddWidth` and `halfAddHeight` are half the additional width and height
+ * specified to apply to the {@link PluginAPIElement.bbox} property, such that
+ * the rectangular bounds are expanded centrally (half the additional width/height each).
+ * 
+ * If no custom offsets are found, all values are 0, signifying no deviation from
+ * standard auto-positioning.
+ */
+function retrieveCustomOffsets(elem, staffLineIntersectsNote) {
+    var offsets = {
+        additionalXOffset: 0,
+        additionalYOffset: 0,
+        halfAddWidth: 0,
+        halfAddHeight: 0
+    };
+
+    var lookupMapping;
+    var key;
+    
+    if (elem.symbol) {
+        lookupMapping = Lookup.SYMBOL_LAYOUT;
+        key = elem.symbol.toString();
+    } else if (elem.name == 'Fingering') {
+        lookupMapping = Lookup.ASCII_LAYOUT;
+        key = removeFormattingCode(elem.text);
+    } else {
+        return offsets;
+    }
+    
+    var quartupletOffsets = lookupMapping[key] && lookupMapping[key][staffLineIntersectsNote ? 1 : 0];
+
+    if (!quartupletOffsets) {
+        return offsets;
+    }
+
+    return {
+        additionalXOffset: quartupletOffsets[0],
+        additionalYOffset: quartupletOffsets[1],
+        halfAddWidth: quartupletOffsets[2],
+        halfAddHeight: quartupletOffsets[3]
+    };
+}
+
+/**
  * Positions accidental symbols for all voices' chords that are to be
  * vertically-aligned.
+ * 
+ * Uses the [zig-zag algorithm](https://musescore.org/en/node/25055) to auto-position symbols.
+ * 
+ * Also positions text-based accidentals to the left of any other accidental symbols, treating it
+ * as if it were an accidental symbol.
  * 
  * returns the largest (negative) distance between the left-most symbol the notehead 
  * it is attached to. This returned value will decide how much should
  * grace chords be pushed back.
+ * 
+ * **IMPORTANT**: `chord` is NOT the wrapped {@link PluginAPIChord} plugin object.
+ * It is a list of unwrapped {@link PluginAPINote} objects!
  * 
  * @param {PluginAPINote[]} chord Notes from all voices at a single tick & vertical-chord position.
  * @param {Object.<string, boolean>} usedSymbols 
@@ -3626,54 +4629,116 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
     positionedElemsBbox.sort(function (a, b) { return b.left - a.left });
 
     // stores positions of positioned symbols to be updated all at once at the end.
+    /**
+     * @type {{
+     *  elem: PluginAPIElement,
+     *  x: number,
+     *  y: number
+     * }[]}
+     */
     var registeredSymbolOffsets = [];
 
     var count = 0;
     while (count++ < chord.length) {
+        // Iterate notes in chord in zig zag pattern.
+
         // console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
         //     return bbox.left;
         // })));
         var note = chord[isZig ? ascIdx : descIdx];
 
-        var absNoteBbox = {
-            left: note.pagePos.x + note.bbox.left,
-            right: note.pagePos.x + note.bbox.right,
-            top: note.pagePos.y + note.bbox.top,
-            bottom: note.pagePos.y + note.bbox.bottom
-        };
+        /**
+         * If `true`, staff line intersects the notehead (E G B D F treble clef).
+         */
+        var staffLineIntersectsNote = (note.line % 2 === 0);
+        // for some NONSENSE reason, x % 2 == 0 always returns true, but x % 2 === 0 checks isEven.
+        // console.log('staffLineIntersectsNote: ' + staffLineIntersectsNote + ', line: ' + note.line + ', mod 2: ' + (note.line % 2));
 
-        var accSymbolsRTL = [];
+        // var absNoteBbox = {
+        //     left: note.pagePos.x + note.bbox.left,
+        //     right: note.pagePos.x + note.bbox.right,
+        //     top: note.pagePos.y + note.bbox.top,
+        //     bottom: note.pagePos.y + note.bbox.bottom
+        // };
+
+        var accSymbolsRTL = []; // right-to-left
+
+        // We treat all the symbols to be attached as one big symbol with a bounding box
+        // that encapsulates all the bounding boxes of the symbols.
+
+        // total amount of sp used by all symbols attached to this notehead.
+        var symbolsWidth = 0;
+        // top most absolute position of top bbox of symbols
+        var symbolsTop = 1e7;
+        // bottom most abs pos of bottom bbox of symbols
+        var symbolsBottom = -1e7;
 
         // stores list of all accidental symbols attached to this notehead.
-        // Symbols appearing to the right come first.
         for (var i = 0; i < note.elements.length; i++) {
             var elem = note.elements[i];
+            var isAccSym = false;
             // console.log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
                 if (symCode && (!usedSymbols || usedSymbols[symCode])) {
-                    accSymbolsRTL.push(elem);
+                    isAccSym = true;
+                }
+            } else if (elem.name && elem.name == 'Fingering' &&
+                elem.z >= 1000 && elem.z <= 2000) {
+                // Found ASCII accidental symbols implemented as fingerings.
+                isAccSym = true;
+            }
+
+            if (isAccSym) {
+                accSymbolsRTL.push(elem);
+                var cusOff = retrieveCustomOffsets(elem, staffLineIntersectsNote);
+
+                symbolsWidth += elem.bbox.right - elem.bbox.left + cusOff.halfAddWidth * 2;
+
+                var absTopPos, absBottomPos;
+                if (elem.name == 'Fingering') {
+                    // When fingerings are just created, they are above the notehead, meaning that
+                    // we can't use the current Y position of the fingering to determine
+                    // whether it will vertically collide with said note.
+                    // Instead, we use the Y positions of the notehead as a guideline.
+
+                    // We assume that the tallest symbol will protrude the notehead height by 
+                    // +/- 0.5sp. (pipe symbol |). 
+                    // This is a very conservative estimate and may cause wasted space.
+
+                    absTopPos = note.pagePos.y + note.bbox.top - 0.5;
+                    absBottomPos = note.pagePos.y + note.bbox.bottom + 0.5;
+                } else {
+                    absTopPos = elem.pagePos.y + elem.bbox.top;
+                    absBottomPos = elem.pagePos.y + elem.bbox.bottom;
+                }
+                // apply custom offsets
+                absTopPos += cusOff.additionalYOffset - cusOff.halfAddHeight;
+                absBottomPos += cusOff.additionalYOffset + cusOff.halfAddHeight;
+
+                if (absTopPos < symbolsTop) {
+                    symbolsTop = absTopPos;
+                }
+                if (absBottomPos > symbolsBottom) {
+                    symbolsBottom = absBottomPos;
                 }
             }
         }
 
+        // Symbols on the right have lower z index.
         accSymbolsRTL.sort(function (a, b) { return a.z - b.z });
 
 
         if (accSymbolsRTL.length != 0) {
             // Found acc symbols to position on this note.
 
-            var symbolsWidth = accSymbolsRTL.reduce(function (acc, sym) {
-                return acc + (sym.bbox.right - sym.bbox.left);
-            }, 0);
-
-            // Now that we have the sorted list of symbols to add, we need
-            // to find holes in the positionedElemsBbox list to insert them.
+            // Now that we have the list of symbols to add to this notehead, 
+            // we need to find holes in the positionedElemsBbox list to insert them.
 
             var prevElemLeft = null;
             for (var i = 0; i < positionedElemsBbox.length; i++) {
                 var bbox = positionedElemsBbox[i];
-                var willCollideVertically = intervalOverlap(bbox.top - 0.4, bbox.bottom + 0.4, absNoteBbox.top, absNoteBbox.bottom);
+                var willCollideVertically = intervalOverlap(bbox.top, bbox.bottom, symbolsTop, symbolsBottom);
 
                 // console.log('check bbox: ' + bbox.left + ', willCollideVertically: ' + willCollideVertically);
                 if (!willCollideVertically) continue;
@@ -3696,19 +4761,42 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
                 }
             }
 
-            // There was no gap between vertically intersecting elements 
-            // prevElemLeft contains the leftmost element left pos.
+            // The above loop will stop once a hole has been found, or once
+            // all elements have been looped and no holes are found.
+            // At this point, prevElemLeft contains the absolute X position that the
+            // 'hole' begins and expands leftward, which is the absolute left bbox
+            // of the leftmost element before the 'hole' starts.
+
+            // In case none of the symbols vertically intersects with any existing positioned
+            // bbox (perhaps this symbol has specific overrides to be positioned atop a notehead),
+            // we assume that prevX is 0sp by default.
+
+            if (prevElemLeft == null) {
+                console.warn('WARNING: Symbol does not vertically intersect with any positioned elements, setting ' +
+                    'x offset to 0.');
+            }
 
             // prevX is the relative offset to assign to the curr symbol.
-            var prevX = prevElemLeft - note.pagePos.x;
+            var prevX = prevElemLeft != null ? (prevElemLeft - note.pagePos.x) : 0;
 
-            accSymbolsRTL.forEach(function (sym) {
-                var offX = prevX - (sym.bbox.right - sym.bbox.left) - ACC_SPACE;
+            accSymbolsRTL.forEach(function (elem) {
+                var cusOff = retrieveCustomOffsets(elem, staffLineIntersectsNote);
+                var actualSymWidth = elem.bbox.right - elem.bbox.left;
+                var effectiveSymWidth = actualSymWidth + cusOff.halfAddWidth * 2 + ACC_SPACE;
+                var spaceCentralizationOffset = cusOff.halfAddWidth;
+
+                if (effectiveSymWidth < MIN_ACC_WIDTH) {
+                    spaceCentralizationOffset += (MIN_ACC_WIDTH - effectiveSymWidth) / 2;
+                    effectiveSymWidth = MIN_ACC_WIDTH;
+                }
+
+                var offX = prevX - effectiveSymWidth + cusOff.additionalXOffset;
+                var offY = cusOff.additionalYOffset;
                 // console.log('offX: ' + offX);
                 registeredSymbolOffsets.push({
-                    sym: sym,
-                    x: offX,
-                    y: 0
+                    elem: elem,
+                    x: offX + spaceCentralizationOffset,
+                    y: offY
                 });
 
                 if (offX < mostNegativeDistance) {
@@ -3717,10 +4805,10 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
 
                 // create abs bbox for newly positioned symbol
                 var symBbox = {
-                    left: note.pagePos.x + offX + sym.bbox.left,
-                    right: note.pagePos.x + offX + sym.bbox.right,
-                    top: note.pagePos.y + sym.bbox.top,
-                    bottom: note.pagePos.y + sym.bbox.bottom
+                    left: note.pagePos.x + elem.bbox.left + offX - cusOff.halfAddWidth,
+                    right: note.pagePos.x + elem.bbox.right + offX + cusOff.halfAddWidth,
+                    top: note.pagePos.y + elem.bbox.top + offY - cusOff.halfAddHeight,
+                    bottom: note.pagePos.y + elem.bbox.bottom + offY + cusOff.halfAddHeight
                 };
 
                 // find index to insert symBbox into positioned elements.
@@ -3756,8 +4844,16 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
     // Now, we need to apply the offsets
 
     registeredSymbolOffsets.forEach(function (symOff) {
-        symOff.sym.offsetX = symOff.x;
-        symOff.sym.offsetY = symOff.y;
+        if (symOff.elem.name == 'Fingering') {
+            // because the HEWM accidental has autoplace on,
+            // the offsetX needs to be further left.
+            // TODO: Check if there's some kind of Score Formatting rules that
+            //       affects this offset. It can't possibly be alright to hardcode this.
+            symOff.elem.offsetX = symOff.x - 0.65;
+        } else {
+            symOff.elem.offsetX = symOff.x;
+        }
+        symOff.elem.offsetY = symOff.y;
     });
 
     return mostNegativeDistance;
