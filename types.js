@@ -159,7 +159,13 @@ class XenNote {
      * @type {number}
      */
     nominal;
-    /** @type {SymbolCode[]} */
+    /** 
+     * A list of symbols in left-to-right display order.
+     * 
+     * If no symbols present, this is an empty list.
+     * 
+     * @type {SymbolCode[]} 
+     */
     orderedSymbols;
     /**
      * If null, this note represents a nominal of the {@link TuningConfig}

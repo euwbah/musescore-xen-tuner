@@ -275,8 +275,8 @@ function generateDefaultTuningConfig() {
         }
     }
 
-    console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote +
-        ', nominal: ' + tuningConfig.tuningNominal);
+    // console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote +
+    //     ', nominal: ' + tuningConfig.tuningNominal);
 
     return tuningConfig;
 }
@@ -3966,8 +3966,10 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
  */
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
-    if (noteData.xen.accidentals != null) {
-        setAccidental(note, noteData.xen.orderedSymbols, newElement, tuningConfig);
+    var symbols = noteData.secondaryAccSyms.concat(noteData.xen.orderedSymbols);
+    console.log('makeAccidentalsExplicit: ' + JSON.stringify(symbols));
+    if (symbols.length != 0) {
+        setAccidental(note, symbols, newElement, tuningConfig);
     } else {
         // If no accidentals, also make the natural accidental explicit.
         setAccidental(note, [2], newElement, tuningConfig);
@@ -4098,6 +4100,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && cursor.tick < tickOfNextBar) {
+            console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
             if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
                 cursor.next();
@@ -4494,6 +4497,69 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
 }
 
 /**
+ * Retrieves custom position & size offsets (according to {@link Lookup.SYMBOL_LAYOUT}
+ * or {@link Lookup.ASCII_LAYOUT}) of an accidental symbol/fingering element respectively.
+ * 
+ * @param {PluginAPIElement} elem Symbol or fingering element
+ * 
+ * @param {boolean} staffLineIntersectsNote
+ * `true` if the note is a 'line note' (EGBDF treble clef).
+ * 
+ * `false` if the note is a 'space note' (FACE treble clef).
+ * 
+ * @returns {{
+ *  additionalXOffset: number,
+ *  additionalYOffset: number,
+ *  halfAddWidth: number,
+ *  halfAddHeight: number
+ * }}
+ * 
+ * `additionalXOffset` and `additionalYOffset` are X and Y position offsets,
+ * (X offset will affect push-back of further-left symbols)
+ * 
+ * `halfAddWidth` and `halfAddHeight` are half the additional width and height
+ * specified to apply to the {@link PluginAPIElement.bbox} property, such that
+ * the rectangular bounds are expanded centrally (half the additional width/height each).
+ * 
+ * If no custom offsets are found, all values are 0, signifying no deviation from
+ * standard auto-positioning.
+ */
+function retrieveCustomOffsets(elem, staffLineIntersectsNote) {
+    var offsets = {
+        additionalXOffset: 0,
+        additionalYOffset: 0,
+        halfAddWidth: 0,
+        halfAddHeight: 0
+    };
+
+    var lookupMapping;
+    var key;
+    
+    if (elem.symbol) {
+        lookupMapping = Lookup.SYMBOL_LAYOUT;
+        key = elem.symbol.toString();
+    } else if (elem.name == 'Fingering') {
+        lookupMapping = Lookup.ASCII_LAYOUT;
+        key = removeFormattingCode(elem.text);
+    } else {
+        return offsets;
+    }
+    
+    var quartupletOffsets = lookupMapping[key] && lookupMapping[key][staffLineIntersectsNote ? 1 : 0];
+
+    if (!quartupletOffsets) {
+        return offsets;
+    }
+
+    return {
+        additionalXOffset: quartupletOffsets[0],
+        additionalYOffset: quartupletOffsets[1],
+        halfAddWidth: quartupletOffsets[2],
+        halfAddHeight: quartupletOffsets[3]
+    };
+}
+
+/**
  * Positions accidental symbols for all voices' chords that are to be
  * vertically-aligned.
  * 
@@ -4581,6 +4647,13 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
         // })));
         var note = chord[isZig ? ascIdx : descIdx];
 
+        /**
+         * If `true`, staff line intersects the notehead (E G B D F treble clef).
+         */
+        var staffLineIntersectsNote = (note.line % 2 === 0);
+        // for some NONSENSE reason, x % 2 == 0 always returns true, but x % 2 === 0 checks isEven.
+        // console.log('staffLineIntersectsNote: ' + staffLineIntersectsNote + ', line: ' + note.line + ', mod 2: ' + (note.line % 2));
+
         // var absNoteBbox = {
         //     left: note.pagePos.x + note.bbox.left,
         //     right: note.pagePos.x + note.bbox.right,
@@ -4618,32 +4691,31 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
 
             if (isAccSym) {
                 accSymbolsRTL.push(elem);
-                var additionalWidth = 0;
-                var halfAddHeight = 0;
-                var additionalYOffset = 0;
-                var symLayoutOffset = elem.symbol && Lookup.SYMBOL_LAYOUT[elem.symbol.toString()];
-                if (symLayoutOffset) {
-                    additionalYOffset = symLayoutOffset[1];
-                    additionalWidth = symLayoutOffset[2];
-                    halfAddHeight = symLayoutOffset[3] / 2;
-                }
-                symbolsWidth += elem.bbox.right - elem.bbox.left + additionalWidth;
+                var cusOff = retrieveCustomOffsets(elem, staffLineIntersectsNote);
+
+                symbolsWidth += elem.bbox.right - elem.bbox.left + cusOff.halfAddWidth * 2;
 
                 var absTopPos, absBottomPos;
                 if (elem.name == 'Fingering') {
-                    // When fingerings are created, they are above the notehead, meaning that
+                    // When fingerings are just created, they are above the notehead, meaning that
                     // we can't use the current Y position of the fingering to determine
                     // whether it will vertically collide with said note.
                     // Instead, we use the Y positions of the notehead as a guideline.
 
                     // We assume that the tallest symbol will protrude the notehead height by 
-                    // +/- 0.5sp. (About there for the pipe symbol |).
-                    absTopPos = note.pagePos.y + note.bbox.top - 0.5 + additionalYOffset - halfAddHeight;
-                    absBottomPos = note.pagePos.y + note.bbox.bottom + 0.5 + additionalYOffset + halfAddHeight;
+                    // +/- 0.5sp. (pipe symbol |). 
+                    // This is a very conservative estimate and may cause wasted space.
+
+                    absTopPos = note.pagePos.y + note.bbox.top - 0.5;
+                    absBottomPos = note.pagePos.y + note.bbox.bottom + 0.5;
                 } else {
-                    absTopPos = elem.pagePos.y + elem.bbox.top + additionalYOffset - halfAddHeight;
-                    absBottomPos = elem.pagePos.y + elem.bbox.bottom + additionalYOffset + halfAddHeight;
+                    absTopPos = elem.pagePos.y + elem.bbox.top;
+                    absBottomPos = elem.pagePos.y + elem.bbox.bottom;
                 }
+                // apply custom offsets
+                absTopPos += cusOff.additionalYOffset - cusOff.halfAddHeight;
+                absBottomPos += cusOff.additionalYOffset + cusOff.halfAddHeight;
+
                 if (absTopPos < symbolsTop) {
                     symbolsTop = absTopPos;
                 }
@@ -4708,28 +4780,18 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
             var prevX = prevElemLeft != null ? (prevElemLeft - note.pagePos.x) : 0;
 
             accSymbolsRTL.forEach(function (elem) {
-                var additionalXOffset = 0;
-                var additionalYOffset = 0;
-                var halfAddWidth = 0;
-                var halfAddHeight = 0;
-                var symLayoutOffset = elem.symbol && Lookup.SYMBOL_LAYOUT[elem.symbol.toString()];
-                if (symLayoutOffset) {
-                    additionalXOffset = symLayoutOffset[0];
-                    additionalYOffset = symLayoutOffset[1];
-                    halfAddWidth = symLayoutOffset[2] / 2;
-                    halfAddHeight = symLayoutOffset[3] / 2;
-                }
+                var cusOff = retrieveCustomOffsets(elem, staffLineIntersectsNote);
                 var actualSymWidth = elem.bbox.right - elem.bbox.left;
-                var effectiveSymWidth = actualSymWidth + halfAddWidth * 2 + ACC_SPACE;
-                var spaceCentralizationOffset = halfAddWidth;
+                var effectiveSymWidth = actualSymWidth + cusOff.halfAddWidth * 2 + ACC_SPACE;
+                var spaceCentralizationOffset = cusOff.halfAddWidth;
 
                 if (effectiveSymWidth < MIN_ACC_WIDTH) {
                     spaceCentralizationOffset += (MIN_ACC_WIDTH - effectiveSymWidth) / 2;
                     effectiveSymWidth = MIN_ACC_WIDTH;
                 }
 
-                var offX = prevX - effectiveSymWidth + additionalXOffset;
-                var offY = additionalYOffset;
+                var offX = prevX - effectiveSymWidth + cusOff.additionalXOffset;
+                var offY = cusOff.additionalYOffset;
                 // console.log('offX: ' + offX);
                 registeredSymbolOffsets.push({
                     elem: elem,
@@ -4743,10 +4805,10 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
 
                 // create abs bbox for newly positioned symbol
                 var symBbox = {
-                    left: note.pagePos.x + elem.bbox.left + offX - halfAddWidth,
-                    right: note.pagePos.x + elem.bbox.right + offX + halfAddWidth,
-                    top: note.pagePos.y + elem.bbox.top + offY - halfAddHeight,
-                    bottom: note.pagePos.y + elem.bbox.bottom + offY + halfAddHeight
+                    left: note.pagePos.x + elem.bbox.left + offX - cusOff.halfAddWidth,
+                    right: note.pagePos.x + elem.bbox.right + offX + cusOff.halfAddWidth,
+                    top: note.pagePos.y + elem.bbox.top + offY - cusOff.halfAddHeight,
+                    bottom: note.pagePos.y + elem.bbox.bottom + offY + cusOff.halfAddHeight
                 };
 
                 // find index to insert symBbox into positioned elements.
