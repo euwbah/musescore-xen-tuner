@@ -88,7 +88,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 
 #### Keeping accidentals up to date
 
-While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-plugin).
+While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-the-plugin).
 
 Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `scripts/tabulate_accidentals.py` python script yourself with Python 3. This will sync the plugin's accidental Symbol Codes to the "CSV Export" sheet on the spreadsheet.
 
@@ -159,6 +159,10 @@ You do not need to write the entire tuning configuration within a staff text. E.
 If you do this, you can declare a tuning system by entering the `.txt` file path (without the .txt) into Staff/System Text, and it will reference the tuning system as written in the `.txt` file.
 
 > E.g. to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
+
+> 🔴 **Beware:** if you find a tuning file with the same name, but with the file extension being `.json` instead of `.txt`, this means that the tuning configuration is [pre-computed. Read more about it in this section](#1-pre-compute-the-tuning-config).
+>
+> The plugin will opt to look for pre-computed `.json` tuning configurations first, so **changing the `.txt` file will not affect the tuning config**. Instead, you will need to use this web tool: https://euwbah.github.io/musescore-xen-tuner/ to generate a new `.json` file to replace the old one.
 
 Now lets dive into how we can create our own tuning/notation systems.
 
@@ -555,7 +559,7 @@ This will generate a .mid file at `path/to/score.mid`.
 
 -----
 
-## Updating plugin
+## Updating the plugin
 
 This plugin is very experimental, so make sure you're always using the most updated version of this plugin as bugs are always being fixed.
 This plugin does not update automatically. Redownload the code from here, and replace the files.
@@ -564,7 +568,7 @@ This plugin does not update automatically. Redownload the code from here, and re
 
 ## Troubleshooting
 
-### If the tuning is wrong/off
+### The tuning is wrong/off
 
 Checklist:
 
@@ -577,11 +581,17 @@ Checklist:
 
 If all else fails, [report an issue](#reporting-an-issue). Include the tuning config text you were trying to use and provide a score example.
 
+### I changed the tuning config text, but the plugin isn't picking up the changes
+
+- If there's a [pre-computed `.json` tuning file](#1-pre-compute-the-tuning-config), you will need to either delete it or use the [Xen Tuner pre-compute config tool](https://euwbah.github.io/musescore-xen-tuner/) to generate a new one with the updated tuning config text.
+- You will need to [clear the tuning cache](#3-clear-the-tuning-cache) for the changes to take effect.
+- If all else fails, you can just close MuseScore, rename the tuning config file, reopen MuseScore and use the new tuning config name.
+
 ### If the plugin is lagging/tuning isn't correct
 
-Try to reset the tuning cache of the score using the **Clear Tuning Cache** plugin. It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
+- [Reset the tuning cache](#3-clear-the-tuning-cache). It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
 
-If you're dealing with many notes per equave, see [how to deal with huge tunings](#writing-in-huge-tunings)
+If you're dealing with many notes per equave (>1000), see [how to deal with huge tunings](#writing-in-huge-tunings)
 
 ## Workarounds + advanced configs
 
