@@ -260,8 +260,8 @@ var SYMBOL_LAYOUT = {
     'accidentalRaiseOneSeptimalComma': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
     'accidentalLowerOneSeptimalComma': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
     'accidentalLowerTwoSeptimalCommas': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
-    'accidentalJohnstonPlus': [[0.0,0.0,0.3,0.0], [0.0,0.25,0.3,0.0]],
-    'accidentalJohnstonMinus': [[0.0,0.0,0.3,0.0], [0.0,0.25,0.3,0.0]],
+    'accidentalJohnstonPlus': [[0.0,0.0,0.15,0.0], [0.0,0.3,0.15,0.0]],
+    'accidentalJohnstonMinus': [[0.0,0.0,0.15,0.0], [0.0,0.3,0.15,0.0]],
     'accidentalJohnstonEl': [[-0.2,0.0,0.0,0.0], [-0.2,0.0,0.0,0.0]],
 };
 
