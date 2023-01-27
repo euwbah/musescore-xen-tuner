@@ -41,7 +41,7 @@ function ImportLookup() {
 
     var TEXT_TO_CODE = Generated.TEXT_TO_CODE;
 
-    
+
     var LETTERS_TO_NOMINAL = {
         'a': 0,
         'b': 1,
@@ -52,15 +52,31 @@ function ImportLookup() {
         'g': 6
     };
 
-    /**
-     * Mapping of SymId/AccidentalType string to [PosX, PosY, SizeX, SizeY] layout settings
-     * 
-     * If Symbol is not in this lookup, default layout settings are used.
-     */
     var SYMBOL_LAYOUT = Generated.SYMBOL_LAYOUT;
 
+    /**
+     * First 4 numbers: layout for space notes,
+     * Next 4 numbers: layout for line notes.
+     */
     var ASCII_LAYOUT = {
-        '+': []
+        '-': [[0, 0.2, 0.2, 0], [0, 0.5, 0.2, 0]], // middle line of - + are vertically aligned
+        '+': [[0, 0, 0, 0], [0, 0.3, 0, 0]],
+
+        '\'': [[0, -0.05, 0, 0], [0, 0.15, 0, 0]], // dots and single/double quotes are aligned at two points.
+        '"': [[0, -0.05, 0, 0], [0, 0.15, 0, 0]],
+        '.': [[0, 0.1, 0.1, 0], [0, 0.3, 0.1, 0]], 
+        ',': [[0, 0.3, 0, 0], [0, 0.5, 0, 0]],
+        ':': [[0, -0.32, 0, 0], [0, -0.12, 0, 0]],
+        ';': [[0, -0.12, 0, 0], [0, 0.08, 0, 0]],
+
+        '*': [[0, 0.32, 0, 0], [0, 0.32, 0, 0]], // asterisk is vertically centered
+        '<': [[0, 0.06, 0, 0], [0, 0.06, 0, 0]], // chevrons are vertically centered
+        '>': [[0, 0.06, 0, 0], [0, 0.06, 0, 0]],
+        '^': [[0, 0.3, 0, 0], [0, 0.3, 0, 0]], // caret is vertically centered
+        '{': [[0,0,0,0], [0,0.1,0,0]], // make the curliness of the braces stand out from the staff line
+        '}': [[0,0,0,0], [0,0.1,0,0]],
+        '?': [[0,0.06,0,0], [0,-0.1,0,0]], // makes it look cleaner
+        '!': [[0,0.06,0,0], [0,-0.1,0,0]],
     };
 
     var LETTERS_TO_SEMITONES = {
@@ -135,58 +151,65 @@ function ImportLookup() {
 
     return {
         /**
-        Lookup table for mapping SymbolCode number to 
-        musescore's internal accidental names and accidental symbol names.
-
-        Index of element in array = SymbolCode number.
-        
-        Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
-        that look alike but have different internal representations. This plugin
-        should treat identical looking accidentals all the same.
-        
-        All caps are accidental names (the string value of Note.accidentalType)
-        Non caps are symbol names (string value of Element.symbol)
-        
-        E.g. CODE_TO_LABELS[2] contains all the possible accidental names/symbol names
-        that represent the sesquisharp (#+) accidental.
-        
-        Whenever 'accidentalID' is used in code, it refers to the index of the
-        accidental in this array.
-        
-        To be kept updated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
-
-        @type {Array.<Array.<string>>}
-        */
+         * Lookup table for mapping SymbolCode number to 
+         * musescore's internal accidental names and accidental symbol names.
+         * 
+         * Index of element in array = SymbolCode number.
+         * 
+         * Note: this is a one-to-many lookup table, as there are multiple symbols/accidentals
+         * that look alike but have different internal representations. This plugin
+         * should treat identical looking accidentals all the same.
+         * 
+         * All caps are accidental names (the string value of Note.accidentalType)
+         * Non caps are symbol names (string value of Element.symbol)
+         * 
+         * E.g. CODE_TO_LABELS[2] contains all the possible accidental names/symbol names
+         * that represent the sesquisharp (#+) accidental.
+         * 
+         * Whenever 'accidentalID' is used in code, it refers to the index of the
+         * accidental in this array.
+         * 
+         * Auto-generated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+         * 
+         * @type {Array.<Array.<string>>}
+         */
         CODE_TO_LABELS: CODE_TO_LABELS,
+
         /**
          * The inverse many-to-one mapping of the above CODE_TO_LABELS array.
          * 
          * Maps internal labels/IDs to SymbolCode number.
          * 
+         * Auto-generated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+         * 
          * @type {Object.<string, number>}
          */
         LABELS_TO_CODE: LABELS_TO_CODE,
+
         /**
          * Mapping of Text Codes to SymbolCode.
          * 
-         * To be kept updated with https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
-         * 
          * (For inputting symbols via text representation)
+         * 
+         * Auto-generated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
          * 
          * @type {Object.<string, number>}
          */
         TEXT_TO_CODE: TEXT_TO_CODE,
+
         /**
          * Mapping of 12EDO note letters to number of nominals from A.
          * 
          * Nominals reset at the note A.
          */
         LETTERS_TO_NOMINAL: LETTERS_TO_NOMINAL,
+
         /**
          * Mapping of 12EDO note letters to semitones from A.
          * (A is the reference note which the octave is based on).
          */
         LETTERS_TO_SEMITONES: LETTERS_TO_SEMITONES,
+
         /**
          * Mapping from 12edo TPCs to a [nominals, midiOctaveOffset] tuple.
          * 
@@ -205,24 +228,73 @@ function ImportLookup() {
          *      on the note A. (A4 = 0th octave, G4 = -1st octave)
          */
         TPC_TO_NOMINAL: TPC_TO_NOMINAL,
+
         /**
-         * Contains additional position and size offsets for certain symbols.
+         * Contains additional position and size/space offsets for certain symbols.
          * 
-         * Keys are SMuFL IDs and values are 4-number arrays denoting:
+         * Keys are SMuFL IDs and values are two 4-tuples denoting:
          * 
+         * ```js
+         * [[X, Y, width, height], [X, Y, width, height]]
          * ```
-         * [X, Y, width, height]
-         * ```
          * 
-         * Where `X` & `Y` are additional X and Y position offsets on top of the
-         * plugin's auto-placement algorithm, and
+         * The first set of 4 numbers apply to 'space notes' (FACE treble clef), and the next set of 4 numbers
+         * apply to 'line notes' (EGBDF treble clef).
          * 
-         * `width` & `height` are additional width and height offsets on top
-         * of the symbol's {@link PluginAPIElement.bbox} information.
+         * - `X`: additional horizontal offset. +ve moves right, -ve moves left.
+         * - `Y`: additional vertical offset. +ve moves down, -ve moves up.
+         * - `SizeX`: additional horizontal space taken up by symbol. 
+         *   Space distributes evenly on both left and right sides.
+         * - `SizeY`: additional vertical space taken up by symbol.
+         *   Space distributes evenly on both top and bottom sides.
          * 
-         * @type {Object.<string, [number, number, number, number]>}
+         * If Symbol is not in this lookup, default layout settings are used.
          * 
+         * Auto-generated with: https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing
+         * 
+         * @type {Object.<string, [[number, number, number, number], [number, number, number, number]]>}
          */
         SYMBOL_LAYOUT: SYMBOL_LAYOUT,
+
+        /**
+         * Contains additional position and size/space offsets for certain ASCII accidentals.
+         * 
+         * Keys are ASCII accidental strings, values are two 4-tuples:
+         * 
+         * ```js
+         * [[X, Y, SizeX, SizeY], [X, Y, SizeX, SizeY]]
+         * ```
+         * 
+         * The first set of 4 numbers apply to 'space notes' (FACE treble clef), and the next set of 4 numbers
+         * apply to 'line notes' (EGBDF treble clef).
+         * 
+         * - `X`: additional horizontal offset. +ve moves right, -ve moves left.
+         * - `Y`: additional vertical offset. +ve moves down, -ve moves up.
+         * - `SizeX`: additional horizontal space taken up by symbol. 
+         *   Space distributes evenly on both left and right sides.
+         * - `SizeY`: additional vertical space taken up by symbol.
+         *   Space distributes evenly on both top and bottom sides.
+         * 
+         * The ASCII accidental must match the string exactly for the layout to be applied (e.g. 'bb' will not match 'b').
+         * 
+         * **The fingering text must be formatted as:**
+         * 
+         * - **Edwin font, 11px**
+         * - **left align, vertical center align**
+         * - **minimum distance -99sp** (to prevent auto-place from messing up)
+         * - **auto-place on** (to correctly push-back prior segments in the staff)
+         * 
+         * These settings are currently optimized for HEWM ASCII notation.
+         * 
+         * Using any other font/fontsize may result in messy layout.
+         * 
+         * The first set of 4 numbers apply to 'space notes' (FACE treble clef), and the next set of 4 numbers
+         * apply to 'line notes' (EGBDF treble clef).
+         * 
+         * If ASCII string is not in this lookup, default layout settings are used.
+         * 
+         * @type {Object.<string, [[number, number, number, number], [number, number, number, number]]>}
+         */
+        ASCII_LAYOUT: ASCII_LAYOUT,
     };
 }
