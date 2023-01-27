@@ -154,11 +154,13 @@ To declare a tuning system, we need to enter the **Tuning Configuration** into t
 
 System Text elements will apply to all staves from that bar onwards, whereas Staff Text will only apply to the staff it is attached to.
 
-You do not need to write the entire tuning configuration within a staff text. E.g. if you frequently use a tuning with rather lengthy configuration text, you can create a `.txt` file inside the included `tunings/` folder.
+You do not need to write the entire tuning configuration within a staff text. E.g. if you frequently use a tuning with rather lengthy configuration text, you can create a `.txt` file ([or pre-computed `.json` file](#1-pre-compute-the-tuning-config)) inside the included `tunings/` folder.
 
-If you do this, you can declare a tuning system by entering the `.txt` file path (without the .txt) into Staff/System Text, and it will reference the tuning system as written in the `.txt` file.
+If you do this, you can select a tuning system by using the file path (without the `.txt` or `.json` extension) in Staff/System Text, and it will reference the tuning system as written in the `.txt` file.
 
 > E.g. to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
+>
+> 🟢 **Recommended**: have a look at the provided tuning configs in the `tunings/` folder to see how the notation/tuning systems are configured.
 
 > 🔴 **Beware:** if you find a tuning file with the same name, but with the file extension being `.json` instead of `.txt`, this means that the tuning configuration is [pre-computed. Read more about it in this section](#1-pre-compute-the-tuning-config).
 >
