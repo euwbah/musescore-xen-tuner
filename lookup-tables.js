@@ -59,6 +59,10 @@ function ImportLookup() {
      */
     var SYMBOL_LAYOUT = Generated.SYMBOL_LAYOUT;
 
+    var ASCII_LAYOUT = {
+        '+': []
+    };
+
     var LETTERS_TO_SEMITONES = {
         'a': 0,
         'b': 2,

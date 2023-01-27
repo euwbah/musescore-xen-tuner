@@ -4153,7 +4153,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
     var isEnharmonic = direction == 0;
     var isDiatonic = !isEnharmonic && constantConstrictions &&
-        constantConstrictions.length == 1 && constantConstrictions[0] == 0;
+        constantConstrictions.length == tuningConfig.accChains.length && constantConstrictions.indexOf(0) == -1;
     var isNonDiatonicTranspose = !isEnharmonic && !isDiatonic;
 
     if (KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC && isDiatonic ||
@@ -4163,6 +4163,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         // We need to keep secondary accidentals.
         // Carry forward secondary symbols and prepend them
         accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
+        console.log('keeping acc symbols: ' + JSON.stringify(accSymbols));
     }
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
@@ -4415,7 +4416,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
  * @returns {boolean} `true` if intervals overlap, `false` otherwise.
  */
 function intervalOverlap(a1, a2, b1, b2) {
-    console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
+    // console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
     return (a1 - b2) * (a2 - b1) <= 0;
 }
 
@@ -4498,7 +4499,7 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
  * 
  * Uses the [zig-zag algorithm](https://musescore.org/en/node/25055) to auto-position symbols.
  * 
- * Also positions HEWM fingering to the left of any other accidental symbols, treating it
+ * Also positions text-based accidentals to the left of any other accidental symbols, treating it
  * as if it were an accidental symbol.
  * 
  * returns the largest (negative) distance between the left-most symbol the notehead 
@@ -4694,16 +4695,19 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
             // 'hole' begins and expands leftward, which is the absolute left bbox
             // of the leftmost element before the 'hole' starts.
 
+            // In case none of the symbols vertically intersects with any existing positioned
+            // bbox (perhaps this symbol has specific overrides to be positioned atop a notehead),
+            // we assume that prevX is 0sp by default.
+
+            if (prevElemLeft == null) {
+                console.warn('WARNING: Symbol does not vertically intersect with any positioned elements, setting ' +
+                    'x offset to 0.');
+            }
+
             // prevX is the relative offset to assign to the curr symbol.
-            var prevX = prevElemLeft - note.pagePos.x;
+            var prevX = prevElemLeft != null ? (prevElemLeft - note.pagePos.x) : 0;
 
             accSymbolsRTL.forEach(function (elem) {
-                if (elem.text) {
-                    console.log('positioning ascii acc: ' + elem.text + ', prevX: ' + prevX
-                        + 'pagePos: ' + JSON.stringify(elem.pagePos) + ', bbox: ' + JSON.stringify(elem.bbox));
-                    console.log('prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x);
-                }
-
                 var additionalXOffset = 0;
                 var additionalYOffset = 0;
                 var halfAddWidth = 0;
