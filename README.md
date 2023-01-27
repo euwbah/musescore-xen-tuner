@@ -38,7 +38,7 @@ Extract files to plugins folder and activate all the following plugins (see [thi
 This plugin is designed to replace MuseScore's default shortcuts. You will need to **remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
 - Pitch up/down or move text/articulation up/down  (`Up/Down` arrow keys)
-- Change enharmonic spelling (current mode) (`Ctrl+J`) (optional)
+- Change enharmonic spelling (`J`)
 - Diatonic up/down (`Shift+Alt+Up/Down`)
 - Go to higher/lower pitched note in chord (`Alt+Up/Down`)
 - Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
