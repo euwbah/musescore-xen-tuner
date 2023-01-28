@@ -1407,6 +1407,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             return null;
         }
 
+        var isWeak = line.endsWith('?');
         var ligAvToSymbols = {};
 
         var goToAux = false;
@@ -1419,7 +1420,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var line = lines[j].trim();
 
             // Check for `aux(x,y,..)` declaration
-            if (line.match(/aux\([0-9,]+\)/) != null) {
+            if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
                 nextDeclStartLine = j;
                 goToAux = true;
                 break;
@@ -1444,6 +1445,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningConfig.ligatures.push({ // Ligature
             regarding: regarding,
             ligAvToSymbols: ligAvToSymbols,
+            isWeak: isWeak,
         });
 
         if (goToAux)
