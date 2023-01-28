@@ -1157,6 +1157,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         notesTable: {},
         tuningTable: {},
         avTable: {},
+        avToSymbols: [],
         stepsList: [],
         stepsLookup: {},
         enharmonics: {},
@@ -1827,6 +1828,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 equavesAdjusted: equavesAdjusted,
             });
 
+            tuningConfig.avToSymbols[accidentalVector] = orderedSymbols;
+
             // SETTLE IMPLEMENTING LIGATURES AS ENHARMONICS
             //
             //
@@ -1924,6 +1927,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
                     });
+
+                    if (!lig.isWeak) {
+                        // Strong ligatures should take precedence.
+                        tuningConfig.avToSymbols[accidentalVector] = ligOrderedSymbols;
+                    }
                 }
             });
         }
@@ -2698,23 +2706,14 @@ function readFingeringAccidentalInput(msNote, tuningConfig) {
                 // remove the fingering.
                 msNote.internalNote.remove(fingering);
 
-                var orderedSymbols = [];
+                var orderedSymbols = tuningConfig.avToSymbols[av];
 
-                // Loop from left most (last) acc chain to right most acc chain.
-                for (var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
-                    var accChain = tuningConfig.accChains[accChainIdx];
-                    var deg = av[accChainIdx];
-                    if (deg != 0) {
-                        var degIdx = deg + accChain.centralIdx;
-                        var symCodes = accChain.degreesSymbols[degIdx]; // left-to-right
-                        orderedSymbols = orderedSymbols.concat(symCodes);
-                    }
+                if (orderedSymbols != undefined) {
+                    return {
+                        symCodes: orderedSymbols,
+                        type: 'av',
+                    };
                 }
-
-                return {
-                    symCodes: orderedSymbols,
-                    type: 'av',
-                };
             }
         }
     }

@@ -273,11 +273,17 @@ class NoteData {
  * Note that this mapping is not bijective - two {@link XenNote}s can have different
  * nominals but the same {@link AccidentalVector}.
  * 
- * NOTE: There doesn’t seem to be a use case for an
- * inverse mapping of this yet. However, if it is required later down
- * the line, that would mean a lot of the implementation has to change. Hmm.
- * 
  * @typedef {Object.<string, AccidentalVector>} AccidentalVectorTable
+ */
+
+/**
+ * Contains a lookup of accidental vectors to their respective symbols.
+ * 
+ * The key is an {@link AccidentalVector} list.
+ * 
+ * Values are {@link SymbolCode}[] lists, in left-to-right display order.
+ * 
+ * @typedef {Object.<string, SymbolCode[]>} AccidentalVectorSymbols
  */
 
 /**
@@ -452,6 +458,17 @@ class TuningConfig {
     tuningTable;
     /** @type {AccidentalVectorTable}*/
     avTable;
+    /** 
+     * A lookup mapping {@link AccidentalVector} to {@link SymbolCode}s that
+     * best represent the accidental vector.
+     * 
+     * If different sets of symbols can represent the same {@link AccidentalVector},
+     * e.g. {@link Ligature ligatured} vs non-ligatured spellings, the ligatured spelling will take
+     * precedence if the ligature is not a {@link Ligature.isWeak weak ligature}.
+     * 
+     * @type {AccidentalVectorSymbols} 
+     */
+    avToSymbols;
     /** @type {StepwiseList} */
     stepsList;
     /** @type {StepwiseLookup} */
