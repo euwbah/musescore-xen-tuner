@@ -2070,7 +2070,6 @@ function parseKeySig(text) {
 
     var keySig = [];
 
-
     nomSymbols.forEach(function (s) {
         var symCodes = parseSymbolsDeclaration(s);
 
@@ -3520,6 +3519,13 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
 
     // Sort them such that the best option is at the front
     nextNoteOptions.sort(function (a, b) {
+        // Ligatures should always be preferred
+        if (a.nextNote.xen.isLigature && !b.nextNote.xen.isLigature) {
+            return -1;
+        } else if (!a.nextNote.xen.isLigature && b.nextNote.xen.isLigature) {
+            return 1;
+        }
+
         // Lower AV Dist is better. Give +/- 0.5 leeway for
         // 'similar' AV dist.
         if (a.avDist - b.avDist <= -0.5) {
