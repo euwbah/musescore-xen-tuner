@@ -177,10 +177,17 @@ class XenNote {
      */
     hash;
     /**
-     * If `true`, this {@link XenNote} is ligatured.
+     * If `true`, this {@link XenNote} has ligature priority.
+     * 
+     * I.e. this spelling will be chosen over non-ligature enharmonic
+     * spellings.
+     * 
+     * If this {@link XenNote} was created from a weak ligature, this
+     * will still be `false`.
+     * 
      * @type {boolean}
      */
-    isLigature;
+    hasLigaturePriority;
 }
 
 /**
@@ -411,6 +418,17 @@ class Ligature {
      * @type {Object.<string, SymbolCode[]>}
      */
     ligAvToSymbols;
+    /**
+     * `true` if ligature is declared to be weak `lig(x)?`
+     * (Lig declaration line ends with question mark in tuning config)
+     * 
+     * If a ligature is weak, ligatured symbols do not get special
+     * priority over non-ligatured symbols when selecting appropriate
+     * enharmonic spellings.
+     * 
+     * @type {boolean}
+     */
+    isWeak;
 }
 
 /**

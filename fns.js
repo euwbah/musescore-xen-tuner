@@ -1718,7 +1718,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     orderedSymbols: [],
                     accidentals: null,
                     hash: createXenHash(nomIdx, {}),
-                    isLigature: false,
+                    hasLigaturePriority: false,
                 },
                 cents: nominalCents,
                 equavesAdjusted: 0,
@@ -1821,7 +1821,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     orderedSymbols: orderedSymbols,
                     accidentals: orderedSymbols.length == 0 ? null : accidentalSymbols,
                     hash: createXenHash(nomIdx, accidentalSymbols),
-                    isLigature: false,
+                    hasLigaturePriority: false,
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
@@ -1919,7 +1919,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                             orderedSymbols: ligOrderedSymbols,
                             accidentals: ligOrderedSymbols.length == 0 ? null : ligaturedSymbols,
                             hash: createXenHash(nomIdx, ligOrderedSymbols),
-                            isLigature: true,
+                            hasLigaturePriority: !lig.isWeak,
                         },
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
@@ -2518,7 +2518,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
             break;
         }
 
-        if (tuningConfig.notesTable[traversedHash].isLigature) {
+        if (tuningConfig.notesTable[traversedHash].hasLigaturePriority) {
             xenNote = tuningConfig.notesTable[traversedHash];
             break;
         }
@@ -3522,9 +3522,9 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     // Sort them such that the best option is at the front
     nextNoteOptions.sort(function (a, b) {
         // Ligatures should always be preferred
-        if (a.nextNote.xen.isLigature && !b.nextNote.xen.isLigature) {
+        if (a.nextNote.xen.hasLigaturePriority && !b.nextNote.xen.hasLigaturePriority) {
             return -1;
-        } else if (!a.nextNote.xen.isLigature && b.nextNote.xen.isLigature) {
+        } else if (!a.nextNote.xen.hasLigaturePriority && b.nextNote.xen.hasLigaturePriority) {
             return 1;
         }
 

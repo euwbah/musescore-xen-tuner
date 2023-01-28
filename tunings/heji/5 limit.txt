@@ -1,4 +1,4 @@
-// A subset of 5-limit JI notation using HEJI notation
+// A subset of 5-limit JI notation using HEJI (2020) notation
 // A4 is tuned to 440 Hz.
 //
 // Tuning space comprises:
@@ -12,16 +12,17 @@ C4: 440*16/27 // Indirectly tune A4 by tuning C4 to 16/27 of A4 = 440
 
 // Here we declare two accidental chains
 
-// 3-limit accidentals from bbb to #x
+// Chain 1: 3-limit accidentals from bbb to #x
 bbb bb b (2187/2048) # x #x
-// 5-limit acc from -3 to +3
-\\.\\.\\ \\.\\ \\ (81/80) / /./ /././
+
+// Chain 2: 5-limit acc from -3 to +3
+v3 v2 v (81/80) ^ ^2 ^3
 
 // Notice that we need to escape backslashes. "\\" instead of "\"
 
 // Here we declare ligatures between the 1st and 2nd chain
 // In HEJI, syntonic commas can merge with sharp/flat/natural
-// accidentals to form ligatured symbols.
+// accidentals into a single ligatured symbol.
 lig(1,2)
 -2 -3 bbv3 // doubleflat and 3 downs combine into a double flat with 3 down arrows HEJI symbol
 -2 -2 bbv2
@@ -47,6 +48,14 @@ lig(1,2)
 2 1 x^
 2 2 x^2
 2 3 x^3
+
+// A second ligature is declared for the single flat/sharp sign
+// In HEJI, the tilde can be used to signify 3-limit enharmonic substitution.
+// Since ligatures are implemented as enharmonics, this will allow us to
+// use the J 'cycle-enharmonics'
+lig(1)
+-1 ~.#v // flat equals ~#v
+1 ~.b^
 
 // Here we declare 4 auxiliary up/down operations.
 // These will be accessible as the aux1, aux2, aux3, aux4 up/down operations

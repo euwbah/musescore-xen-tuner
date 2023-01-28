@@ -4,7 +4,7 @@ A **MuseScore 3.6** plugin to give first-class support for microtonal/alternativ
 
 ## Features/Goals
 
-- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed!](#help-needed) Currently at 44%)
+- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#help-needed)! Currently at 44%)
 
 - [x] Automated tuning & placement of multiple accidentals.
 
@@ -41,7 +41,7 @@ Extract files to plugins folder and activate all the following plugins (see [thi
 
 This plugin is designed to replace MuseScore's default shortcuts. You will need to **remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
-- Pitch up/down or move text/articulation up/down  (`Up/Down` arrow keys)
+- Pitch up/down or move text/articulation up/down (`Up/Down` arrow keys)
 - Change enharmonic spelling (`J`)
 - Diatonic up/down (`Shift+Alt+Up/Down`)
 - Go to higher/lower pitched note in chord (`Alt+Up/Down`)
@@ -51,7 +51,7 @@ Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-
 
 ### 3. Start Xen Tuner
 
-![](imgs/start%20xen%20tuner.png)
+![start tuner](imgs/start%20xen%20tuner.png)
 
 Once you have activated the plugins & replaced the shortcuts, you can start the plugin in **Plugins > Xen Tuner > Start Xen Tuner**.
 
@@ -61,7 +61,7 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 
 ### 4. Select tuning configuration & key signatures
 
-![](imgs/specify%20tuning%20config.png)
+![specify tuning config](imgs/specify%20tuning%20config.png)
 
 You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the configuration text itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
 
@@ -79,7 +79,7 @@ Enter notes as per normal. Press `Alt+R` after entering new notes to retune them
 
 There are four different ways to input accidentals. The most primitive method being dragging symbols in from the Master Palette, then hitting `Alt+R`.
 
-However, the recommended way to enter accidentals is through these shortcuts ([which you can change](#how-to-change-shortcuts)):
+However, the recommended way to enter accidentals would be to use up/down operations. These are available as keyboard shortcuts ([which you can change](#how-to-change-shortcuts)):
 
 - `Up/Down`: Move note up/down to the next nearest step
 - `J`: Cycle through enharmonics of the note
@@ -282,7 +282,7 @@ sec() // signifies start of secondary accidental declaration.
 
 ```
 
-The declarations must occur in the specified order. Apart from the reference note and nominals, all the other declarations are optional:
+The declarations need to be in order. Apart from the reference note and nominals, all the other declarations are optional:
 
 1. Reference note
 2. Nominals
@@ -290,6 +290,12 @@ The declarations must occur in the specified order. Apart from the reference not
 4. Ligatures
 5. Auxiliary operations
 6. Secondary accidentals & text representations
+
+### Full example
+
+See [heji/5 limit.txt](tunings/heji/5%20limit.txt) for a full annotated example of implementing the tuning configuration for the [extended Helmholtz-Ellis just intonation notation (2020 edition)](https://marsbat.space/pdfs/HEJI2_legend+series.pdf). In this tuning config, the up/down operations are implemented for up to the 5 limit, but higher limit accidentals are available as secondary accidentals, and can be entered via fingerings with the accidentals' text representations.
+
+Continue reading on for a more detailed explanation:
 
 ### Simple example
 
@@ -302,7 +308,7 @@ A4: 440
 
 `A4: 440` specifies the reference note and tuning in Hertz, which sets the note A4 to 440hz.
 
-`0c 200c 300c 500c 700c 800c 1000c` specifies, in cents, the tunings of each of the 7 nominals starting from the reference note A4. This means that B4 will be 200c higher than A4, C5 will be 300c higher than A4, etc... Each entry must be separated by a space.
+`0c 200c 300c 500c 700c 800c 1000c` specifies, in cents, the tunings of each of the 7 nominals starting from the reference note of choice, A4. This means that B4 will be 200c higher than A4, C5 will be 300c higher than A4, etc... Each entry must be separated by a space.
 
 The last interval size, `1200c`, specifies the equave size. The equaves are referenced in terms of the nominals defined, rather than the standard 12edo octave. E.g., if you only declare 2 nominals, then the next equave up from A4 will start at C5 instead of A5.
 
@@ -343,12 +349,12 @@ bbb bb b (2187/2048) # x #x
 ```
 
 > 🟢 Every ratio/cents interval can be specified as a math/JavaScript expression.
-> 
+>
 > **To differentiate ratios from cents, cents must end with a 'c'.**
 
 We're now setting the reference note C4 to a just-intonated 3-limit major sixth below A4. Because of that, we can now specify our nominals starting from C, which makes it a little easier to calculate the ratios.
 
-Our nominals are now all 3-limit ratios built of a chain of pure fifths from F to B, which are the standard nominals used in JI notations (unless you're writing in Ben Johnston's system).
+Our nominals are now all 3-limit ratios built off a chain of pure fifths from F to B, which are the standard nominals used in JI notations (unless you're writing in Ben Johnston's system).
 
 ### More accidental chains: 5-limit JI
 
