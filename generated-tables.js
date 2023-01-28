@@ -163,6 +163,8 @@ var CODE_TO_LABELS = [
     ['accidentalOneQuarterToneFlatFerneyhough'],
     ['accidentalOneThirdToneFlatFerneyhough'],
     ['accidentalTwoThirdTonesFlatFerneyhough'],
+    ['accSagittalSharp'],
+    ['accSagittalFlat'],
 ];
 
 
