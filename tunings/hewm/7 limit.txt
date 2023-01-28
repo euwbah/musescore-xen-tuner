@@ -1,19 +1,21 @@
-// Pure HEWM with ASCII accidentals (save for sharps/flats)
+// Pure HEWM with text-based accidentals
 // 3 standard sharps/flats
-// 3 syntonic commas up/down notated as ASCII + -
-// 2 septimal commas up/down notated as ASCII > <
+// 3 syntonic commas up/down notated as + -
+// 2 septimal commas up/down notated as > <
 // Higher limit accidentals are entered using secondary accidentals
-// and are represented as ASCII.
+// and are represented as various HEWM text-based accidentals
 
 C4: 440 * 16/27
 0 9/8 81/64 4/3 3/2 27/16 243/128 2/1
 bbb bb b (2187/2048) # x #x
 '-'.'-'.'-' '-'.'-' '-' (81/80) '+' '+'.'+' '+'.'+'.'+'
 '<'.'<' '<' (64/63) '>' '>'.'>'
+
 aux(0)
 aux(1)
 aux(2)
 aux(3)
+
 sec()
 // ascii-representations of 7-limit and below are converted to
 // smufl symbols.
@@ -26,7 +28,7 @@ sec()
 'x' x Math.pow(2187/2048,2)
 '#' # 2187/2048
 
-// Pure single-element ASCII secondary accidentals will auto-define conversion rules 
+// Pure single-element text-based secondary accidentals will auto-define conversion rules 
 // to match text input to converted ASCII accidentals.
 // These 5 & 7 limit accidentals will match into primary accidentals
 // until it exceeds the defined accidental chains.
