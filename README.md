@@ -202,7 +202,7 @@ Now lets dive into how we can create our own tuning/notation systems.
 
 ### Tuning configuration syntax overview
 
-```js
+```
 // This is a comment. Comments are ignored by the plugin.
 
 // 1. Reference note
