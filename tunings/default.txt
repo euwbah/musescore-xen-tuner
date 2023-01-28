@@ -1,4 +1,14 @@
 A4: 440
 0c 200c 300c 500c 700c 800c 1000c 1200c
-bb b (100c) # x
+bbb bb b (100c) # x #x
 aux(0)
+sec()
+'bbb' bbb -300c
+'bb' bb -200c
+'b' b -100c
+'###' #x 300c
+'#x' #x 300c
+'x#' #x 300c
+'##' x 200c
+'x' x 200c
+'#' # 100c

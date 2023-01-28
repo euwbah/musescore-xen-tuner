@@ -459,12 +459,16 @@ class TuningConfig {
     /** @type {AccidentalVectorTable}*/
     avTable;
     /** 
-     * A lookup mapping {@link AccidentalVector} to {@link SymbolCode}s that
-     * best represent the accidental vector.
+     * An {@link AccidentalVectorSymbols} lookup mapping {@link AccidentalVector} 
+     * to {@link SymbolCode}s that best represent the accidental vector.
      * 
      * If different sets of symbols can represent the same {@link AccidentalVector},
      * e.g. {@link Ligature ligatured} vs non-ligatured spellings, the ligatured spelling will take
      * precedence if the ligature is not a {@link Ligature.isWeak weak ligature}.
+     * 
+     * If multiple ligatures exist for the same accidental vector (which really 
+     * shouldn't happen), the last declared ligature will take precedence in this
+     * lookup.
      * 
      * @type {AccidentalVectorSymbols} 
      */

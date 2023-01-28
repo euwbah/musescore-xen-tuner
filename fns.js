@@ -1149,8 +1149,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     // comments start with two slashes
     text = text.replace(/^(.*?)\/\/.*$/gm, '$1')
         // remove empty lines
-        .replace(/^(?:[\t ]*(?:\r?\n|\r))+/gm, '');
-
+        .replace(/^(?:[\t ]*(?:\r?\n|\r))+/gm, '')
+        .trim();
 
     /** @type {TuningConfig} */
     var tuningConfig = { // TuningConfig
@@ -1253,8 +1253,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     //
     //
 
-    var nextDeclStartLine = null;
-
     for (var i = 2; i < lines.length; i++) {
         var line = lines[i].trim();
 
@@ -1265,7 +1263,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var matches = line.match(/(lig|aux|sec)\([0-9,]*\)/);
         if (matches != null) {
-            nextDeclStartLine = i;
             break;
         }
 
@@ -1287,7 +1284,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var maybeIncrement = parseCentsOrRatio(matchIncrement[1]);
 
                 if (maybeIncrement == null) {
-                    console.error('TUNING CONFIG ERROR: invalid accidental chain increment: ' + matchIncrement[1]);
+                    console.error('TUNING CONFIG ERROR: ' + (i+1) + ': invalid accidental chain increment: ' + matchIncrement[1]);
                     return null;
                 }
 
@@ -1328,7 +1325,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     if (maybeOffset != null) {
                         offset = maybeOffset;
                     } else {
-                        console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + offsetText);
+                        console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid accidental tuning offset specified: ' + offsetText);
                     }
                 }
 
@@ -1343,7 +1340,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         if (!increment || centralIdx == null) {
-            console.error('TUNING CONFIG ERROR: Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
             return null;
         }
 
@@ -1367,16 +1364,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     //
     //
 
-    for (var i = nextDeclStartLine; i < lines.length; i++) {
-
-        if (nextDeclStartLine == null)
-            break;
+    for (; i < lines.length; i++) {
 
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
         if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
-            nextDeclStartLine = i;
             // console.log('skip lig');
             break;
         }
@@ -1391,7 +1384,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var match = line.match(/lig\(([0-9,]+)\)/);
 
         if (match == null) {
-            console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
             return null;
         }
 
@@ -1404,7 +1397,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             });
 
         if (hasInvalid) {
-            console.error('TUNING CONFIG ERROR: Invalid ligature declaration: ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid ligature declaration: ' + line);
             return null;
         }
 
@@ -1420,9 +1413,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
             var line = lines[j].trim();
 
+            if (line.match(/lig\([0-9,]+\)/) != null) {
+                // Next ligature declaration
+                break;
+            }
+
             // Check for `aux(x,y,..)` declaration
             if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
-                nextDeclStartLine = j;
                 goToAux = true;
                 break;
             }
@@ -1449,24 +1446,23 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             isWeak: isWeak,
         });
 
-        if (goToAux)
+        if (goToAux) {
+            i = j;
             break;
+        }
 
-        // jump to new line
-        i = j + 1;
+        // move outer loop to before next lig() declaration.
+        i = j - 1;
     }
 
     // PARSE AUX
     //
     //
 
-    for (var i = nextDeclStartLine; i < lines.length; i++) {
-        if (nextDeclStartLine == null) break;
-
+    for (; i < lines.length; i++) {
         var line = lines[i].trim();
 
         if (line.match(/sec\([0-9,]*\)/) != null) {
-            nextDeclStartLine = i;
             break;
         }
 
@@ -1477,7 +1473,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         if (match == null) {
             // Aux declarations finished. 
             // Parse secondary symbols.
-            nextDeclStartLine = i;
             break;
         }
 
@@ -1496,7 +1491,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             });
 
         if (hasInvalid) {
-            console.error('TUNING CONFIG ERROR: Invalid aux declaration: ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid aux declaration: ' + line);
             return null;
         }
 
@@ -1522,8 +1517,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningConfig.auxList.push(constantConstrictions);
     }
 
-    nextDeclStartLine = i;
-
 
     // PARSE SECONDARY SYMBOLS, ASCII CONVERSIONS
     //
@@ -1539,14 +1532,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         u7 32c      // declares a secondary SMuFL symbol without conversion.
     */
 
-    for (var i = nextDeclStartLine; i < lines.length; i++) {
-        if (nextDeclStartLine == null) break;
-
+    for (; i < lines.length; i++) {
         var line = lines[i].trim();
 
         // Check for `sec()` declaration
         if (line != 'sec()') {
-            console.error('TUNING CONFIG ERROR: Expected sec(), got "' + line + '" instead.');
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Expected sec(), got "' + line + '" instead.');
             return null;
         }
 
@@ -1561,7 +1552,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var cents = parseCentsOrRatio(words[1]);
 
                 if (symCodes == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Invalid secondary symbol declaration: ' + line);
                     return null;
                 }
 
@@ -1588,7 +1579,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.asciiToSmuflConv[asciiFrom] = symCodes;
                     tuningConfig.asciiToSmuflConvList.push(asciiFrom);
                 }
-
             } else if (words.length == 3) {
                 // Declaring a secondary symbol with conversion.
                 // Conversion always goes from ASCII
@@ -1599,12 +1589,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var cents = parseCentsOrRatio(words[2]);
 
                 if (symCodesASCIIFrom == null || symCodesTo == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Invalid secondary symbol declaration: ' + line);
                     return null;
                 }
 
                 if (symCodesASCIIFrom.length != 1 || typeof (symCodesASCIIFrom[0]) != 'string') {
-                    console.error('TUNING CONFIG ERROR: Convert-from ASCII must be a single pure ASCII symbol.\n'
+                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Convert-from text must be a single-element text symbol.\n'
                         + 'Received a multi-symbol/hybrid accidental instead' + line);
                     return null;
                 }
@@ -1624,12 +1614,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
             } else {
-                console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                console.error('TUNING CONFIG ERROR: ' + (j+1) + 
+                    ': Secondary symbol declaration must have 2 or 3 space separated words. Got : ' + line);
                 return null;
             }
         }
-
-        i = j + 1;
+        i = j - 1;
     }
 
     //
