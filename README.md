@@ -1,22 +1,22 @@
 # Xen Tuner: Microtonal MuseScore Plugin Suite
 
-A **MuseScore 3.6** plugin to give first-class support as many microtonal/xen notation systems as possible by introducing multiple accidentals per note.
+A **MuseScore 3.6** plugin to give first-class support for microtonal/alternative notation systems.
 
 ## Features/Goals
 
-- [x] Support for infinitely many tuning systems with flexibility of choice of accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), whatever... (44%, data entry [help needed!](#help-needed))
+- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed!](#help-needed) Currently at 44%)
 
-- [x] Automated tuning & auto-positioning of multiple accidentals.
+- [x] Automated tuning & placement of multiple accidentals.
 
-- [x] Every unique accidental/note within an octave/equave is accessible with up/down arrows and 'J' to cycle through enharmonics, no matter how large the tuning.
+- [x] Every accidental/note is accessible with up/down operations and 'J' to cycle through enharmonics, no matter how large the tuning.
 
-- [x] Configurable auxiliary up/down operations that limit stepwise transpositions to certain accidentals/nominals. (E.g. Move by diatonic steps only, 11-commas only, or both)
+- [x] Configurable auxiliary up/down operations to transpose by selected accidentals/nominals.
 
-- [x] Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol
+- [x] Accidental ligatures where multiple accidentals can combine and be represented as a single symbol (e.g. HEJI & Sagittal)
 
-- [x] Use of fingerings to input complex accidentals in large tuning systems
+- [x] Use of fingerings for text-based input of accidentals
 
-- [x] JI ratios in fingerings, cent offsets in fingerings.
+- [x] Specifying JI ratios and cent offsets in fingerings.
 
 - [ ] Proper transposition by any interval of choice for all regular mappings.
 
@@ -27,6 +27,8 @@ A **MuseScore 3.6** plugin to give first-class support as many microtonal/xen no
 
 > :warning: This project is very experimental. Please check [Caveats](#caveats)
 
+### 1. Download & activate plugin
+
 Download the project as .zip (the green "Code" button on top right of the project page).
 
 Extract files to plugins folder and activate all the following plugins (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
@@ -34,6 +36,8 @@ Extract files to plugins folder and activate all the following plugins (see [thi
 - _clear tuning cache_
 - _xen tuner_
 - _export midi csv_
+
+### 2. Remap/Remove MuseScore default shortcuts
 
 This plugin is designed to replace MuseScore's default shortcuts. You will need to **remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
@@ -43,7 +47,11 @@ This plugin is designed to replace MuseScore's default shortcuts. You will need 
 - Go to higher/lower pitched note in chord (`Alt+Up/Down`)
 - Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
 
-Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-use-fingering-annotations) a lot, it's recommended to change the default `Ctrl+F` from "Find / Go to" to "Add fingering".
+Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-use-fingering-annotations) a lot, it's recommended to **change `Ctrl+F` to "Add fingering"** instead of "Find / Go to".
+
+### 3. Start Xen Tuner
+
+![](imgs/start%20xen%20tuner.png)
 
 Once you have activated the plugins & replaced the shortcuts, you can start the plugin in **Plugins > Xen Tuner > Start Xen Tuner**.
 
@@ -51,21 +59,25 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 >
 > The first time you start Xen Tuner after opening MuseScore, MuseScore will freeze for about 5 seconds while it loads. This is normal.
 
-Once you have set all those up, you will need to specify configurations used in your score, such as the [tuning system](#how-to-tuning-configuration), [key signatures](#how-to-key-signatures) (if any), or whether to always use explicit accidentals.
+### 4. Select tuning configuration & key signatures
 
-You can configure these by adding a System Text or Staff Text element containing the configuration text itself. You can also enter the name/path of a `.txt` file in the `tunings/` folder to refer to a configuration from a `.txt` file.
+![](imgs/specify%20tuning%20config.png)
+
+You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the configuration text itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
 
 > 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
 
-These texts don't have to be visible (you can press `V` to toggle visibility).
+A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on. A configuration is only applied to notes from its bar onwards. Only place configuration texts/key signatures at the start of a bar.
 
-A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on.
+These Staff/System Texts don't have to be visible (you can press `V` to toggle visibility).
 
-A configuration is only applied to notes from that bar onwards.
+### 5. Entering notes & accidentals
 
-You can place configuration texts over multiple staves and bars to write a piece where different parts use different tunings/notation systems, and each part can change tuning/notation system at any bar.
+Enter notes as per normal.
 
-Now you can enter notes as per normal. The plugin defaults to the following shortcuts ([which you can change](#how-to-change-shortcuts)):
+There are three different ways to access accidentals.
+
+The plugin defaults to the following shortcuts ([which you can change](#how-to-change-shortcuts)):
 
 - `Alt+R`: Tune score/selection
 - `Up/Down`: Move note up/down to the next nearest step
@@ -110,17 +122,21 @@ However, in Xen Tuner, you're free to declare as many nominals as you want, as l
 
 This means, you can construct notation systems like the chromatic staff, with 12 nominal 'alphabets', one for each semitone. You can even write using the negative treble clef (negative harmony) by setting the equave to negative `-1200c`. Then, notes that are visually going up will sound like they're going down.
 
-### Symbol Codes, Text Codes
+### Symbol codes, text codes, ASCII, accidentals
 
-A **symbol code** represents a visually/semantically unique symbol, which may have multiple IDs under the hood. For the purposes of this plugin, all similar-looking/meaning symbols are considered the same symbol.
+A **symbol code** represents a single visually/semantically unique symbol which can either be a SMuFL symbol ID or one or more characters of text (ASCII).
 
-This plugin only uses accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). This is the tradeoff for being able to attach multiple accidental 'Symbols' per note.
+This plugin only uses SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). Do not use accidentals from the 'Accidentals' palette.
 
-To refer to a symbol when keying in tuning/key signature configuration texts, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation (in the _Text Code_ column).
+![](imgs/symbols%20palette.png)
+
+To refer to a SMuFL symbol when setting up a tuning/key signature, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation of the symbol (_Text Code_ column of the spreadsheet).
+
+![](imgs/spreadsheet%20lookup.png)
 
 > E.g. both `#` and `5` can be used to refer to the sharp symbol.
 > 
-> Code `17` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `17`.
+> Code `100` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `100`.
 
 ### Accidental chains & degrees
 
@@ -350,6 +366,10 @@ If you have very irregular interval sizes between accidentals, it might be bette
 ```txt
 bb(8/9) b(15/16) (0) #(17/16) x(8/7)
 ```
+
+### Secondary accidentals
+
+Sometimes, there are occasional accidentals
 
 -----
 
