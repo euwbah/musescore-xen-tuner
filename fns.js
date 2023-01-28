@@ -4573,12 +4573,10 @@ function retrieveCustomOffsets(elem, staffLineIntersectsNote) {
  * It is a list of unwrapped {@link PluginAPINote} objects!
  * 
  * @param {PluginAPINote[]} chord Notes from all voices at a single tick & vertical-chord position.
- * @param {Object.<string, boolean>} usedSymbols 
- *  Contains SymbolCodes that are currently used by the tuning config.
- *  Any symbols found that are not inside this object will be removed.
+ * @param {TuningConfig} tuningConfig
  * @returns {number} most negative distance between left-most symbol and left-most notehead.
  */
-function positionAccSymbolsOfChord(chord, usedSymbols) {
+function positionAccSymbolsOfChord(chord, tuningConfig) {
 
     // First, we need to sort the chord by increasing line number. (top-to-bottom)
     chord.sort(function (a, b) { return a.line - b.line });
@@ -4677,7 +4675,8 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
             // console.log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
-                if (symCode && (!usedSymbols || usedSymbols[symCode])) {
+                if (symCode && (tuningConfig.usedSymbols[symCode] 
+                        || tuningConfig.usedSecondarySymbols[symCode])) {
                     isAccSym = true;
                 }
             } else if (elem.name && elem.name == 'Fingering' &&
@@ -4997,7 +4996,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
                 // Now, we have all notes that should be vertically aligned.
                 // Position symbols for this vert stack.
                 // console.log(vertStack.length);
-                var biggestXOffset = positionAccSymbolsOfChord(vertStack, fakeParms.currTuning.usedSymbols);
+                var biggestXOffset = positionAccSymbolsOfChord(vertStack, fakeParms.currTuning);
 
                 graceOffset += biggestXOffset;
 
