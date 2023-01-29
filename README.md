@@ -664,7 +664,11 @@ sec()
 
 -----
 
-Congratulations on making it this far! You're encouraged to contribute your tuning systems to the project. You can file a pull request adding files to the `tunings/` folder, or simply file an issue with your tuning config, and I'll add it for you.
+Congratulations on making it this far! You're encouraged to contribute your tuning systems to the project.
+
+You can file a pull request adding files to the `tunings/` folder, or simply file an issue with your tuning config, and I'll add it for you.
+
+🟠 If your tuning configuration contains many notes/equave and takes a long time to load, you should [pre-compute the tuning config](#1-pre-compute-the-tuning-config) into a `.json` file, which will help speed things up.
 
 ## How to: key signatures
 
@@ -782,7 +786,6 @@ You can set `enabled: true` (or delete that line), then change `sequence` to a k
 
 To control which Nth auxiliary operation this keybinding is for, simply set the second number of `Fns.operationTranspose(1, 5)` to the desired auxiliary operation number. E.g. the 10th auxiliary operation would be `Fns.operationTranspose(1, 10)`.
 
-
 ## Writing in huge tunings
 
 When dealing with a large tuning (> 1500 notes/equave), the Tuning Configuration data gets really large. MuseScore's plugins API really isn't designed to handle such demanding tasks &mdash; so, when you run a Xen Tuner action for the first time after opening MuseScore, it is normal for the plugin to take a few seconds, or even minutes, to load a large tuning, if the score requests for it.
@@ -795,7 +798,7 @@ Here are some ways to tackle the slow initialization/loading of tuning configs.
 
 ### 1. Pre-compute the tuning config
 
-Instead of writing the tuning config into the score/into a .txt file, you can go to this link: https://euwbah.github.io/musescore-xen-tuner/ to convert your tuning configuration into a .json file. In a nutshell, you're pre-computing the tuning configuration, so that you don't need to do it within MuseScore.
+Instead of writing the tuning config into the score or into a .txt file, you can go to this link: https://euwbah.github.io/musescore-xen-tuner/ to convert your tuning configuration into a .json file. In a nutshell, you're pre-computing the tuning configuration, so that you don't need to do it within MuseScore.
 
 Once you have the .json file (which you can rename to `whatever.json`, as long as it still has the `.json` extension), you can save it into the `tunings/` folder together with all the other .txt files.
 
@@ -805,13 +808,19 @@ This will make the initial loading of the tuning configuration much faster, but 
 
 This method is recommended if you're using a moderately large tuning system that is not ridiculously huge.
 
-### 2. Use fingering text ratios/cent offsets
+### 2. Use secondary accidentals
+
+If there are some accidentals in a chain that you only use sporadically, you may want to consider using [secondary accidentals](#advanced-secondary-accidentals) instead of declaring them main accidentals.
+
+The downside is that you aren't able to access these via the up/down/enharmonic operations. (But if you already have &gt; 4 accidental chains, this wouldn't affect you much.)
+
+### 3. Use fingering text ratios/cent offsets
 
 If you're tuning config exceeds 30MB, it's probably time to consider cutting down on accidentals/accidental chains that aren't used that often, and use the occasional fingering text to denote certain offsets.
 
 You can still have access to all the SMuFL symbols, and you can 'trick' the plugin to accept these symbols as accidentals so that you still get the benefit of auto-positioning by using pseudo-ligatures. (Work in progress)
 
-### 3. Clear the tuning cache
+### 4. Clear the tuning cache
 
 If you've been experimenting with several large-sized tuning systems within the same score/over the current MuseScore session, this will populate a runtime & score metadata cache which may use up too much memory over time.
 
@@ -819,7 +828,7 @@ If you've been experimenting with several large-sized tuning systems within the 
 - Run `Plugins > Xen Tuner > Clear Tuning Cache`
 - Restart Xen Tuner
 
-### 4. Notate comma shifts using reference pitch changes
+### 5. Notate comma shifts using reference pitch changes
 
 One of the culprits of requiring a huge Tuning Config is if you're writing a piece that utilizes regular comma shifts, requiring many accidentals per note throughout a particular comma-shifted section of the piece.
 
@@ -884,7 +893,7 @@ Checklist:
 - Suffix your cents with `c`, numbers represent ratios by default.
 - Prefix fingering cent offsets with `+`
 - Suffix fingering JI ratios with `.`
-- [Clear tuning cache](#3-clear-the-tuning-cache)
+- [Clear tuning cache](#4-clear-the-tuning-cache)
   - ⚠️ If you modify a tuning from a `.txt` or `.json` file, you will need to clear the tuning cache for the changes to take effect.
 - Specify [key signature](#how-to-key-signatures)
 
@@ -893,12 +902,12 @@ If all else fails, [report an issue](#reporting-an-issue). Include the tuning co
 ### I changed the tuning config text, but the plugin isn't picking up the changes
 
 - If there's a [pre-computed `.json` tuning file](#1-pre-compute-the-tuning-config), you will need to either delete it or use the [Xen Tuner pre-compute config tool](https://euwbah.github.io/musescore-xen-tuner/) to generate a new one with the updated tuning config text.
-- You will need to [clear the tuning cache](#3-clear-the-tuning-cache) for the changes to take effect.
+- You will need to [clear the tuning cache](#4-clear-the-tuning-cache) for the changes to take effect.
 - If all else fails, you can just close MuseScore, rename the tuning config file, reopen MuseScore and use the new tuning config name.
 
 ### If the plugin is lagging/tuning isn't correct
 
-- [Reset the tuning cache](#3-clear-the-tuning-cache). It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
+- [Reset the tuning cache](#4-clear-the-tuning-cache). It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
 
 If you're dealing with many notes per equave (>1000), see [how to deal with huge tunings](#writing-in-huge-tunings)
 
