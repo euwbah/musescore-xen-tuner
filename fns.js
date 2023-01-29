@@ -1157,7 +1157,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         notesTable: {},
         tuningTable: {},
         avTable: {},
-        avToSymbols: [],
+        avToSymbols: {},
         stepsList: [],
         stepsLookup: {},
         enharmonics: {},
@@ -4097,7 +4097,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
-            console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
+            // console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
             if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
                 cursor.next();
@@ -4164,6 +4164,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         // Carry forward secondary symbols and prepend them
         accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
         console.log('keeping acc symbols: ' + JSON.stringify(accSymbols));
+        console.log('secondary: ' + JSON.stringify(noteData.secondaryAccSyms));
     }
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
