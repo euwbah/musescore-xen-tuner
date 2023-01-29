@@ -42,9 +42,7 @@ lig(1)?
 // as we still want the normal # and b symbols to be more accessible
 // than these.
 
-// A second ligature is declared.
-
-// Here we declare ligatures between the 1st and 2nd chain
+// We declare a second ligature between the 1st and 2nd chain
 // In HEJI, syntonic commas can merge with sharp/flat/natural
 // accidentals into a single ligatured symbol.
 lig(1,2)
@@ -72,6 +70,12 @@ lig(1,2)
 2 1 x^
 2 2 x^2
 2 3 x^3
+
+// ⚠️IMPORTANT: The second ligature must be declared after the first.
+// The second ligature contains the #v and b^ symbols, which the first ligature
+// also has. If the declaration order was reversed, the #v and b^ symbols of 
+// ~.#v and ~.b^ accidentals will match into the first ligature, leaving an unknown
+// ~ symbol to remain unmatched.
 
 // Here we declare 4 auxiliary up/down operations.
 // These will be accessible as the aux1, aux2, aux3, aux4 up/down operations
