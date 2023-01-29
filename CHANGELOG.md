@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- Text accidentals (fingerings)
+- Weak ligatures
+- Secondary accidentals that extend accidental chains indefinitely.
+- Entering accidentals using fingerings & text representation of accidentals
+- Proper HEJI (2020) & HEWM support
+
 ## 0.1.2
 
 - Add support for multiple differently-tuned notes on the same staff line within the same chord & voice.
