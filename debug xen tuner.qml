@@ -55,6 +55,6 @@ MuseScore {
 
         // Debug code here.
         // Fns.operationTune(); // test tune
-        Fns.operationTranspose(-1, 1); // test diatonic transpose
+        Fns.operationTranspose(0, 0); // test diatonic transpose
       }
 }

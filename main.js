@@ -127,6 +127,11 @@ function generateTuningConfigJSON() {
     document.getElementById('errormsg').innerText = '';
 
     var tuningConfigJSON = JSON.stringify(tuningConfig);
+
+    // save generated tuning config JSON to `tc` global variable
+    // to enable browser console debugging
+    window.tc = tuningConfig;
+
     download(tuningConfigJSON, 'tuningconfig.json', 'text/plain');
 }
 

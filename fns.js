@@ -2386,6 +2386,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     if (accSyms != null) {
         // First, check for ligatures, they count as primary accidentals.
         tuningConfig.ligatures.forEach(function (lig) {
+            console.log('checking ligature: ' + JSON.stringify(lig));
             var mostSymbolsMatched = 0;
             /** @type {SymbolCode[]} */
             var bestSymbolMatch = null;
@@ -2395,6 +2396,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
                 var syms = lig.ligAvToSymbols[key];
                 var trySubtract = subtractAccSym(accSyms, syms);
                 if (trySubtract != null && syms.length > mostSymbolsMatched) {
+                    // console.log('lig subtracted ' + JSON.stringify(syms) + ' from ' + JSON.stringify(accSyms));
                     mostSymbolsMatched = syms.length;
                     bestSymbolMatch = syms;
                     bestSubtracted = trySubtract;
@@ -2503,22 +2505,24 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
     // If new accidentals created from fingerings, make sure ligatures apply.
 
-    var traversedHash = xenNote.hash;
+    if (maybeFingeringAccSymbols != null) {
+        var traversedHash = xenNote.hash;
 
-    while (true) {
-        // Loop all enharmonics
-        traversedHash = tuningConfig.enharmonics[traversedHash];
-        if (!traversedHash)
-            break; // no enharmonics
+        while (true) {
+            // Loop all enharmonics
+            traversedHash = tuningConfig.enharmonics[traversedHash];
+            if (!traversedHash)
+                break; // no enharmonics
 
-        if (traversedHash == xenNote.hash) {
-            // made one loop without finding any ligatures
-            break;
-        }
+            if (traversedHash == xenNote.hash) {
+                // made one loop without finding any ligatures
+                break;
+            }
 
-        if (tuningConfig.notesTable[traversedHash].hasLigaturePriority) {
-            xenNote = tuningConfig.notesTable[traversedHash];
-            break;
+            if (tuningConfig.notesTable[traversedHash].hasLigaturePriority) {
+                xenNote = tuningConfig.notesTable[traversedHash];
+                break;
+            }
         }
     }
 
@@ -2743,7 +2747,7 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
     return noteData;
 }
 
-/*
+/**
 
 ████████ ██    ██ ███    ██ ██ ███    ██  ██████  
    ██    ██    ██ ████   ██ ██ ████   ██ ██       
@@ -5113,7 +5117,7 @@ function operationTune() {
             cursor.rewind(0);
 
             var measureCount = 0;
-            console.log("Populating configs. staff: " + staff + ", voice: " + voice);
+            // console.log("Populating configs. staff: " + staff + ", voice: " + voice);
 
             while (true) {
                 // loop from first segment to last segment of this staff+voice.
@@ -5319,7 +5323,6 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
         }
         endStaff = cursor.staffIdx;
     }
-    console.log(startStaff + " - " + endStaff + " - " + endTick)
 
     parms.staffConfigs = {};
     parms.bars = [];
