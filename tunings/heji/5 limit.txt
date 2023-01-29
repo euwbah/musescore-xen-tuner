@@ -25,6 +25,24 @@ bbb bb b (2187/2048) # x #x
 // Chain 2: 5-limit acc from -3 to +3
 v3 v2 v (81/80) ^ ^2 ^3
 
+// In HEJI, the tilde can be used to signify 3-limit enharmonics.
+// Since ligatures are implemented as enharmonics, this will allow us to
+// use the cycle enharmonic operation to cycle between standard 3-limit
+// sharp/flat and schisma-altered enharmonics.
+
+// To implement this, we declare a ligature acting on the 1st accidental chain
+// The ? signifies that this is a weak ligature.
+lig(1)?
+-1 ~.#v // flat equals ~#v
+1 ~.b^ // sharp equals ~b^
+
+// Unlike normal ligatures, weak ligatures don't get extra priority
+// when the plugin has to decide which enharmonic spelling to choose.
+// In HEJI, it makes sense that these are declared as weak ligatures,
+// as we still want the normal # and b symbols to be more accessible
+// than these.
+
+// A second ligature is declared.
 
 // Here we declare ligatures between the 1st and 2nd chain
 // In HEJI, syntonic commas can merge with sharp/flat/natural
@@ -54,24 +72,6 @@ lig(1,2)
 2 1 x^
 2 2 x^2
 2 3 x^3
-
-// A second ligature is declared.
-// In HEJI, the tilde can be used to signify 3-limit enharmonics.
-// Since ligatures are implemented as enharmonics, this will allow us to
-// use the cycle enharmonic operation to cycle between standard 3-limit
-// sharp/flat and schisma-altered enharmonics.
-
-// The ? signifies that this is a weak ligature.
-lig(1)?
--1 ~.#v // flat equals ~#v
-1 ~.b^ // sharp equals ~b^
-
-// Unlike normal ligatures, weak ligatures don't get extra priority
-// when the plugin has to decide which enharmonic spelling to choose
-// when moving notes up/down.
-// In HEJI, it makes sense that these are declared as weak ligatures,
-// as we still want the normal # and b symbols to be more accessible
-// than their enharmonic schisma-altered variants
 
 // Here we declare 4 auxiliary up/down operations.
 // These will be accessible as the aux1, aux2, aux3, aux4 up/down operations
