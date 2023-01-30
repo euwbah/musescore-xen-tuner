@@ -4,7 +4,7 @@ A **MuseScore 3.6** plugin to give first-class support for microtonal/alternativ
 
 ## Features/Goals
 
-- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#help-needed)! Currently at 44%)
+- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#help-needed)! Currently at 77%)
 
 - [x] Automated tuning & placement of multiple accidentals.
 
@@ -94,7 +94,7 @@ The next best way to enter accidentals is by entering fingerings containing the 
 
 When using this, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
 
-Select a note, hit `Ctrl+F`, then enter the text representation of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
+Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
 
 Once fingerings are entered, hit `Alt+R` and the accidentals will render themselves.
 
