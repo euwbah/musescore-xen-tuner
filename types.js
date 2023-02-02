@@ -177,10 +177,17 @@ class XenNote {
      */
     hash;
     /**
-     * If `true`, this {@link XenNote} is ligatured.
+     * If `true`, this {@link XenNote} has ligature priority.
+     * 
+     * I.e. this spelling will be chosen over non-ligature enharmonic
+     * spellings.
+     * 
+     * If this {@link XenNote} was created from a weak ligature, this
+     * will still be `false`.
+     * 
      * @type {boolean}
      */
-    isLigature;
+    hasLigaturePriority;
 }
 
 /**
@@ -266,11 +273,17 @@ class NoteData {
  * Note that this mapping is not bijective - two {@link XenNote}s can have different
  * nominals but the same {@link AccidentalVector}.
  * 
- * NOTE: There doesn’t seem to be a use case for an
- * inverse mapping of this yet. However, if it is required later down
- * the line, that would mean a lot of the implementation has to change. Hmm.
- * 
  * @typedef {Object.<string, AccidentalVector>} AccidentalVectorTable
+ */
+
+/**
+ * Contains a lookup of accidental vectors to their respective symbols.
+ * 
+ * The key is an {@link AccidentalVector} list.
+ * 
+ * Values are {@link SymbolCode}[] lists, in left-to-right display order.
+ * 
+ * @typedef {Object.<string, SymbolCode[]>} AccidentalVectorSymbols
  */
 
 /**
@@ -411,6 +424,17 @@ class Ligature {
      * @type {Object.<string, SymbolCode[]>}
      */
     ligAvToSymbols;
+    /**
+     * `true` if ligature is declared to be weak `lig(x)?`
+     * (Lig declaration line ends with question mark in tuning config)
+     * 
+     * If a ligature is weak, ligatured symbols do not get special
+     * priority over non-ligatured symbols when selecting appropriate
+     * enharmonic spellings.
+     * 
+     * @type {boolean}
+     */
+    isWeak;
 }
 
 /**
@@ -434,6 +458,21 @@ class TuningConfig {
     tuningTable;
     /** @type {AccidentalVectorTable}*/
     avTable;
+    /** 
+     * An {@link AccidentalVectorSymbols} lookup mapping {@link AccidentalVector} 
+     * to {@link SymbolCode}s that best represent the accidental vector.
+     * 
+     * If different sets of symbols can represent the same {@link AccidentalVector},
+     * e.g. {@link Ligature ligatured} vs non-ligatured spellings, the ligatured spelling will take
+     * precedence if the ligature is not a {@link Ligature.isWeak weak ligature}.
+     * 
+     * If multiple ligatures exist for the same accidental vector (which really 
+     * shouldn't happen), the last declared ligature will take precedence in this
+     * lookup.
+     * 
+     * @type {AccidentalVectorSymbols} 
+     */
+    avToSymbols;
     /** @type {StepwiseList} */
     stepsList;
     /** @type {StepwiseLookup} */

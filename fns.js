@@ -36,7 +36,7 @@ var pluginHomePath = '';
 /** @type {PluginAPIScore} */
 var _curScore = null; // don't clash with namespace
 
-/*
+/**
                                             _____                               
   __  __________  _____   _________  ____  / __(_)___ _   _   ______ ___________
  / / / / ___/ _ \/ ___/  / ___/ __ \/ __ \/ /_/ / __ `/  | | / / __ `/ ___/ ___/
@@ -108,7 +108,7 @@ var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
  * Some accidentals are very very thin and the default auto-positioning
  * will make them too tight and cluttered to read.
  */
-var MIN_ACC_WIDTH = 0.6;
+var MIN_ACC_WIDTH = 0.75;
 
 /**
  * Represents additional horizontal space to put between accidentals
@@ -135,6 +135,9 @@ var ACC_NOTESPACE = 0.2;
  * Font size of text-based ASCII accidentals. In px.
  * 
  * Text-based accidentals are rendered with fingering text.
+ * 
+ * Auto placement of single ASCII symbols/punctuation is
+ * optimized for this font size.
  */
 var ASCII_ACC_FONT_SIZE = 11;
 
@@ -1149,14 +1152,15 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     // comments start with two slashes
     text = text.replace(/^(.*?)\/\/.*$/gm, '$1')
         // remove empty lines
-        .replace(/^(?:[\t ]*(?:\r?\n|\r))+/gm, '');
-
+        .replace(/^(?:[\t ]*(?:\r?\n|\r))+/gm, '')
+        .trim();
 
     /** @type {TuningConfig} */
     var tuningConfig = { // TuningConfig
         notesTable: {},
         tuningTable: {},
         avTable: {},
+        avToSymbols: {},
         stepsList: [],
         stepsLookup: {},
         enharmonics: {},
@@ -1252,8 +1256,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     //
     //
 
-    var nextDeclStartLine = null;
-
     for (var i = 2; i < lines.length; i++) {
         var line = lines[i].trim();
 
@@ -1264,7 +1266,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         var matches = line.match(/(lig|aux|sec)\([0-9,]*\)/);
         if (matches != null) {
-            nextDeclStartLine = i;
             break;
         }
 
@@ -1286,7 +1287,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var maybeIncrement = parseCentsOrRatio(matchIncrement[1]);
 
                 if (maybeIncrement == null) {
-                    console.error('TUNING CONFIG ERROR: invalid accidental chain increment: ' + matchIncrement[1]);
+                    console.error('TUNING CONFIG ERROR: ' + (i+1) + ': invalid accidental chain increment: ' + matchIncrement[1]);
                     return null;
                 }
 
@@ -1327,7 +1328,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     if (maybeOffset != null) {
                         offset = maybeOffset;
                     } else {
-                        console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + offsetText);
+                        console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid accidental tuning offset specified: ' + offsetText);
                     }
                 }
 
@@ -1342,7 +1343,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         if (!increment || centralIdx == null) {
-            console.error('TUNING CONFIG ERROR: Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
             return null;
         }
 
@@ -1366,16 +1367,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     //
     //
 
-    for (var i = nextDeclStartLine; i < lines.length; i++) {
-
-        if (nextDeclStartLine == null)
-            break;
+    for (; i < lines.length; i++) {
 
         var line = lines[i].trim();
 
         // Check for `aux(x,y,..)` declaration
         if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
-            nextDeclStartLine = i;
             // console.log('skip lig');
             break;
         }
@@ -1390,7 +1387,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var match = line.match(/lig\(([0-9,]+)\)/);
 
         if (match == null) {
-            console.error('TUNING CONFIG ERROR: Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
             return null;
         }
 
@@ -1403,10 +1400,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             });
 
         if (hasInvalid) {
-            console.error('TUNING CONFIG ERROR: Invalid ligature declaration: ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid ligature declaration: ' + line);
             return null;
         }
 
+        var isWeak = line.endsWith('?');
         var ligAvToSymbols = {};
 
         var goToAux = false;
@@ -1418,9 +1416,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
             var line = lines[j].trim();
 
+            if (line.match(/lig\([0-9,]+\)/) != null) {
+                // Next ligature declaration
+                break;
+            }
+
             // Check for `aux(x,y,..)` declaration
-            if (line.match(/aux\([0-9,]+\)/) != null) {
-                nextDeclStartLine = j;
+            if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
                 goToAux = true;
                 break;
             }
@@ -1444,26 +1446,26 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningConfig.ligatures.push({ // Ligature
             regarding: regarding,
             ligAvToSymbols: ligAvToSymbols,
+            isWeak: isWeak,
         });
 
-        if (goToAux)
+        if (goToAux) {
+            i = j;
             break;
+        }
 
-        // jump to new line
-        i = j + 1;
+        // move outer loop to before next lig() declaration.
+        i = j - 1;
     }
 
     // PARSE AUX
     //
     //
 
-    for (var i = nextDeclStartLine; i < lines.length; i++) {
-        if (nextDeclStartLine == null) break;
-
+    for (; i < lines.length; i++) {
         var line = lines[i].trim();
 
         if (line.match(/sec\([0-9,]*\)/) != null) {
-            nextDeclStartLine = i;
             break;
         }
 
@@ -1474,7 +1476,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         if (match == null) {
             // Aux declarations finished. 
             // Parse secondary symbols.
-            nextDeclStartLine = i;
             break;
         }
 
@@ -1493,7 +1494,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             });
 
         if (hasInvalid) {
-            console.error('TUNING CONFIG ERROR: Invalid aux declaration: ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid aux declaration: ' + line);
             return null;
         }
 
@@ -1519,8 +1520,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningConfig.auxList.push(constantConstrictions);
     }
 
-    nextDeclStartLine = i;
-
 
     // PARSE SECONDARY SYMBOLS, ASCII CONVERSIONS
     //
@@ -1536,14 +1535,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         u7 32c      // declares a secondary SMuFL symbol without conversion.
     */
 
-    for (var i = nextDeclStartLine; i < lines.length; i++) {
-        if (nextDeclStartLine == null) break;
-
+    for (; i < lines.length; i++) {
         var line = lines[i].trim();
 
         // Check for `sec()` declaration
         if (line != 'sec()') {
-            console.error('TUNING CONFIG ERROR: Expected sec(), got "' + line + '" instead.');
+            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Expected sec(), got "' + line + '" instead.');
             return null;
         }
 
@@ -1558,7 +1555,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var cents = parseCentsOrRatio(words[1]);
 
                 if (symCodes == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Invalid secondary symbol declaration: ' + line);
                     return null;
                 }
 
@@ -1585,7 +1582,6 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.asciiToSmuflConv[asciiFrom] = symCodes;
                     tuningConfig.asciiToSmuflConvList.push(asciiFrom);
                 }
-
             } else if (words.length == 3) {
                 // Declaring a secondary symbol with conversion.
                 // Conversion always goes from ASCII
@@ -1596,12 +1592,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var cents = parseCentsOrRatio(words[2]);
 
                 if (symCodesASCIIFrom == null || symCodesTo == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Invalid secondary symbol declaration: ' + line);
                     return null;
                 }
 
                 if (symCodesASCIIFrom.length != 1 || typeof (symCodesASCIIFrom[0]) != 'string') {
-                    console.error('TUNING CONFIG ERROR: Convert-from ASCII must be a single pure ASCII symbol.\n'
+                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Convert-from text must be a single-element text symbol.\n'
                         + 'Received a multi-symbol/hybrid accidental instead' + line);
                     return null;
                 }
@@ -1621,12 +1617,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
             } else {
-                console.error('TUNING CONFIG ERROR: Invalid secondary symbol declaration: ' + line);
+                console.error('TUNING CONFIG ERROR: ' + (j+1) + 
+                    ': Secondary symbol declaration must have 2 or 3 space separated words. Got : ' + line);
                 return null;
             }
         }
-
-        i = j + 1;
+        i = j - 1;
     }
 
     //
@@ -1716,7 +1712,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     orderedSymbols: [],
                     accidentals: null,
                     hash: createXenHash(nomIdx, {}),
-                    isLigature: false,
+                    hasLigaturePriority: false,
                 },
                 cents: nominalCents,
                 equavesAdjusted: 0,
@@ -1819,11 +1815,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     orderedSymbols: orderedSymbols,
                     accidentals: orderedSymbols.length == 0 ? null : accidentalSymbols,
                     hash: createXenHash(nomIdx, accidentalSymbols),
-                    isLigature: false,
+                    hasLigaturePriority: false,
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
             });
+
+            tuningConfig.avToSymbols[accidentalVector] = orderedSymbols;
 
             // SETTLE IMPLEMENTING LIGATURES AS ENHARMONICS
             //
@@ -1917,11 +1915,16 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                             orderedSymbols: ligOrderedSymbols,
                             accidentals: ligOrderedSymbols.length == 0 ? null : ligaturedSymbols,
                             hash: createXenHash(nomIdx, ligOrderedSymbols),
-                            isLigature: true,
+                            hasLigaturePriority: !lig.isWeak,
                         },
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
                     });
+
+                    if (!lig.isWeak) {
+                        // Strong ligatures should take precedence.
+                        tuningConfig.avToSymbols[accidentalVector] = ligOrderedSymbols;
+                    }
                 }
             });
         }
@@ -2069,7 +2072,6 @@ function parseKeySig(text) {
     var nomSymbols = text.trim().split(' ').slice(1);
 
     var keySig = [];
-
 
     nomSymbols.forEach(function (s) {
         var symCodes = parseSymbolsDeclaration(s);
@@ -2387,6 +2389,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     if (accSyms != null) {
         // First, check for ligatures, they count as primary accidentals.
         tuningConfig.ligatures.forEach(function (lig) {
+            console.log('checking ligature: ' + JSON.stringify(lig));
             var mostSymbolsMatched = 0;
             /** @type {SymbolCode[]} */
             var bestSymbolMatch = null;
@@ -2396,6 +2399,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
                 var syms = lig.ligAvToSymbols[key];
                 var trySubtract = subtractAccSym(accSyms, syms);
                 if (trySubtract != null && syms.length > mostSymbolsMatched) {
+                    // console.log('lig subtracted ' + JSON.stringify(syms) + ' from ' + JSON.stringify(accSyms));
                     mostSymbolsMatched = syms.length;
                     bestSymbolMatch = syms;
                     bestSubtracted = trySubtract;
@@ -2504,22 +2508,24 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
     // If new accidentals created from fingerings, make sure ligatures apply.
 
-    var traversedHash = xenNote.hash;
+    if (maybeFingeringAccSymbols != null) {
+        var traversedHash = xenNote.hash;
 
-    while (true) {
-        // Loop all enharmonics
-        traversedHash = tuningConfig.enharmonics[traversedHash];
-        if (!traversedHash)
-            break; // no enharmonics
+        while (true) {
+            // Loop all enharmonics
+            traversedHash = tuningConfig.enharmonics[traversedHash];
+            if (!traversedHash)
+                break; // no enharmonics
 
-        if (traversedHash == xenNote.hash) {
-            // made one loop without finding any ligatures
-            break;
-        }
+            if (traversedHash == xenNote.hash) {
+                // made one loop without finding any ligatures
+                break;
+            }
 
-        if (tuningConfig.notesTable[traversedHash].isLigature) {
-            xenNote = tuningConfig.notesTable[traversedHash];
-            break;
+            if (tuningConfig.notesTable[traversedHash].hasLigaturePriority) {
+                xenNote = tuningConfig.notesTable[traversedHash];
+                break;
+            }
         }
     }
 
@@ -2697,23 +2703,14 @@ function readFingeringAccidentalInput(msNote, tuningConfig) {
                 // remove the fingering.
                 msNote.internalNote.remove(fingering);
 
-                var orderedSymbols = [];
+                var orderedSymbols = tuningConfig.avToSymbols[av];
 
-                // Loop from left most (last) acc chain to right most acc chain.
-                for (var accChainIdx = tuningConfig.accChains.length - 1; accChainIdx >= 0; accChainIdx--) {
-                    var accChain = tuningConfig.accChains[accChainIdx];
-                    var deg = av[accChainIdx];
-                    if (deg != 0) {
-                        var degIdx = deg + accChain.centralIdx;
-                        var symCodes = accChain.degreesSymbols[degIdx]; // left-to-right
-                        orderedSymbols = orderedSymbols.concat(symCodes);
-                    }
+                if (orderedSymbols != undefined) {
+                    return {
+                        symCodes: orderedSymbols,
+                        type: 'av',
+                    };
                 }
-
-                return {
-                    symCodes: orderedSymbols,
-                    type: 'av',
-                };
             }
         }
     }
@@ -2753,7 +2750,7 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
     return noteData;
 }
 
-/*
+/**
 
 ████████ ██    ██ ███    ██ ██ ███    ██  ██████  
    ██    ██    ██ ████   ██ ██ ████   ██ ██       
@@ -3520,6 +3517,13 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
 
     // Sort them such that the best option is at the front
     nextNoteOptions.sort(function (a, b) {
+        // Ligatures should always be preferred
+        if (a.nextNote.xen.hasLigaturePriority && !b.nextNote.xen.hasLigaturePriority) {
+            return -1;
+        } else if (!a.nextNote.xen.hasLigaturePriority && b.nextNote.xen.hasLigaturePriority) {
+            return 1;
+        }
+
         // Lower AV Dist is better. Give +/- 0.5 leeway for
         // 'similar' AV dist.
         if (a.avDist - b.avDist <= -0.5) {
@@ -4100,7 +4104,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
-            console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
+            // console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
             if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
                 cursor.next();
@@ -4167,6 +4171,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         // Carry forward secondary symbols and prepend them
         accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
         console.log('keeping acc symbols: ' + JSON.stringify(accSymbols));
+        console.log('secondary: ' + JSON.stringify(noteData.secondaryAccSyms));
     }
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
@@ -4576,12 +4581,10 @@ function retrieveCustomOffsets(elem, staffLineIntersectsNote) {
  * It is a list of unwrapped {@link PluginAPINote} objects!
  * 
  * @param {PluginAPINote[]} chord Notes from all voices at a single tick & vertical-chord position.
- * @param {Object.<string, boolean>} usedSymbols 
- *  Contains SymbolCodes that are currently used by the tuning config.
- *  Any symbols found that are not inside this object will be removed.
+ * @param {TuningConfig} tuningConfig
  * @returns {number} most negative distance between left-most symbol and left-most notehead.
  */
-function positionAccSymbolsOfChord(chord, usedSymbols) {
+function positionAccSymbolsOfChord(chord, tuningConfig) {
 
     // First, we need to sort the chord by increasing line number. (top-to-bottom)
     chord.sort(function (a, b) { return a.line - b.line });
@@ -4680,7 +4683,8 @@ function positionAccSymbolsOfChord(chord, usedSymbols) {
             // console.log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
-                if (symCode && (!usedSymbols || usedSymbols[symCode])) {
+                if (symCode && (tuningConfig.usedSymbols[symCode] 
+                        || tuningConfig.usedSecondarySymbols[symCode])) {
                     isAccSym = true;
                 }
             } else if (elem.name && elem.name == 'Fingering' &&
@@ -5000,7 +5004,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
                 // Now, we have all notes that should be vertically aligned.
                 // Position symbols for this vert stack.
                 // console.log(vertStack.length);
-                var biggestXOffset = positionAccSymbolsOfChord(vertStack, fakeParms.currTuning.usedSymbols);
+                var biggestXOffset = positionAccSymbolsOfChord(vertStack, fakeParms.currTuning);
 
                 graceOffset += biggestXOffset;
 
@@ -5116,7 +5120,7 @@ function operationTune() {
             cursor.rewind(0);
 
             var measureCount = 0;
-            console.log("Populating configs. staff: " + staff + ", voice: " + voice);
+            // console.log("Populating configs. staff: " + staff + ", voice: " + voice);
 
             while (true) {
                 // loop from first segment to last segment of this staff+voice.
@@ -5322,7 +5326,6 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
         }
         endStaff = cursor.staffIdx;
     }
-    console.log(startStaff + " - " + endStaff + " - " + endTick)
 
     parms.staffConfigs = {};
     parms.bars = [];

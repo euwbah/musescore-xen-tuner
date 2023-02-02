@@ -1,22 +1,22 @@
 # Xen Tuner: Microtonal MuseScore Plugin Suite
 
-A **MuseScore 3.6** plugin to give first-class support as many microtonal/xen notation systems as possible by introducing multiple accidentals per note.
+A **MuseScore 3.6** plugin to give first-class support for microtonal/alternative notation systems.
 
 ## Features/Goals
 
-- [x] Support for infinitely many tuning systems with flexibility of choice of accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), whatever... (44%, data entry [help needed!](#help-needed))
+- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#help-needed)! Currently at 77%)
 
-- [x] Automated tuning & auto-positioning of multiple accidentals.
+- [x] Automated tuning & placement of multiple accidentals.
 
-- [x] Every unique accidental/note within an octave/equave is accessible with up/down arrows and 'J' to cycle through enharmonics, no matter how large the tuning.
+- [x] Every accidental/note is accessible with up/down operations and 'J' to cycle through enharmonics, no matter how large the tuning.
 
-- [x] Configurable auxiliary up/down operations that limit stepwise transpositions to certain accidentals/nominals. (E.g. Move by diatonic steps only, 11-commas only, or both)
+- [x] Configurable auxiliary up/down operations to transpose by selected accidentals/nominals.
 
-- [x] Accidental ligatures (for HEJI & Sagittal) where multiple accidentals can combine and be represented as a single symbol
+- [x] Accidental ligatures where multiple accidentals can combine and be represented as a single symbol (e.g. HEJI & Sagittal)
 
-- [x] Use of fingerings to input complex accidentals in large tuning systems
+- [x] Use of fingerings for text-based input of accidentals
 
-- [x] JI ratios in fingerings, cent offsets in fingerings.
+- [x] Specifying JI ratios and cent offsets in fingerings.
 
 - [ ] Proper transposition by any interval of choice for all regular mappings.
 
@@ -27,6 +27,8 @@ A **MuseScore 3.6** plugin to give first-class support as many microtonal/xen no
 
 > :warning: This project is very experimental. Please check [Caveats](#caveats)
 
+### 1. Download & activate plugin
+
 Download the project as .zip (the green "Code" button on top right of the project page).
 
 Extract files to plugins folder and activate all the following plugins (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
@@ -35,15 +37,21 @@ Extract files to plugins folder and activate all the following plugins (see [thi
 - _xen tuner_
 - _export midi csv_
 
+### 2. Remap/Remove MuseScore default shortcuts
+
 This plugin is designed to replace MuseScore's default shortcuts. You will need to **remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
 
-- Pitch up/down or move text/articulation up/down  (`Up/Down` arrow keys)
-- Change enharmonic spelling (current mode) (`Ctrl+J`) (optional)
+- Pitch up/down or move text/articulation up/down (`Up/Down` arrow keys)
+- Change enharmonic spelling (`J`)
 - Diatonic up/down (`Shift+Alt+Up/Down`)
 - Go to higher/lower pitched note in chord (`Alt+Up/Down`)
 - Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
 
-Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-use-fingering-annotations) a lot, it's recommended to change the default `Ctrl+F` from "Find / Go to" to "Add fingering".
+Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-use-fingering-annotations) a lot, it's recommended to **change `Ctrl+F` to "Add fingering"** instead of "Find / Go to".
+
+### 3. Start Xen Tuner
+
+![start tuner](imgs/start%20xen%20tuner.png)
 
 Once you have activated the plugins & replaced the shortcuts, you can start the plugin in **Plugins > Xen Tuner > Start Xen Tuner**.
 
@@ -51,34 +59,46 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 >
 > The first time you start Xen Tuner after opening MuseScore, MuseScore will freeze for about 5 seconds while it loads. This is normal.
 
-Once you have set all those up, you will need to specify configurations used in your score, such as the [tuning system](#how-to-tuning-configuration), [key signatures](#how-to-key-signatures) (if any), or whether to always use explicit accidentals.
+### 4. Select tuning configuration & key signatures
 
-You can configure these by adding a System Text or Staff Text element containing the configuration text itself. You can also enter the name/path of a `.txt` file in the `tunings/` folder to refer to a configuration from a `.txt` file.
+![specify tuning config](imgs/specify%20tuning%20config.png)
+
+You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the configuration text itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
 
 > 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
+>
+> You can check out other files in the `tunings/` folder to learn how you can write your own tuning configurations.
 
-These texts don't have to be visible (you can press `V` to toggle visibility).
+A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on. A configuration is only applied to notes from its bar onwards. Only place configuration texts/key signatures at the start of a bar.
 
-A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on.
+These Staff/System Texts don't have to be visible (you can press `V` to toggle visibility).
 
-A configuration is only applied to notes from that bar onwards.
+### 5. Entering notes & accidentals
 
-You can place configuration texts over multiple staves and bars to write a piece where different parts use different tunings/notation systems, and each part can change tuning/notation system at any bar.
+Enter notes as per normal. Press `Alt+R` after entering new notes to retune them to the correct tuning.
 
-Now you can enter notes as per normal. The plugin defaults to the following shortcuts ([which you can change](#how-to-change-shortcuts)):
+There are four different ways to input accidentals. The most primitive method being dragging symbols in from the Master Palette, then hitting `Alt+R`.
 
-- `Alt+R`: Tune score/selection
+However, the recommended way to enter accidentals would be to use up/down operations. These are available as keyboard shortcuts ([which you can change](#how-to-change-shortcuts)):
+
 - `Up/Down`: Move note up/down to the next nearest step
 - `J`: Cycle through enharmonics of the note
+- `Alt+Up/Down`: up/down auxiliary operation 1 (usually for moving up/down diatonically)
+- `Ctrl+Alt+Up/Down`: up/down auxiliary operation 2 (usually for sharps/flats, or first accidental chain)
+- `Alt+Shift+Up/Down`: up/down auxiliary operation 3 (usually 5-limit accidentals, or second accidental chain)
+- `Ctrl+Alt+Shift+Up/Down`: up/down auxiliary operation 4 (usually 7-limit accidentals, or third accidental chain)
 
-There's also shortcuts for **auxiliary up/down operations**:
+What the auxiliary operations do can be changed by [modifying auxiliary operations defined in the tuning configuration](#auxiliary-operations)
 
-- `Alt+Up/Down`: up/down auxiliary operation 1
-- `Ctrl+Alt+Up/Down`: up/down auxiliary operation 2
-- `Alt+Shift+Up/Down`: up/down auxiliary operation 3
-- `Ctrl+Alt+Shift+Up/Down`: up/down auxiliary operation 4
+The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. To use this feature, the tuning config should declare [text representations](#advanced-declaring-text-representations-of-accidentals) which matches specific strings of text and converts them into accidental symbols (which can either be SMuFL or text-based).
 
-Remember to tune (`Alt+R`) to update newly entered notes to the correct pitch. This will also help you format & organize accidental symbols. If you apply the up/down/enharmonic operations, the modified notes will also be tuned.
+When using this, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
+
+Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
+
+Once fingerings are entered, hit `Alt+R` and the accidentals will render themselves.
+
+This method is recommended for entering the occasional accidental that need not be part of a main accidental chain. If there are too many [accidental chains](#accidental-chains--degrees), a tuning config will take longer to load.
 
 Read [how the plugin conceptualizes tunings & accidentals](#introduction) to make your own tuning configurations.
 
@@ -104,35 +124,59 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
 
 The **nominals** are the 'musical alphabet'. In 12edo terms, we call them the 'white keys'. That is, the notes without any accidentals attached to them.
 
-Normally there are only 7 nominals (letters A to G), and the distance between two of the same nominals is called an octave. 
+Normally there are only 7 nominals (letters A to G), and the distance between two of the same nominals is called an octave.
 
-However, in Xen Tuner, you're free to declare as many nominals as you want, as long as you have more than 2. The distance between two of the same nominals is called an **equave**. You can set the equave to whatever interval you want.
+However, in Xen Tuner, you're free to declare as many nominals as you want, tuned to whatever you want, as long as you have at least 2 nominals. The distance between two of the same nominals is called an **equave**. You can set the equave to whatever interval you want.
 
-This means, you can construct notation systems like the chromatic staff, with 12 nominal 'alphabets', one for each semitone. You can even write using the negative treble clef (negative harmony) by setting the equave to negative `-1200c`. Then, notes that are visually going up will sound like they're going down.
+This means, you can construct notation systems like the [chromatic staff](https://www.youtube.com/watch?v=U7l7s1Vr6lQ&ab_channel=FabioCostaMusic), where all nominals are the same size, or [Bohlen-Pierce](https://www.youtube.com/watch?v=sd1b9Lh8iFA&t=89s&ab_channel=KjellHansen) with 9 nominals. For whatever reason, you can even write using the negative treble clef (negative harmony) by setting the equave to negative `-1200c`. Then, notes that are visually going up will sound like they're going down.
 
-### Symbol Codes, Text Codes
+### Symbol codes, text codes, text-based accidental symbols
 
-A **symbol code** represents a visually/semantically unique symbol, which may have multiple IDs under the hood. For the purposes of this plugin, all similar-looking/meaning symbols are considered the same symbol.
+A **symbol code** represents a single visually/semantically unique symbol which can either be a SMuFL symbol ID or one or more characters of text (ASCII).
 
-This plugin only uses accidental symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). This is the tradeoff for being able to attach multiple accidental 'Symbols' per note.
+This plugin only uses SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). Do not use accidentals from the 'Accidentals' palette.
 
-To refer to a symbol when keying in tuning/key signature configuration texts, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation (in the _Text Code_ column).
+![](imgs/symbols%20palette.png)
+
+To refer to a SMuFL symbol when setting up a tuning/key signature, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation of the symbol (_Text Code_ column of the spreadsheet).
+
+![](imgs/spreadsheet%20lookup.png)
 
 > E.g. both `#` and `5` can be used to refer to the sharp symbol.
 > 
-> Code `17` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `17`.
+> Code `100` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `100`.
+
+You can also use text-based accidentals by referring to them in single quotes, as long as the text does not contain a space.
+
+> E.g. `'abc'` represents the literal text abc as a single accidental symbol.
+
+### Escape codes
+
+When referring to Text Codes or Text-based accidentals in the tuning configuration, certain special charcters need to be escaped with a backslash:
+
+- Write `'` as `\'` unless you intend to create a text-based accidental
+- Write `\` as `\\` unless you intend to start an escape sequence.
+- Write `//` as `\/\/` unless you intend to write a comment.
+
+This applies to **both text codes and quoted text accidentals**. 
+
+For example, the down arrow symbol (SymbolCode 43) must be referred to as `\\` even though the text code for it is `\`.
+
+### Constructing an accidental
+
+Multiple symbols can combine to form a single logical accidental that represents a single pitch adjustment in an accidental chain. Separate each symbol code/quoted text with a period to combine them.
+
+> E.g. `x./.'hi'` refers to a single accidental comprised of the double sharp symbol, up arrow symbol and the text 'hi', left to right order.
 
 ### Accidental chains & degrees
 
 Now, when we say "sharps and flats", these accidentals represents a chain of accidentals along a spectrum. For the purpose of this plugin, let's call it the **accidental chain**. Each successive item in this chain of sharps and flats refer to a constant-sized pitch increment. The number of increments of the unit interval is called the **degree** of the **chain**. `#` (sharp) is "degree 1", and `bb` (double flat) is "degree -2" of the sharps-flats chain.
 
-In 12edo, each degree along the sharps/flats chain represents a 100 cent increment, so `bb` represents -200 cents. We can theoretically extend this chain indefinitely to include as many sharps and flats as we want. However, there aren't any symbols available for more than 3 sharps/flats.
+In 12edo, each degree along the sharps/flats chain represents a 100 cent increment, so degree -2 would be -200 cents. We can theoretically extend this chain indefinitely to include as many sharps and flats as we want.
 
-In this plugin, you can compose different symbols together to form a degree. To do this, connect the Text Codes or Symbol Codes with a period (`.`).
+You can't attach two accidental degrees from the same accidental chain on to a single note (like how it wouldn't make sense to call a note "C-sharp-double-flat-triple-natural").
 
-> If you need degree -5 on your sharps-flats accidental chain &mdash; i.e. a 5-flats accidental &mdash; you can specify `bbb.bb` (Text Codes) or `8.7` (Symbol Codes). The order which you specify the symbols will affect which symbol is on the left or right. In this case, the triple flat is on the left, and double flat on the right.
-
-You can't attach two accidental degrees from the same accidental chain on to a single note (like how it wouldn't make sense to call a note "C-sharp-double-flat-triple-natural"). The plugin will simply just not work.
+To combine and permute different accidentals, declare multiple accidental chains. E.g. `C#/` can signify +1 degree sharp, and +1 degree syntonic comma.
 
 ### Accidental vectors
 
@@ -152,19 +196,121 @@ You can combine different accidental degrees from different accidental chains. T
 
 To declare a tuning system, we need to enter the **Tuning Configuration** into the score. These can be entered as text in **System Text** or **Staff Text** elements.
 
-System Text elements will apply to all staves from that bar onwards, whereas Staff Text will only apply to the staff it is attached to.
+System Text elements will apply to all staves, whereas Staff Text will only apply to the staff it is attached to. Configurations will only apply from its own bar onwards.
 
-You do not need to write the entire tuning configuration within a staff text. E.g. if you frequently use a tuning with rather lengthy configuration text, you can create a `.txt` file inside the included `tunings/` folder.
-
-If you do this, you can declare a tuning system by entering the `.txt` file path (without the .txt) into Staff/System Text, and it will reference the tuning system as written in the `.txt` file.
+You do not need to write the entire tuning configuration within a staff text. E.g. if you frequently use a tuning with rather lengthy configuration text, you can create a `.txt` file ([or pre-computed `.json` file](#1-pre-compute-the-tuning-config)) inside the included `tunings/` folder.
 
 > E.g. to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
+>
+> 🟢 **Recommended**: have a look at the provided tuning configs in the `tunings/` folder to see how notation/tuning systems are configured.
 
-> 🔴 **Beware:** if you find a tuning file with the same name, but with the file extension being `.json` instead of `.txt`, this means that the tuning configuration is [pre-computed. Read more about it in this section](#1-pre-compute-the-tuning-config).
+> 🔴 **Beware:** if you find two files with the same name where one is a `.txt` and the other a `.json` file, this means that the tuning configuration is [pre-computed. Read more about it in this section](#1-pre-compute-the-tuning-config).
 >
 > The plugin will opt to look for pre-computed `.json` tuning configurations first, so **changing the `.txt` file will not affect the tuning config**. Instead, you will need to use this web tool: https://euwbah.github.io/musescore-xen-tuner/ to generate a new `.json` file to replace the old one.
 
 Now lets dive into how we can create our own tuning/notation systems.
+
+### Tuning configuration syntax overview
+
+```
+// This is a comment. Comments are ignored by the plugin.
+
+// 1. Reference note
+
+C4: 440 * 16/27 // set frequency reference note (must be without accidental)
+
+// Intervals/frequencies can be specified as math/JavaScript expressions.
+
+// 2. Nominals
+
+// Nominals start from the above specified reference note
+// Cents must end with c, otherwise the number is treated as a JI ratio.
+// Last number specifies the interval of the equave.
+0c 200c 34/27 Math.pow(11/10, 3) Math.sqrt(49000)c 27/16 1101.1c 2/1
+
+// 3. Accidental chains
+
+// each accidental must be separated by a space.
+
+// chain 1: the usual 100c semitone accidentals
+bbb.b bbb bb b (100c) # x #x x.x
+
+// chain 2: text based accidentals
+'-'.'-' '-' (81/80) '+' '+'.'+'
+
+// chain 3: combination accidentals & irregular accidental sizes
+'hello'.68(-31.7c) (0) 'bye'.67(Math.sqrt(28/21))
+
+// chains 4-6: certain characters must be escaped with a backslash.
+// Applies to both text-based accidentals and Text Codes
+
+b\/\/ (0) // the double slash (//) of the 'b//' (Buyuk Mucenneb)
+          // must be escaped to prevent it from being treated as a comment.
+
+\'\' \' '\'' (0)  // single quote must be escaped.
+\\ '\\' (0)  // backslash must be escaped
+
+// 4. Ligatures
+
+lig(1,2) // signifies declaring a ligature that apply to chains 1 and 2
+1 -1 #v // sharp and minus (#.'-') becomes sharp arrow down symbol
+1 1 #^ // sharp and plus (#.'+') becomes sharp arrow up symbol
+
+lig(x, y, z, ...) // create ligature that applies to chains x, y, z, ...
+etc...
+
+// question mark after a ligature declaration signifies that the ligature
+// is a weak ligature.
+lig(1)?
+etc...
+
+// 5. Auxiliary operations
+
+aux(0) // 1st aux up/down adjusts note diatonically
+aux(1) // 2nd aux up/down modifies first accidental chain (flat/sharps)
+aux(2,3) // 3rd aux up/down modifies 2nd and 3rd accidental chains
+
+// 6. Secondary accidentals & text representations
+
+sec() // signifies start of secondary accidental declaration.
+
+'t' + 50c // quarter sharp symbol raises note by 50c.
+// This symbol can be entered via fingering using the "t" text representation
+
+'#' # 100c // additional sharp symbols raise note by 100c
+'b' b -100c // additional flat symbols lower note by 100c
+
+'+++' #+ 150c // triple plus converts into sesquisharp symbol.
+// This must be declared before '+', otherwise, when entering
+// accidentals using text representation fingerings, a triple-plus
+// will match as 3 separate plus symbols ('+'.'+'.'+')
+
+// Text representations' matching precedence is determined by
+// the order of declaration.
+
+'+' 81/80 // additional plus symbols raise note by syntonic comma
+// because '+' is a single-symbol text-based accidental, "+" is
+// automatically set as the text representation for this accidental.
+
+'abc' 0.01c // this is also a single-symbol text-based accidental
+'a'.'b'.'c' 0 // this isn't single-symbol.
+
+```
+
+The declarations need to be in order. Apart from the reference note and nominals, all the other declarations are optional:
+
+1. Reference note
+2. Nominals
+3. Accidental chains
+4. Ligatures
+5. Auxiliary operations
+6. Secondary accidentals & text representations
+
+### Full example
+
+See [heji/5 limit.txt](tunings/heji/5%20limit.txt) for a full annotated example of implementing the tuning configuration for the [extended Helmholtz-Ellis just intonation notation (2020 edition)](https://marsbat.space/pdfs/HEJI2_legend+series.pdf). In this tuning config, the up/down operations are implemented for up to the 5 limit, but higher limit accidentals are available as secondary accidentals, and can be entered via fingerings with the accidentals' text representations.
+
+Most of this section revolves around the [heji/5 limit.txt](tunings/heji/5%20limit.txt) tuning config. Continue reading for a detailed explanation on how you would go about creating tuning configs like this:
 
 ### Simple example
 
@@ -177,7 +323,7 @@ A4: 440
 
 `A4: 440` specifies the reference note and tuning in Hertz, which sets the note A4 to 440hz.
 
-`0c 200c 300c 500c 700c 800c 1000c` specifies, in cents, the tunings of each of the 7 nominals starting from the reference note A4. This means that B4 will be 200c higher than A4, C5 will be 300c higher than A4, etc... Each entry must be separated by a space.
+`0c 200c 300c 500c 700c 800c 1000c` specifies, in cents, the tunings of each of the 7 nominals starting from the reference note of choice, A4. This means that B4 will be 200c higher than A4, C5 will be 300c higher than A4, etc... Each entry must be separated by a space.
 
 The last interval size, `1200c`, specifies the equave size. The equaves are referenced in terms of the nominals defined, rather than the standard 12edo octave. E.g., if you only declare 2 nominals, then the next equave up from A4 will start at C5 instead of A5.
 
@@ -218,12 +364,12 @@ bbb bb b (2187/2048) # x #x
 ```
 
 > 🟢 Every ratio/cents interval can be specified as a math/JavaScript expression.
-> 
+>
 > **To differentiate ratios from cents, cents must end with a 'c'.**
 
 We're now setting the reference note C4 to a just-intonated 3-limit major sixth below A4. Because of that, we can now specify our nominals starting from C, which makes it a little easier to calculate the ratios.
 
-Our nominals are now all 3-limit ratios built of a chain of pure fifths from F to B, which are the standard nominals used in JI notations (unless you're writing in Ben Johnston's system).
+Our nominals are now all 3-limit ratios built off a chain of pure fifths from F to B, which are the standard nominals used in JI notations (unless you're writing in Ben Johnston's system).
 
 ### More accidental chains: 5-limit JI
 
@@ -242,17 +388,17 @@ We now have access to those 'sweeter' 5:4 major thirds like `C-E\` instead of `C
 
 ### Accidental ligatures: "Real" HEJI
 
-If we want to notate in HEJI, those arrows aren't the right symbol for the syntonic comma.
+If we want to notate in HEJI proper, those arrows aren't the right symbol for the syntonic comma.
 
-In HEJI, the accidentals in the syntonic comma chain and sharps-and-flats chain combine to form a single accidental with the up/down arrows being attached to the sharp/flat symbol.
+In HEJI, the first two accidental chains (syntonic commas & sharps/flats) are represented by a single ligatured accidental with the up/down arrows being attached to the sharp/flat symbol.
 
-To add support for notation systems where different accidentals in different chains are replaced with other symbols, we can declare a **ligature**. You can think of it as a list of "search-and-replace" conditions.
+To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature**. You can think of it as a list of "search-and-replace" conditions.
 
 ```txt
 C4: 440 * 16/27
 0 9/8 81/64 4/3 3/2 27/16 243/128 2
 bbb bb b (2187/2048) # x #x
-\ (81/80) /
+v3 v2 v (81/80) ^ ^2 ^3
 lig(1,2)
 -2 -2 bbv2
 -2 -1 bbv
@@ -276,11 +422,11 @@ lig(1,2)
 2 2 x^2
 ```
 
-We start declaring a ligature with `lig(1,2)`. The numbers `1,2` represent the Nth accidental chains that this ligature applies to. This means that if we add more accidental chains later on, the ligature will only search-and-replace symbols regarding these two chains, and will not affect the others.
+We start declaring a ligature with `lig(1,2)`. The numbers `1,2` represent the Nth accidental chains that this ligature applies to &mdash; meaning that it will only replace symbols that are part of the 1st and 2nd accidental chains, leaving other chain's symbols untouched.
 
 After that, we declare each search-and-replace condition on a new line.
 
-`-2 -1 bbv` means that if the 1st accidental chain is on degree -2 (double flat), and the second accidental chain is on degree -1 (down arrow), then we replace it with the single symbol `bbv`.
+`-2 -1 bbv` means that if the 1st accidental chain is on degree -2 (double flat), and the second accidental chain is on degree -1 (down arrow), then we replace it with the single symbol `bbv` (double flat with single down arrow).
 
 > ⚠️ IMPORTANT: The degrees `-2 -1` **must be specified in the same order as the ligature's chain declaration**.
 > 
@@ -288,11 +434,9 @@ After that, we declare each search-and-replace condition on a new line.
 >
 > ⚠️ Ligatured symbols **must not contain symbols that are already used as part of an accidental chain.**
 
-You only specify the degrees of chains that are declared as part of the ligature, in the order which you specified the chains.
-
 The ligatured symbols can be constructed with multiple symbols. Just like before, you can join symbols with periods.
 
-You can also specify more than one ligature declaration, regarding different chains. The ligatures will be search-and-replaced in the order which they are declared, so you can make some pretty complicated conditional ligaturing, if you must.
+You can also [specify more than one ligature declaration](#advanced-weak-ligatures--using-multiple-ligatures-at-once), regarding different chains. Though special care must be taken when deciding the order of declaration of the ligatures. [Read more here](#advanced-weak-ligatures--using-multiple-ligatures-at-once).
 
 ### Auxiliary operations
 
@@ -300,7 +444,7 @@ You may realize that it is rather inefficient to just use the up/down arrows to 
 
 We can make use of auxiliary up/down actions to have more control over how the note moves when being transposed.
 
-> :warning: **Ligature declarations must be written before auxiliary declarations**.
+> :warning: **Auxiliary declarations must be written after any ligature declarations**.
 
 ```txt
 C4: 440 * 16/27
@@ -327,7 +471,66 @@ Finally, `aux(0,1)` means both the nominal and the first accidental chain's degr
 
 You can specify whatever combination of nominal/chains within the parentheses that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
 
-### Irregularly sized accidental chains
+### Advanced: Weak ligatures & using multiple ligatures at once
+
+```txt
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2
+bbb bb b (2187/2048) # x #x
+v3 v2 v (81/80) ^ ^2 ^3
+
+lig(1)?
+-1 ~.#v // flat equals ~#v
+1 ~.b^ // sharp equals ~b^
+
+lig(1,2)
+-2 -2 bbv2
+-2 -1 bbv
+-2 1 bb^
+-2 2 bb^2
+-1 -2 bv2
+-1 -1 bv
+-1 1 b^
+-1 2 b^2
+0 -2 v2
+0 -1 v
+0 1 ^
+0 2 ^2
+1 -2 #v2
+1 -1 #v
+1 1 #^
+1 2 #^2
+2 -2 xv2
+2 -1 xv
+2 1 x^
+2 2 x^2
+```
+
+If we want to follow the [HEJI specification (2020)](https://marsbat.space/pdfs/HEJI2_legend+series.pdf) to the letter, we will need to also implement the enharmonic schisma tilde symbol (`~`), such that `C#` = `Db~`, and `Db = C#~`.
+
+Upon taking a closer look, the `~` symbol in HEJI can imply both an upwards or downwards offset depending on what symbol it is attached to. This plugin does not inherently support accidentals that change their meaning depending on the context, making it seemingly impossible to implement `~` per-se in Xen Tuner.
+
+However, as stated above, the purpose of these symbols is to allow enharmonic spelling. Ligatures in this plugin are treated as **enharmonically equivalent spellings** of a note, meaning we can trick the plugin into implementing these enharmonics as ligatures:
+
+
+```txt
+lig(1)?
+-1 ~.#v // "b" becomes "~#v"
+1 ~.b^ // "#" becomes "~b^"
+```
+
+🟥 Note that we use a `?` after the `lig(1)?` declaration line. This is to signify that this is a **weak ligature**. We don't want the plugin to replace every `b` with `~#v` and every `#` with `~b^`, because that is not the point of introducing this ligature. In order for the plugin to not aggressively prefer the ligatured version of the accidental, we need to use `?` to declare it as a weak ligature.
+
+🟥 Note that the order which the ligatures are declared is very important. This wouldn't work if the `lig(1)?` declaration is written after the `lig(1,2)` declaration.
+
+If we were to declare `lig(1,2)` first, this will cause the plugin to look for and match the `#v` and `b^` symbols first, instead of the composite `~.#v` and `~.b^`. Here's what will happen:
+
+- A note has the `~.b^` accidental, which should, by right, be interpreted as `#` enharmonically
+- `b^` gets eaten up by matching the `lig(1,2)` ligature, because it was declared first.
+- `~` remains, and the plugin will not be able to figure out what to do with it
+- [Halt & catch fire](https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing))
+
+### Advanced: Irregularly sized accidental chains
 
 Within an accidental chain, you can specify additional offsets to be applied to each accidental degree like so:
 
@@ -349,9 +552,123 @@ If you have very irregular interval sizes between accidentals, it might be bette
 bb(8/9) b(15/16) (0) #(17/16) x(8/7)
 ```
 
+### Advanced: Text based accidentals
+
+Some notation systems like [HEWM (Helmholtz-Ellis-Wolf-Monzo)](http://www.tonalsoft.com/enc/h/hewm.aspx) require accidentals that are text based (ASCII or UTF). You can use text based accidentals by quoting the text in single quotes like so:
+
+```txt
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 1200c
+'bb' 'b' (100c) '#' 'x'
+```
+
+This implements good old 12edo, but the accidentals will be text based instead of SMuFL symbols.
+
+Text based accidentals are implemented as fingerings attached to a notehead, and you will be able to access these accidentals with the regular up/down/enharmonic operations.
+
+However, if you want to be able to input these accidentals directly using fingering text, you will need to [declare text representations](#advanced-declaring-text-representations-of-accidentals).
+
+For a thorough example, see the [HEWM tuning config](tunings/hewm/7%20limit.txt), which uses mainly text based accidentals.
+
+🔴 **IMPORTANT**: Xen Tuner makes a distinction between `'x'.'x'` and `'xx'`. The former is two separate text elements whereas the latter is a single text element.
+
+### Advanced: Secondary accidentals
+
+When working in high-complexity just intonation or very large tunings with numerous accidentals of varying sizes that can all be permuted and combined with each other, it's highly recomended to implement the higher-limit/sporadic accidentals as secondary accidentals, rather than declaring one accidental chain per prime-limit.
+
+> 🟠 Declaring too many accidentals/ accidental chains will cause the plugin to take a long time to load the tuning config.
+
+Secondary accidentals are accidentals that are 'left-over' after the plugin parses the main accidentals that contribute to the tuning chain.
+
+You can tell the plugin what to do with them like so:
+
+```txt
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 1200c
+b (100c) #
+
+sec() // this starts the secondary accidental declaration
+
+// syntax: <symbol code/text code> [space] <cents or ratio expression>
+# 50c // extra sharps are +50c
+b -50c // extra flats are -50c
+
+\\.\\ -30c // double down arrow is -30c
+\\ -10c // single down arrow is -10c
+/./ 30c // double up is +30c
+/ 10c // single up is +10c
+```
+
+> 🔴 **IMPORTANT**: The `sec()` declaration must be placed after `aux` and `lig` declarations.
+
+In this example, there is only one accidental chain declared consisting of -1 to 1 degrees of flats/sharps. If there are any extra flat or sharp symbols, they will match as secondary accidentals, contributing +/- 50c each.
+
+**Secondary accidentals can stack**, and you don't need to declare a new secondary accidental for every unique number of times the symbol is repeated. Only declare secondary accidentals for unique symbols.
+
+For example, there are 4 HEJI 7-limit accidentals, so we declare only 4 secondary accidentals:
+
+```txt
+sec()
+u77 64/63 * 64/63
+u7 64/63
+d77 63/64 * 63/64
+d7 64/63
+```
+
+Any repetitions of these symbols found on a note will stack.
+
+
+The up/down arrows are declared in a specific order such that if there are double up/down arrows adjacent to each other, they will contribute +/- 30c instead of +/-(10 + 10)c.
+
+#### Secondary accidental declaration order matters
+
+🔴 The **declaration order of secondary accidentals has to be carefully chosen** so that certain combinations of symbols that overlap are matched with the correct precedence.
+
+E.g. if `\\` was declared before `\\.\\`, then the `\\.\\` secondary accidental would never be matched, because the `\\` symbol would always match first.
+
+Secondary accidental declaration is almost never done on its own, and instead you would want to declare [textual representations of the symbols](#advanced-declaring-text-representations-of-accidentals) at the same time.
+
+### Advanced: Declaring text representations of accidentals
+
+Declaring textual representations allows you to input accidentals (both SMuFL and text-based) by attaching fingering text on the note. These declarations are done together with [secondary accidental declarations](#advanced-secondary-accidentals) and work the same way, except you provide a quoted text string that represents the accidental.
+
+```txt
+...
+sec()
+'up77' u77 64/63*64/63
+'up7' u7 64/63
+```
+
+The above example declares two secondary accidentals, `u77` and `u7`. To input them effeciently, you can attach a fingering and enter `up77` or `up7` respectively. After any plugin operation is applied to that note, the note will be regarded as if it has the symbols attached to it.
+
+🔴 As usual, the **declaration order matters**. If the text representation `'up7'` was declared before `'up77'`, then `up77` would be matched as `up7` first, leaving a `7` that would not be matched. The plugin will then ignore the fingering as it thinks that it is not a valid text-representation of accidental(s).
+
+Declaration order must be carefully chosen so that there's no ambiguity between text representations (as they can be stacked repeatedly in a single fingering text), neither should there be ambiguity in how to [match the secondary accidental symbols](#secondary-accidental-declaration-order-matters).
+
+#### Elided text representations
+
+If the secondary accidental itself is a single-element text accidental, then you won't need to repeat the text accidental twice:
+
+```txt
+sec()
+'^' '^' 81/80 // this is unnecessary
+'^' 81/80 // this does the same thing
+
+// ⚠️ You can't do this. This is not a 
+// single-element text accidental!
+// `+`.`+` 50c
+
+// do this instead:
+'++' '+'.'+' 50c
+```
+
 -----
 
-You're encouraged to contribute your tuning systems to the project! You can file a pull request adding files to the `tunings/` folder.
+Congratulations on making it this far! You're encouraged to contribute your tuning systems to the project.
+
+You can file a pull request adding files to the `tunings/` folder, or simply file an issue with your tuning config, and I'll add it for you.
+
+🟠 If your tuning configuration contains many notes/equave and takes a long time to load, you should [pre-compute the tuning config](#1-pre-compute-the-tuning-config) into a `.json` file, which will help speed things up.
 
 ## How to: key signatures
 
@@ -377,10 +694,6 @@ keysig #.+ 0 bbb.bbb.bb 0 17.bv2 0 x.#x.#x
 ```
 
 ...also specifies a (rather extreme) key signature for 7 nominals.
-
-## How to: secondary accidentals
-
-TODO.
 
 ## How to use fingering annotations
 
@@ -412,7 +725,7 @@ E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of t
 >
 > Of course, this will also make normal fingering numbers act as otonal harmonics, so you should be careful.
 
-> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#how-to-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
+> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#advanced-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
 
 ### 3. Fingerings to denote cent offsets
 
@@ -420,7 +733,7 @@ You can apply an additional cent offset to a note (on top of its standard tuning
 
 E.g., `+5` on a note will make the note tune 5 cents higher than normal.
 
-> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#how-to-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
+> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#advanced-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
 
 ## How to: change shortcuts
 
@@ -473,7 +786,6 @@ You can set `enabled: true` (or delete that line), then change `sequence` to a k
 
 To control which Nth auxiliary operation this keybinding is for, simply set the second number of `Fns.operationTranspose(1, 5)` to the desired auxiliary operation number. E.g. the 10th auxiliary operation would be `Fns.operationTranspose(1, 10)`.
 
-
 ## Writing in huge tunings
 
 When dealing with a large tuning (> 1500 notes/equave), the Tuning Configuration data gets really large. MuseScore's plugins API really isn't designed to handle such demanding tasks &mdash; so, when you run a Xen Tuner action for the first time after opening MuseScore, it is normal for the plugin to take a few seconds, or even minutes, to load a large tuning, if the score requests for it.
@@ -486,7 +798,7 @@ Here are some ways to tackle the slow initialization/loading of tuning configs.
 
 ### 1. Pre-compute the tuning config
 
-Instead of writing the tuning config into the score/into a .txt file, you can go to this link: https://euwbah.github.io/musescore-xen-tuner/ to convert your tuning configuration into a .json file. In a nutshell, you're pre-computing the tuning configuration, so that you don't need to do it within MuseScore.
+Instead of writing the tuning config into the score or into a .txt file, you can go to this link: https://euwbah.github.io/musescore-xen-tuner/ to convert your tuning configuration into a .json file. In a nutshell, you're pre-computing the tuning configuration, so that you don't need to do it within MuseScore.
 
 Once you have the .json file (which you can rename to `whatever.json`, as long as it still has the `.json` extension), you can save it into the `tunings/` folder together with all the other .txt files.
 
@@ -496,13 +808,19 @@ This will make the initial loading of the tuning configuration much faster, but 
 
 This method is recommended if you're using a moderately large tuning system that is not ridiculously huge.
 
-### 2. Use fingering text ratios/cent offsets
+### 2. Use secondary accidentals
+
+If there are some accidentals in a chain that you only use sporadically, you may want to consider using [secondary accidentals](#advanced-secondary-accidentals) instead of declaring them main accidentals.
+
+The downside is that you aren't able to access these via the up/down/enharmonic operations. (But if you already have &gt; 4 accidental chains, this wouldn't affect you much.)
+
+### 3. Use fingering text ratios/cent offsets
 
 If you're tuning config exceeds 30MB, it's probably time to consider cutting down on accidentals/accidental chains that aren't used that often, and use the occasional fingering text to denote certain offsets.
 
 You can still have access to all the SMuFL symbols, and you can 'trick' the plugin to accept these symbols as accidentals so that you still get the benefit of auto-positioning by using pseudo-ligatures. (Work in progress)
 
-### 3. Clear the tuning cache
+### 4. Clear the tuning cache
 
 If you've been experimenting with several large-sized tuning systems within the same score/over the current MuseScore session, this will populate a runtime & score metadata cache which may use up too much memory over time.
 
@@ -510,7 +828,7 @@ If you've been experimenting with several large-sized tuning systems within the 
 - Run `Plugins > Xen Tuner > Clear Tuning Cache`
 - Restart Xen Tuner
 
-### 4. Notate comma shifts using reference pitch changes
+### 5. Notate comma shifts using reference pitch changes
 
 One of the culprits of requiring a huge Tuning Config is if you're writing a piece that utilizes regular comma shifts, requiring many accidentals per note throughout a particular comma-shifted section of the piece.
 
@@ -575,7 +893,7 @@ Checklist:
 - Suffix your cents with `c`, numbers represent ratios by default.
 - Prefix fingering cent offsets with `+`
 - Suffix fingering JI ratios with `.`
-- [Clear tuning cache](#3-clear-the-tuning-cache)
+- [Clear tuning cache](#4-clear-the-tuning-cache)
   - ⚠️ If you modify a tuning from a `.txt` or `.json` file, you will need to clear the tuning cache for the changes to take effect.
 - Specify [key signature](#how-to-key-signatures)
 
@@ -584,12 +902,12 @@ If all else fails, [report an issue](#reporting-an-issue). Include the tuning co
 ### I changed the tuning config text, but the plugin isn't picking up the changes
 
 - If there's a [pre-computed `.json` tuning file](#1-pre-compute-the-tuning-config), you will need to either delete it or use the [Xen Tuner pre-compute config tool](https://euwbah.github.io/musescore-xen-tuner/) to generate a new one with the updated tuning config text.
-- You will need to [clear the tuning cache](#3-clear-the-tuning-cache) for the changes to take effect.
+- You will need to [clear the tuning cache](#4-clear-the-tuning-cache) for the changes to take effect.
 - If all else fails, you can just close MuseScore, rename the tuning config file, reopen MuseScore and use the new tuning config name.
 
 ### If the plugin is lagging/tuning isn't correct
 
-- [Reset the tuning cache](#3-clear-the-tuning-cache). It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
+- [Reset the tuning cache](#4-clear-the-tuning-cache). It is recommended to do this often when you are playing around with many tunings in one score but are no longer using most of the tunings you experimented with.
 
 If you're dealing with many notes per equave (>1000), see [how to deal with huge tunings](#writing-in-huge-tunings)
 
@@ -723,4 +1041,12 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
 
 - The "Xen Tuner" name is unrelated to [Keenan Pepper's MuseScore Xentuner pluging](https://github.com/keenanpepper/musescore-xentuner). This naming coincidence I only realized after naming the project.
 
+-----
+
+## [Contributors](CONTRIBUTORS.md)
+
+-----
+
 ## [Dev Notes](/DEVELOPMENT.md)
+
+See dev notes for technical implementation details.
