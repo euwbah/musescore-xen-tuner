@@ -1592,6 +1592,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             }
         }
     }
+    
+    commitParsedSection();
 
     //
     //
