@@ -36,7 +36,7 @@ var pluginHomePath = '';
 /** @type {PluginAPIScore} */
 var _curScore = null; // don't clash with namespace
 
-/*
+/**
                                             _____                               
   __  __________  _____   _________  ____  / __(_)___ _   _   ______ ___________
  / / / / ___/ _ \/ ___/  / ___/ __ \/ __ \/ /_/ / __ `/  | | / / __ `/ ___/ ___/
@@ -108,7 +108,7 @@ var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
  * Some accidentals are very very thin and the default auto-positioning
  * will make them too tight and cluttered to read.
  */
-var MIN_ACC_WIDTH = 0.6;
+var MIN_ACC_WIDTH = 0.75;
 
 /**
  * Represents additional horizontal space to put between accidentals
@@ -135,6 +135,9 @@ var ACC_NOTESPACE = 0.2;
  * Font size of text-based ASCII accidentals. In px.
  * 
  * Text-based accidentals are rendered with fingering text.
+ * 
+ * Auto placement of single ASCII symbols/punctuation is
+ * optimized for this font size.
  */
 var ASCII_ACC_FONT_SIZE = 11;
 
