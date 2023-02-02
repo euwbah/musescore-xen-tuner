@@ -1287,7 +1287,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var maybeIncrement = parseCentsOrRatio(matchIncrement[1]);
 
                 if (maybeIncrement == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (i+1) + ': invalid accidental chain increment: ' + matchIncrement[1]);
+                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': invalid accidental chain increment: ' + matchIncrement[1]);
                     return null;
                 }
 
@@ -1328,7 +1328,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     if (maybeOffset != null) {
                         offset = maybeOffset;
                     } else {
-                        console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid accidental tuning offset specified: ' + offsetText);
+                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental tuning offset specified: ' + offsetText);
                     }
                 }
 
@@ -1343,7 +1343,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         if (!increment || centralIdx == null) {
-            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
             return null;
         }
 
@@ -1363,70 +1363,141 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         });
     }
 
-    // PARSE LIGATURES
+    // PARSE OTHER CONFIGS
+    //
+    // lig(x,y,...)
+    // aux(x,y,...)
+    // sec()
     //
     //
+
+    /**
+     * Stores current parsing state.
+     * 
+     * First value is a string that signifies what info the parser is
+     * parsing. Empty string `''` denotes that the parser is awaiting
+     * EOF or a new config declaration.
+     * 
+     * Only `'lig'` and `'sec'` are valid states which have additional
+     * data.
+     * 
+     * If state is `'lig'`, the second value is a {@link Ligature} object.
+     * 
+     * @type {[''|'lig'|'sec', Ligature?]}
+     */
+    var state = [];
+
+    /**
+     * After EOF or at the start of each new declaration, add the previously
+     * parsed declaration to the tuning config.
+     * 
+     * Call this before modifying the `state`.
+     */
+    var commitParsedSection = function () {
+        if (state.length == 0)
+            return;
+
+        if (state[0] == 'lig') {
+            // Push the ligature to the tuning config.
+            tuningConfig.ligatures.push(state[1]);
+        } else if (state[0] == 'sec') {
+            // Nothing to update
+        }
+    }
 
     for (; i < lines.length; i++) {
-
         var line = lines[i].trim();
+        var ligMa = line.match(/^lig\(([0-9,\s]+)\)(\?)*/);
+        var auxMa = line.match(/^aux\(([0-9,\s]+)\)/);
+        var secMa = line.match(/^sec\(\)/);
 
-        // Check for `aux(x,y,..)` declaration
-        if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
-            // console.log('skip lig');
-            break;
+        // First we check for declaration lines lig, aux, or sec.
+        // Is so, we process the declaration and possibly update the parser state.
+
+        if (auxMa != null) {
+            hasInvalid = false;
+            var nomAndChainIndices = auxMa[1]
+                .split(',')
+                .map(function (x) {
+                    var i = parseInt(x);
+                    // recall:
+                    // 0: change nominal
+                    // 1 to N: change accidental chain (1-based index)
+                    if (isNaN(i) || i < 0 || i > tuningConfig.accChains.length) {
+                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental chain index: ' + x
+                            + '\nin aux declaration: ' + line);
+                        hasInvalid = true;
+                    }
+                    return i;
+                });
+            if (hasInvalid)
+                return null;
+
+            var constantConstrictions = []; // ConstantConstrictions list
+
+            for (var accChainIdx = 0; accChainIdx < tuningConfig.accChains.length; accChainIdx++) {
+                // invert the accidental chains - only accidental chains not specified by the aux declaration
+                // should maintain at the same degree.
+
+                // accChainIdx is 0-based, +1 to make it 1-based.
+                if (nomAndChainIndices.indexOf(accChainIdx + 1) != -1)
+                    continue;
+
+                constantConstrictions.push(accChainIdx + 1);
+            }
+
+            // aux(0) Represents that the nominal should change.
+            // if the user doesn't specify 0, then the nominal should not change.
+
+            if (nomAndChainIndices.indexOf(0) == -1)
+                constantConstrictions.push(0);
+
+            tuningConfig.auxList.push(constantConstrictions);
+
+            commitParsedSection();
+            state = []; // aux has no section. await next section.
+            continue;
+        } else if (ligMa != null) {
+            var regarding = ligMa[1]
+                .split(',')
+                .map(function (x) {
+                    var n = parseInt(x);
+                    if (isNaN(n) || n < 1) hasInvalid = true;
+                    return n - 1;
+                });
+
+            if (hasInvalid) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid ligature declaration: ' + line);
+                return null;
+            }
+
+            var isWeak = ligMa[2] != undefined;
+
+            commitParsedSection();
+            state = [
+                'lig',
+                {
+                    regarding: regarding,
+                    isWeak: isWeak,
+                    ligAvToSymbols: {},
+                }
+            ];
+            continue;
+        } else if (secMa != null) {
+            commitParsedSection();
+            state = ['sec'];
+            continue;
         }
 
-        hasInvalid = false;
+        // If we are here, then there are no section declarations.
 
-        // lig(m, n) will be regarding the mth and nth accidental chains only.
-        //
-        // An exact match of the degrees of the mth and nth chains must be found
-        // in order for the ligature regarding m and n to be applied.
-
-        var match = line.match(/lig\(([0-9,]+)\)/);
-
-        if (match == null) {
-            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Couldn\'t parse tuning config: Expecting lig(x, y, ...) or aux(x?, y?, ...), got "' + line + '" instead.');
+        if (state.length == 0) {
+            console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Expected aux(...), lig(...), or sec(). Instead, got ' + line);
             return null;
         }
 
-        var regarding = match[1]
-            .split(',')
-            .map(function (x) {
-                var n = parseInt(x);
-                if (isNaN(n) || n < 1) hasInvalid = true;
-                return n - 1;
-            });
-
-        if (hasInvalid) {
-            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid ligature declaration: ' + line);
-            return null;
-        }
-
-        var isWeak = line.endsWith('?');
-        var ligAvToSymbols = {};
-
-        var goToAux = false;
-
-        for (var j = i + 1; j < lines.length; j++) {
-            // each line represents a mapping in `ligAvToSymbols`
-
-            // syntax: <chain 1 degree> <chain 2 degree> ... <dot separated acc symbols>
-
-            var line = lines[j].trim();
-
-            if (line.match(/lig\([0-9,]+\)/) != null) {
-                // Next ligature declaration
-                break;
-            }
-
-            // Check for `aux(x,y,..)` declaration
-            if (line.match(/(aux|sec)\([0-9,]*\)/) != null) {
-                goToAux = true;
-                break;
-            }
-
+        if (state[0] == 'lig') {
+            // parse ligature entry.
             var words = line.split(' ').map(function (x) { return x.trim() });
             var ligAv = words.slice(0, words.length - 1).map(function (x) { return parseInt(x) });
 
@@ -1440,112 +1511,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 tuningConfig.usedSymbols[x] = true;
             });
 
-            ligAvToSymbols[ligAv] = ligatureSymbols;
-        }
-
-        tuningConfig.ligatures.push({ // Ligature
-            regarding: regarding,
-            ligAvToSymbols: ligAvToSymbols,
-            isWeak: isWeak,
-        });
-
-        if (goToAux) {
-            i = j;
-            break;
-        }
-
-        // move outer loop to before next lig() declaration.
-        i = j - 1;
-    }
-
-    // PARSE AUX
-    //
-    //
-
-    for (; i < lines.length; i++) {
-        var line = lines[i].trim();
-
-        if (line.match(/sec\([0-9,]*\)/) != null) {
-            break;
-        }
-
-        // Check for `aux(x,y,..)` declaration
-
-        var match = line.match(/aux\(([0-9,]+)\)/);
-
-        if (match == null) {
-            // Aux declarations finished. 
-            // Parse secondary symbols.
-            break;
-        }
-
-        hasInvalid = false;
-        // Contains 0 if the user specifies nominals are allowed to change
-        // 1 if the first accidental chain degree is allowed to change
-        // 2 if the second accidental chain degree is allowed to change
-        // etc...
-        var nomAndChainIndices = match[1]
-            .split(',')
-            .filter(function (x) { return x.trim().length > 0 })
-            .map(function (x) {
-                var n = parseInt(x);
-                if (isNaN(n) || n < 0) hasInvalid = true;
-                return n;
-            });
-
-        if (hasInvalid) {
-            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Invalid aux declaration: ' + line);
-            return null;
-        }
-
-        var constantConstrictions = []; // ConstantConstrictions list
-
-        for (var accChainIdx = 0; accChainIdx < tuningConfig.accChains.length; accChainIdx++) {
-            // invert the accidental chains - only accidental chains not specified by the aux declaration
-            // should maintain at the same degree.
-
-            // accChainIdx is 0-based, +1 to make it 1-based.
-            if (nomAndChainIndices.indexOf(accChainIdx + 1) != -1)
-                continue;
-
-            constantConstrictions.push(accChainIdx + 1);
-        }
-
-        // aux(0) Represents that the nominal should change.
-        // if the user doesn't specify 0, then the nominal should not change.
-
-        if (nomAndChainIndices.indexOf(0) == -1)
-            constantConstrictions.push(0);
-
-        tuningConfig.auxList.push(constantConstrictions);
-    }
-
-
-    // PARSE SECONDARY SYMBOLS, ASCII CONVERSIONS
-    //
-    //
-
-    /*
-        sec()
-        '#' # 100c  // declares a secondary symbol with conversion.
-                    // convert all ascii '#' to SMuFL #
-                    // maps secondary # symbols to 100c
-
-        '>' 31c     // declares a secondary ASCII symbol without conversion.
-        u7 32c      // declares a secondary SMuFL symbol without conversion.
-    */
-
-    for (; i < lines.length; i++) {
-        var line = lines[i].trim();
-
-        // Check for `sec()` declaration
-        if (line != 'sec()') {
-            console.error('TUNING CONFIG ERROR: ' + (i+1) + ': Expected sec(), got "' + line + '" instead.');
-            return null;
-        }
-
-        for (var j = i + 1; j < lines.length; j++) {
-            var line = lines[j].trim();
+            state[1].ligAvToSymbols[ligAv] = ligatureSymbols;
+        } else if (state[0] == 'sec') {
+            // parse secondary accidental declaration.
+            // directly modifies the tuning config.
 
             var words = line.split(' ').map(function (x) { return x.trim() });
 
@@ -1555,7 +1524,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var cents = parseCentsOrRatio(words[1]);
 
                 if (symCodes == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Invalid secondary symbol declaration: ' + line);
+                    console.error('TUNING CONFIG ERROR: ' + (j + 1) + ': Invalid secondary symbol declaration: ' + line);
                     return null;
                 }
 
@@ -1592,12 +1561,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var cents = parseCentsOrRatio(words[2]);
 
                 if (symCodesASCIIFrom == null || symCodesTo == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Invalid secondary symbol declaration: ' + line);
+                    console.error('TUNING CONFIG ERROR: ' + (j + 1) + ': Invalid secondary symbol declaration: ' + line);
                     return null;
                 }
 
                 if (symCodesASCIIFrom.length != 1 || typeof (symCodesASCIIFrom[0]) != 'string') {
-                    console.error('TUNING CONFIG ERROR: ' + (j+1) + ': Convert-from text must be a single-element text symbol.\n'
+                    console.error('TUNING CONFIG ERROR: ' + (j + 1) + ': Convert-from text must be a single-element text symbol.\n'
                         + 'Received a multi-symbol/hybrid accidental instead' + line);
                     return null;
                 }
@@ -1617,12 +1586,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
             } else {
-                console.error('TUNING CONFIG ERROR: ' + (j+1) + 
+                console.error('TUNING CONFIG ERROR: ' + (j + 1) +
                     ': Secondary symbol declaration must have 2 or 3 space separated words. Got : ' + line);
                 return null;
             }
         }
-        i = j - 1;
     }
 
     //
@@ -4539,7 +4507,7 @@ function retrieveCustomOffsets(elem, staffLineIntersectsNote) {
 
     var lookupMapping;
     var key;
-    
+
     if (elem.symbol) {
         lookupMapping = Lookup.SYMBOL_LAYOUT;
         key = elem.symbol.toString();
@@ -4549,7 +4517,7 @@ function retrieveCustomOffsets(elem, staffLineIntersectsNote) {
     } else {
         return offsets;
     }
-    
+
     var quartupletOffsets = lookupMapping[key] && lookupMapping[key][staffLineIntersectsNote ? 1 : 0];
 
     if (!quartupletOffsets) {
@@ -4683,8 +4651,8 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
             // console.log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
-                if (symCode && (tuningConfig.usedSymbols[symCode] 
-                        || tuningConfig.usedSecondarySymbols[symCode])) {
+                if (symCode && (tuningConfig.usedSymbols[symCode]
+                    || tuningConfig.usedSecondarySymbols[symCode])) {
                     isAccSym = true;
                 }
             } else if (elem.name && elem.name == 'Fingering' &&
