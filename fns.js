@@ -2359,7 +2359,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     if (accSyms != null) {
         // First, check for ligatures, they count as primary accidentals.
         tuningConfig.ligatures.forEach(function (lig) {
-            console.log('checking ligature: ' + JSON.stringify(lig));
+            // console.log('checking ligature: ' + JSON.stringify(lig));
             var mostSymbolsMatched = 0;
             /** @type {SymbolCode[]} */
             var bestSymbolMatch = null;
@@ -3394,6 +3394,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
      * @type {{
      *      nextNote: NextNote,
      *      avDist: number,
+     *      absAvDist: number,
      *      numSymbols: number,
      *      lineOffset: number,
      *      sumOfDegree: number
@@ -3463,12 +3464,12 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         // If no immediate match found, calculate metrics and
         // add this to the list of options to be sorted.
 
-        // Compute AV distance, choose option with smallest distance
-
         var avDist = 0;
+        var absAvDist = 0;
 
         for (var j = 0; j < currAV.length; j++) {
             avDist += (currAV[j] - optionAV[j]) * (currAV[j] - optionAV[j]);
+            absAvDist += optionAV[j] * optionAV[j];
         }
 
         // The lower the sum of degrees the better.
@@ -3479,40 +3480,73 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         nextNoteOptions.push({
             nextNote: nextNoteObj,
             avDist: avDist,
+            absAvDist: absAvDist,
             numSymbols: newXenNote.orderedSymbols.length,
             lineOffset: -nominalOffset,
             sumOfDegree: sumOfDeg
         });
     }
 
+    /**
+     * Returns true if the line offset of the next note option
+     * matches the operation direction.
+     * 
+     * Staying on the same line is also considered 'matching direction'.
+     * 
+     * If negative equave the preferred direction is reversed.
+     * @returns {boolean} `true` if matches direction
+     */
+    function matchesDirection(lineOffset) {
+        var up = tuningConfig.equaveSize > 0 ? direction > 0 : direction < 0;
+        return up ? lineOffset <= 0 : lineOffset >= 0;
+    }
+
     // Sort them such that the best option is at the front
+    // The sorting precedence & preference is as declared in order:
     nextNoteOptions.sort(function (a, b) {
-        // Ligatures should always be preferred
-        if (a.nextNote.xen.hasLigaturePriority && !b.nextNote.xen.hasLigaturePriority) {
+        // choose the one with lesser line offset
+        if (Math.abs(a.lineOffset) < Math.abs(b.lineOffset)) {
             return -1;
-        } else if (!a.nextNote.xen.hasLigaturePriority && b.nextNote.xen.hasLigaturePriority) {
+        } else if (Math.abs(a.lineOffset) > Math.abs(b.lineOffset)) {
             return 1;
         }
 
         // Lower AV Dist is better. Give +/- 0.5 leeway for
         // 'similar' AV dist.
-        if (a.avDist - b.avDist <= -0.5) {
+        // if (a.avDist - b.avDist <= -0.5) {
+        //     return -1;
+        // } else if (a.avDist - b.avDist >= 0.5) {
+        //     return 1;
+        // }
+
+        // Lower absolute AV dist (less accidental degrees) preferred
+        if (a.absAvDist - b.absAvDist <= -0.3) {
             return -1;
-        } else if (a.avDist - b.avDist >= 0.5) {
+        } else if (a.absAvDist - b.absAvDist >= 0.3) {
             return 1;
         }
 
-        // AV dist similar, choose the one with lesser symbols
+        var aMatchDir = matchesDirection(a.lineOffset);
+        var bMatchDir = matchesDirection(b.lineOffset);
+
+        // Prefer line offset matching the direction of transpose
+        if (aMatchDir && !bMatchDir) {
+            return -1;
+        } else if (!aMatchDir && bMatchDir) {
+            return 1;
+        }
+        
+        // Strong ligatures should always be preferred
+        if (a.nextNote.xen.hasLigaturePriority && !b.nextNote.xen.hasLigaturePriority) {
+            return -1;
+        } else if (!a.nextNote.xen.hasLigaturePriority && b.nextNote.xen.hasLigaturePriority) {
+            return 1;
+        }
+        
+        // Choose the one with lesser symbols
         if (a.numSymbols < b.numSymbols) {
             return -1;
         } else if (a.numSymbols > b.numSymbols) {
-            return 1;
-        }
-
-        // Symbols similar, choose the one with lesser line offset
-        if (Math.abs(a.lineOffset) < Math.abs(b.lineOffset)) {
-            return -1;
-        } else if (Math.abs(a.lineOffset) > Math.abs(b.lineOffset)) {
             return 1;
         }
 

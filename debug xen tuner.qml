@@ -54,7 +54,7 @@ MuseScore {
         console.log('present working dir: ' + Qt.resolvedUrl("."));
 
         // Debug code here.
-        // Fns.operationTune(); // test tune
-        Fns.operationTranspose(0, 0); // test diatonic transpose
+        Fns.operationTune(); // test tune
+        // Fns.operationTranspose(0, 0); // test diatonic transpose
       }
 }
