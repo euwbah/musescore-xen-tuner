@@ -250,7 +250,13 @@ b\/\/ (0) // the double slash (//) of the 'b//' (Buyuk Mucenneb)
 \'\' \' '\'' (0)  // single quote must be escaped.
 \\ '\\' (0)  // backslash must be escaped
 
-// 4. Ligatures
+// After declaring accidental chains, we declare other
+// configurations: ligatures, auxiliary operations, and
+// secondary accidentals. 
+//
+// These declarations can be done in any order.
+
+// 4a. Ligatures
 
 lig(1,2) // signifies declaring a ligature that apply to chains 1 and 2
 1 -1 #v // sharp and minus (#.'-') becomes sharp arrow down symbol
@@ -264,13 +270,13 @@ etc...
 lig(1)?
 etc...
 
-// 5. Auxiliary operations
+// 4b. Auxiliary operations
 
 aux(0) // 1st aux up/down adjusts note diatonically
 aux(1) // 2nd aux up/down modifies first accidental chain (flat/sharps)
 aux(2,3) // 3rd aux up/down modifies 2nd and 3rd accidental chains
 
-// 6. Secondary accidentals & text representations
+// 4c. Secondary accidentals & text representations
 
 sec() // signifies start of secondary accidental declaration.
 
@@ -297,14 +303,12 @@ sec() // signifies start of secondary accidental declaration.
 
 ```
 
-The declarations need to be in order. Apart from the reference note and nominals, all the other declarations are optional:
+The declarations are to be done in the above specified order. Apart from the reference note and nominals, all the other declarations are optional:
 
 1. Reference note
 2. Nominals
 3. Accidental chains
-4. Ligatures
-5. Auxiliary operations
-6. Secondary accidentals & text representations
+4. Ligatures, Auxiliary operations, secondary accidentals
 
 ### Full example
 
@@ -443,8 +447,6 @@ You can also [specify more than one ligature declaration](#advanced-weak-ligatur
 You may realize that it is rather inefficient to just use the up/down arrows to get the note/accidental you need. We already have 245 unique notes within an equave!
 
 We can make use of auxiliary up/down actions to have more control over how the note moves when being transposed.
-
-> :warning: **Auxiliary declarations must be written after any ligature declarations**.
 
 ```txt
 C4: 440 * 16/27
@@ -598,8 +600,6 @@ b -50c // extra flats are -50c
 /./ 30c // double up is +30c
 / 10c // single up is +10c
 ```
-
-> 🔴 **IMPORTANT**: The `sec()` declaration must be placed after `aux` and `lig` declarations.
 
 In this example, there is only one accidental chain declared consisting of -1 to 1 degrees of flats/sharps. If there are any extra flat or sharp symbols, they will match as secondary accidentals, contributing +/- 50c each.
 
