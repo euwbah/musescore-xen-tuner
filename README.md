@@ -603,7 +603,7 @@ b -50c // extra flats are -50c
 
 In this example, there is only one accidental chain declared consisting of -1 to 1 degrees of flats/sharps. If there are any extra flat or sharp symbols, they will match as secondary accidentals, contributing +/- 50c each.
 
-**Secondary accidentals can stack**, and you don't need to declare a new secondary accidental for every unique number of times the symbol is repeated. Only declare secondary accidentals for unique symbols.
+**Secondary accidentals can stack**, and you don't need to declare a new secondary accidental for every unique number of times the symbol is repeated (unless the tuning is irregular and depends on the number of times the accidental appears). Only declare secondary accidentals for uniquely tuned symbols.
 
 For example, there are 4 HEJI 7-limit accidentals, so we declare only 4 secondary accidentals:
 
