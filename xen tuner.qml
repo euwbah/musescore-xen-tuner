@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.2.0"
+      version: "0.2.1"
       pluginType: "dock"
       dockArea: "left"
       description: "Starts the XenTuner plugin.\n\n" +
@@ -47,7 +47,11 @@ MuseScore {
         id: fileIO
         source: "./"
         onError: function(err) {
-          console.error(fileIO.source + ". File IO Error: " + err);
+          if (err.indexOf(".json") != -1) {
+            console.warn("File not found: " + fileIO.source)
+          } else {
+            console.error(fileIO.source + ". File IO Error: " + err);
+          }
         }
       }
       GridLayout {

@@ -634,8 +634,9 @@ function accidentalsHash(accidentals) {
             return '';
         }
 
-        // simply sort and count number of occurences.
-
+        // sort and count number of occurences.
+        // use a copy of the array so we don't modify the original.
+        accidentals = accidentals.slice();
         accidentals.sort(symCodeSortingFn);
 
         var occurences = 0;
@@ -1001,25 +1002,94 @@ function parseSymbolsDeclaration(str) {
 function parseCentsOrRatio(str) {
     var str = str.trim();
     var offset = null;
-    if (str.endsWith('c')) {
-        // in cents
-        offset = parseFloat(eval(str.slice(0, -1)));
-    } else {
-        var ratio = parseFloat(eval(str));
-        if (ratio < 0) {
-            offset = -Math.log(-ratio) / Math.log(2) * 1200;
-        } else if (ratio == 0) {
-            offset = 0;
+    try {
+        if (str.endsWith('c')) {
+            // in cents
+            offset = parseFloat(eval(str.slice(0, -1)));
         } else {
-            offset = Math.log(ratio) / Math.log(2) * 1200;
+            var ratio = parseFloat(eval(str));
+            if (ratio < 0) {
+                offset = -Math.log(-ratio) / Math.log(2) * 1200;
+            } else if (ratio == 0) {
+                offset = 0;
+            } else {
+                offset = Math.log(ratio) / Math.log(2) * 1200;
+            }
         }
+    } catch (e) {
+        console.warn('TUNING CONFIG: Cannot parse as cents or ratio: ' + str
+            + '\nErr: ' + e);
+        return null;
     }
     if (!isNaN(offset)) {
         return offset;
     } else {
-        console.error('TUNING CONFIG ERROR: Invalid accidental tuning offset specified: ' + str);
+        console.warn('TUNING CONFIG: Invalid accidental tuning offset specified: ' + str);
         return null;
     }
+}
+
+/**
+ * Splits an accidental degree declaration in the acc chain into 
+ * symbols string and tuning offset.
+ * 
+ * E.g.: `'(!!!)(Math.pow(3/2,3))'` should return:
+ * 
+ * `['(!!!)', 'Math.pow(3/2,3)']`
+ * 
+ * Parsing method:
+ * 
+ * - If the string ends with a closing bracket, find the matching opening bracket.
+ * - Split at the matching opening bracket. The left part is the symbols declaration
+ *   and the right part is the tuning offset.
+ * - If the entire string is matched as the tuning offset, treat the entire string
+ *   as the symbols declaration.
+ * - If the matched tuning offset has a syntax error, treat the entire string as
+ *   the symbols declaration.
+ * 
+ * 
+ * @param {string} str 
+ * String containing accidental symbols definition and optional irregular 
+ * tuning offset. Whitespace should be trimmed.
+ * 
+ * @returns {[string, number]?}
+ * `[symbols, centsOffset]`. Returns null if the syntax is invalid.
+ */
+function parseSymbolOffsetPair(str) {
+    var splitIdx = 0;
+    if (str.endsWith(')')) {
+        var bracketDepth = 1;
+        for (var i = str.length - 2; i >= 0; i--) {
+            var c = str[i];
+            if (c == ')') {
+                bracketDepth++;
+            } else if (c == '(') {
+                bracketDepth--;
+            }
+            if (bracketDepth == 0) {
+                splitIdx = i;
+                break;
+            }
+        }
+    } else {
+        return [str, 0];
+    }
+
+    var symbols = str.slice(0, splitIdx);
+    var offset = str.slice(splitIdx + 1, str.length - 1); // remove surrounding parens
+
+    if (splitIdx == 0) {
+        return [str, 0];
+    }
+
+    var maybeOffset = parseCentsOrRatio(offset);
+
+    if (maybeOffset == null) {
+        symbols = str;
+        maybeOffset = 0;
+    }
+
+    return [symbols, maybeOffset];
 }
 
 /**
@@ -1145,7 +1215,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // If no file/IO Error, parse the textOrPath as the config itself.
         text = textOrPath;
     } else {
-        console.log('Reading tuning config from ' + fileIO.source + ':\n' + text);
+        console.log('Reading tuning config from ' + fileIO.source);
     }
 
     // remove comments from tuning config text.
@@ -1269,7 +1339,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             break;
         }
 
-        var accChainStr = line.split(' ').map(function (x) { return x.trim(); });
+        var accChainWords = line.split(' ').map(function (x) { return x.trim(); });
 
         var increment = null;
         var symbolsLookup = {}; // contains all unique symbols used.
@@ -1278,8 +1348,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var offsets = [];
         var centralIdx = null;
 
-        for (var j = 0; j < accChainStr.length; j++) {
-            var word = accChainStr[j];
+        for (var j = 0; j < accChainWords.length; j++) {
+            var word = accChainWords[j];
 
             var matchIncrement = word.match(/^\((.+)\)$/);
 
@@ -1287,63 +1357,46 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var maybeIncrement = parseCentsOrRatio(matchIncrement[1]);
 
                 if (maybeIncrement == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': invalid accidental chain increment: ' + matchIncrement[1]);
-                    return null;
+                    console.warn('TUNING CONFIG: ' + (i + 1) + ': invalid accidental chain increment: ' + matchIncrement[1]
+                        + '\nAttempting to parse as symbols instead');
+                } else if (increment != null) {
+                    console.error('TUNING CONFIG ERROR: Multiple acc chain increments specified in: ' + line);
+                } else {
+                    increment = maybeIncrement;
+                    degreesSymbols.push(null);
+                    offsets.push(0);
+                    centralIdx = j;
+                    continue;
                 }
-
-                increment = maybeIncrement;
-                degreesSymbols.push(null);
-                offsets.push(0);
-                centralIdx = j;
-            } else {
-                // degree syntax: sym1.sym2.symN(<optional additional cents offset>)
-                // e.g.: +.7./(-23.5) declares a degree containing:
-                // SHARP_SLASH, FLAT2, ARROW_UP symbols
-                // with additional offset -23.5 cents
-
-                var symbols_offset = word.split('(');
-
-                if (symbols_offset.length > 2) {
-                    // '(' was used as an ASCII accidental somewhere.
-                    // Combine the first N-1 splits as the accidental symbol.
-                    symbols_offset = [
-                        symbols_offset.slice(0, symbols_offset.length - 1).join('('),
-                        symbols_offset[symbols_offset.length - 1]
-                    ];
-                }
-
-                hasInvalid = false;
-
-                var symbolCodes = parseSymbolsDeclaration(symbols_offset[0]);
-
-                if (symbolCodes == null) {
-                    return null;
-                }
-
-                var offset = 0;
-
-                if (symbols_offset.length > 1) {
-                    var offsetText = symbols_offset[1].slice(0, symbols_offset[1].length - 1);
-                    var maybeOffset = parseCentsOrRatio(offsetText);
-                    if (maybeOffset != null) {
-                        offset = maybeOffset;
-                    } else {
-                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental tuning offset specified: ' + offsetText);
-                    }
-                }
-
-                symbolCodes.forEach(function (x) {
-                    symbolsLookup[x] = true;
-                    tuningConfig.usedSymbols[x] = true;
-                });
-
-                degreesSymbols.push(symbolCodes);
-                offsets.push(offset);
             }
+
+            // degree syntax: sym1.sym2.symN(<optional additional cents offset>)
+            // e.g.: +.7./(-23.5) declares a degree containing:
+            // SHARP_SLASH, FLAT2, ARROW_UP symbols
+            // with additional offset -23.5 cents
+
+            var symbols_offset = parseSymbolOffsetPair(word);
+
+            var symbolCodes = parseSymbolsDeclaration(symbols_offset[0]);
+
+            if (symbolCodes == null) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Could not parse accidental decl: ' + word);
+                return null;
+            }
+
+            var offset = symbols_offset[1];
+
+            symbolCodes.forEach(function (x) {
+                symbolsLookup[x] = true;
+                tuningConfig.usedSymbols[x] = true;
+            });
+
+            degreesSymbols.push(symbolCodes);
+            offsets.push(offset);
         }
 
-        if (!increment || centralIdx == null) {
-            console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental chain: "' + accChainStr.join(' ') + '" in ' + line);
+        if (increment == null || centralIdx == null) {
+            console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental chain: "' + accChainWords.join(' ') + '" in ' + line);
             return null;
         }
 
@@ -1364,6 +1417,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     }
 
     // PARSE OTHER CONFIGS
+    // (can be declared in any order)
     //
     // lig(x,y,...)
     // aux(x,y,...)
@@ -1407,7 +1461,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     for (; i < lines.length; i++) {
         var line = lines[i].trim();
-        var ligMa = line.match(/^lig\(([0-9,\s]+)\)(\?)*/);
+        var ligMa = line.match(/^lig\(([0-9,\s]+)\)([\?!]*)/);
         var auxMa = line.match(/^aux\(([0-9,\s]+)\)/);
         var secMa = line.match(/^sec\(\)/);
 
@@ -1471,7 +1525,15 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 return null;
             }
 
-            var isWeak = ligMa[2] != undefined;
+            var isWeak = false;
+            var isImportant = false;
+
+            if (ligMa[2]) {
+                if (ligMa[2].indexOf('!') != -1)
+                    isImportant = true;
+                if (ligMa[2].indexOf('?') != -1)
+                    isWeak = true;
+            }
 
             commitParsedSection();
             state = [
@@ -1479,6 +1541,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 {
                     regarding: regarding,
                     isWeak: isWeak,
+                    isImportant: isImportant,
                     ligAvToSymbols: {},
                 }
             ];
@@ -1592,7 +1655,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             }
         }
     }
-    
+
     commitParsedSection();
 
     //
@@ -1663,9 +1726,18 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
 
     /**
+     * This is a KVP of {@link XenNote.hash XenNote hashes} to {@link XNE}.
+     * 
+     * The user may declare ligatures that have the same {@link XenNote.hash} as
+     * existing {@link XenNote XenNotes} from the accidental chains to explicitly give
+     * them 'important' priority. (See `hewm/5 limit.txt` or `updown/22edo.txt`)
+     * 
+     * It's important to let ligatured {@link XNE} override default {@link XNE} entries
+     * that come from acc chains.
+     * 
      * @type {XenNotesEquaves}
      */
-    var xenNotesEquaves = [];
+    var xenNotesEquaves = {};
 
     // Now we iterate the nominals to populate
 
@@ -1675,18 +1747,20 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // if there are no accidental chains, we can just add the nominal
 
         if (tuningConfig.accChains.length == 0) {
-            xenNotesEquaves.push({
+            var hash = createXenHash(nomIdx, {});
+            xenNotesEquaves[hash] = {
                 av: [],
                 xen: { // XenNote
                     nominal: nomIdx,
                     orderedSymbols: [],
                     accidentals: null,
-                    hash: createXenHash(nomIdx, {}),
-                    hasLigaturePriority: false,
+                    hash: hash,
+                    hasLigaturePriority: false, // these don't matter
+                    hasImportantLigature: true,
                 },
                 cents: nominalCents,
                 equavesAdjusted: 0,
-            });
+            };
             continue;
         }
 
@@ -1778,18 +1852,22 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 equavesAdjusted += 1;
             }
 
-            xenNotesEquaves.push({
+            var hash = createXenHash(nomIdx, accidentalSymbols);
+            xenNotesEquaves[hash] = {
                 av: accidentalVector,
                 xen: { // XenNote
                     nominal: nomIdx,
                     orderedSymbols: orderedSymbols,
                     accidentals: orderedSymbols.length == 0 ? null : accidentalSymbols,
-                    hash: createXenHash(nomIdx, accidentalSymbols),
+                    hash: hash,
                     hasLigaturePriority: false,
+                    // if the note is a nominal, ensure that they always show up
+                    // in enharmonic cycle graphs.
+                    hasImportantLigature: orderedSymbols.length == 0,
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
-            });
+            };
 
             tuningConfig.avToSymbols[accidentalVector] = orderedSymbols;
 
@@ -1878,18 +1956,21 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
                     // Add the ligature as if it were an enharmonic equivalent.
 
-                    xenNotesEquaves.push({
+                    var hash = createXenHash(nomIdx, ligOrderedSymbols);
+                    // console.log(hash + ': ligOrderedSymbols: ' + JSON.stringify(ligOrderedSymbols));
+                    xenNotesEquaves[hash] = {
                         av: accidentalVector,
                         xen: { // XenNote
                             nominal: nomIdx,
                             orderedSymbols: ligOrderedSymbols,
                             accidentals: ligOrderedSymbols.length == 0 ? null : ligaturedSymbols,
-                            hash: createXenHash(nomIdx, ligOrderedSymbols),
+                            hash: hash,
                             hasLigaturePriority: !lig.isWeak,
+                            hasImportantLigature: lig.isImportant,
                         },
                         cents: cents,
                         equavesAdjusted: equavesAdjusted,
-                    });
+                    };
 
                     if (!lig.isWeak) {
                         // Strong ligatures should take precedence.
@@ -1911,12 +1992,18 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         (array comparison uses .join implicitly)
     */
 
-    xenNotesEquaves.sort(function (a, b) {
-        if (isEnharmonicallyEquivalent(a.cents, b.cents)) {
-            return (a.av < b.av) ? -1 : 1;
-        }
-        return a.cents - b.cents;
-    });
+    /**
+     * @type {SortedXNE}
+     */
+    var sortedXNEs =
+        Object.keys(xenNotesEquaves)
+            .map(function (x) { return xenNotesEquaves[x]; })
+            .sort(function (a, b) {
+                if (isEnharmonicallyEquivalent(a.cents, b.cents)) {
+                    return (a.av < b.av) ? -1 : 1;
+                }
+                return a.cents - b.cents;
+            });
 
     /*
     Iterate all XenNotes in order
@@ -1926,7 +2013,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     // If current note is enharmonically equivalent, don't update this value.
     var prevEnhEquivCents = null;
 
-    xenNotesEquaves.forEach(function (x) {
+    sortedXNEs.forEach(function (x) {
         var av = x.av;
         var xenNote = x.xen;
         var cents = x.cents;
@@ -1939,35 +2026,15 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningConfig.tuningTable[hash] = [cents, equavesAdjusted];
 
         if (prevEnhEquivCents != null && isEnharmonicallyEquivalent(cents, prevEnhEquivCents)) {
-            // Curr note should belong to the same group as prev note.
+            // Curr note should belong to the s ame group as prev note.
             // Safe to assume tuningConfig.stepsList is not empty.
 
             // Contains list of enharmonically equivalent XenNote hashes.
             var enharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
-            // Contains hash of last enharmGroup before current hash is added.
-            var previousEnharmHash = enharmGroup[enharmGroup.length - 1];
             enharmGroup.push(hash);
             tuningConfig.stepsLookup[hash] = tuningConfig.stepsList.length - 1;
-
-            // Add vertex in EnharmonicGraph:
-            // connect previous enharmonic with current enharmonic.
-            tuningConfig.enharmonics[previousEnharmHash] = hash;
         } else {
             // Curr note is not enharmonically equivalent.
-
-            // Before adding new entry in StepwiseList, check if
-            // most recent entry has enharmonic equivalents.
-            //
-            // If so, complete the cycle in the enharmonic graph.
-
-            if (tuningConfig.stepsList.length > 0) {
-                var prevEnharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
-                if (prevEnharmGroup.length > 1) {
-                    var firstEnharmHash = prevEnharmGroup[0];
-                    var lastEnharmHash = prevEnharmGroup[prevEnharmGroup.length - 1];
-                    tuningConfig.enharmonics[lastEnharmHash] = firstEnharmHash;
-                }
-            }
 
             // Add new entry in StepwiseList
 
@@ -1979,13 +2046,32 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
     });
 
-    // Finally, check if last entry in StepwiseList has enharmonic equivalents.
-    // If so, complete the cycle in the enharmonic graph.
-    var lastEnharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
-    if (lastEnharmGroup.length > 1) {
-        var firstEnharmHash = lastEnharmGroup[0];
-        var lastEnharmHash = lastEnharmGroup[lastEnharmGroup.length - 1];
-        tuningConfig.enharmonics[lastEnharmHash] = firstEnharmHash;
+    // Populate enharmonic graphs:
+
+    for (var i = 0; i < tuningConfig.stepsList.length; i++) {
+        var enhEquivNotes = tuningConfig.stepsList[i];
+        var maybeImportantOnly = enhEquivNotes.filter(function (hash) {
+            return tuningConfig.notesTable[hash].hasImportantLigature;
+        });
+        if (maybeImportantOnly.length != 0) {
+            // if some notes in the enharmonic equivalent list have important ligatures,
+            // we only want to consider those notes.
+            enhEquivNotes = maybeImportantOnly;
+        }
+
+        if (enhEquivNotes.length > 1) {
+            // If there are more than one enharmonic equivalents,
+            // populate the enharmonic graph.
+
+            // console.log((i+1) + '/' + tuningConfig.stepsList.length + ': ' 
+            //     + JSON.stringify(enhEquivNotes));
+
+            for (var j = 0; j < enhEquivNotes.length; j++) {
+                var hash = enhEquivNotes[j];
+                var nextHash = enhEquivNotes[(j + 1) % enhEquivNotes.length];
+                tuningConfig.enharmonics[hash] = nextHash;
+            }
+        }
     }
 
     // DONE!
@@ -1998,6 +2084,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         console.log('Saved tuning to runtime & metaTag cache.');
     }
+
+    console.log(tuningConfig.stepsList.length + ' notes/equave');
 
     return tuningConfig;
 }
@@ -2100,6 +2188,10 @@ function parseChangeReferenceTuning(text) {
 
     var referenceLetter = referenceTuning[0][0].toLowerCase();
     var referenceOctave = parseInt(referenceTuning[0].slice(1));
+    if (isNaN(referenceOctave)) {
+        // octave wasn't specified, so we assume it's 4.
+        referenceOctave = 4;
+    }
 
     var nominalsFromA4 = (referenceOctave - 4) * 7;
     var lettersNominal = Lookup.LETTERS_TO_NOMINAL[referenceLetter];
@@ -2227,7 +2319,7 @@ function parsePossibleConfigs(text, tick) {
 
     if (maybeConfig != null) {
         var numSteps = maybeConfig.stepsList.length;
-        console.log("Found tuning config:\n" + text + "\n" + numSteps + " steps/equave");
+        console.log("Found tuning config:\n" + text + "\n" + numSteps + " notes/equave");
         // tuning config found.
 
         return { // ConfigUpdateEvent
@@ -2309,6 +2401,8 @@ function getNominal(msNote, tuningConfig) {
 function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
     // Convert nominalsFromA4 to nominals from tuning note.
 
+    var debugStr = ''; // to be printed during error
+
     var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
     var equaves = Math.floor(nominalsFromTuningNote / tuningConfig.numNominals);
 
@@ -2323,7 +2417,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     // Check fingerings for accidental declarations
     var maybeFingeringAccSymbols = readFingeringAccidentalInput(msNote, tuningConfig);
     if (maybeFingeringAccSymbols != null) {
-        console.log('found fingering acc input: ' + JSON.stringify(maybeFingeringAccSymbols.symCodes));
+        // console.log('found fingering acc input: ' + JSON.stringify(maybeFingeringAccSymbols.symCodes));
         if (!CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY &&
             maybeFingeringAccSymbols.type == "ascii" && retrievedAccHash != null) {
             // We need to combine existing accidentals and newly created ones
@@ -2332,6 +2426,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
             // Simply replace existing accidentals with newly created ones
             accSyms = accidentalSymbolsFromList(maybeFingeringAccSymbols.symCodes);
         }
+        debugStr += '\nCreated symbols from fingering: ' + JSON.stringify(accSyms);
     }
 
     // If no accidental found, check key signature
@@ -2339,6 +2434,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         // Check if KeySig has a valid number of nominals.
         && keySig.length == tuningConfig.numNominals) {
         accSyms = accidentalSymbolsFromHash(keySig[nominal]);
+        debugStr += '\nCreated symbols from key sig: ' + JSON.stringify(accSyms);
     }
 
     if (accSyms != null) {
@@ -2347,6 +2443,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         var syms = Object.keys(accSyms);
         if (syms.length == 1 && syms[0] == '2') {
             accSyms = null;
+            debugStr += '\nOnly natural symbols found, setting accSyms to null.';
         }
     }
 
@@ -2358,7 +2455,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var secondaryAccMatches = {};
     if (accSyms != null) {
         // First, check for ligatures, they count as primary accidentals.
-        tuningConfig.ligatures.forEach(function (lig) {
+        tuningConfig.ligatures.forEach(function (lig, idx) {
             // console.log('checking ligature: ' + JSON.stringify(lig));
             var mostSymbolsMatched = 0;
             /** @type {SymbolCode[]} */
@@ -2383,10 +2480,13 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
                 // Remove the best match from the list of symbols to be matched.
                 accSyms = bestSubtracted;
+
+                debugStr += '\nMatched ligature: ' + JSON.stringify(bestSymbolMatch) +
+                    ' from lig no. ' + (idx + 1);
             }
         });
 
-        // Search first declared acc Chain
+        // Search from first declared acc Chain onwards
         for (var i = 0; i < tuningConfig.accChains.length; i++) {
             var chain = tuningConfig.accChains[i];
 
@@ -2418,6 +2518,9 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
 
                 // Remove the best match from the list of symbols to be matched.
                 accSyms = bestSubtracted;
+
+                debugStr += '\nMatched primary accidental: ' + JSON.stringify(bestSymbolMatch) +
+                    ' from acc. chain no. ' + (i + 1);
             }
         }
 
@@ -2433,7 +2536,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
             var numTimesMatched = 0;
 
             var count = 0;
-            while (count++ < 10) {
+            while (count++ < 70) { // limit reps to prevent freezing
                 var trySubtract = subtractAccSym(accSyms, syms);
 
                 if (trySubtract == null) {
@@ -2453,9 +2556,14 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
                 }
 
                 secondaryAccMatches[secAccIndex] = numTimesMatched;
+
+                debugStr += '\nMatched secondary accidental: ' + JSON.stringify(syms) +
+                    ' (no. ' + (i + 1) + ')' + numTimesMatched + ' times';
             }
         }
     }
+
+    debugStr += '\nLeftover unmatched symbols: ' + JSON.stringify(accSyms);
 
     // Create hash manually.
     // Don't use the createXenHash function, that works on the AccidentalSymbols object
@@ -2471,7 +2579,11 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var xenNote = tuningConfig.notesTable[xenHash];
 
     if (xenNote == undefined) {
-        console.error("\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash + ") in tuning config. \n Please check your tuning config. \n-----------------------\n");
+        console.error("\n-----------------------\nFATAL ERROR: Could not find XenNote (" + xenHash +
+            ") in tuning config. " + "\n\nNote parsing trace:" + debugStr +
+            "\n\n...this is likely due to an incorrect order of declaration of ligature/secondary accidentals. "
+            + "Read the above note parsing trace messages to see how the plugin mis-parsed this note.\n"
+            + "\n-----------------------\n");
         // console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
     }
@@ -3234,8 +3346,11 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         // enharmonic cycling
         var enharmonicNoteHash = tuningConfig.enharmonics[noteData.xen.hash];
 
+        console.log('retrieved enharmonicNoteHash: ' + enharmonicNoteHash);
+
         if (enharmonicNoteHash === undefined) {
             // No enharmonic spelling found. Return null.
+            // console.log(JSON.stringify(tuningConfig.enharmonics));
             return null;
         }
 
@@ -3504,6 +3619,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     // Sort them such that the best option is at the front
     // The sorting precedence & preference is as declared in order:
     nextNoteOptions.sort(function (a, b) {
+
         // choose the one with lesser line offset
         if (Math.abs(a.lineOffset) < Math.abs(b.lineOffset)) {
             return -1;
@@ -3535,14 +3651,21 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         } else if (!aMatchDir && bMatchDir) {
             return 1;
         }
-        
+
+        // Important ligatures should always be preferred
+        if (a.nextNote.xen.hasImportantLigature && !b.nextNote.xen.hasImportantLigature) {
+            return -1;
+        } else if (!a.nextNote.xen.hasImportantLigature && b.nextNote.xen.hasImportantLigature) {
+            return 1;
+        }
+
         // Strong ligatures should always be preferred
         if (a.nextNote.xen.hasLigaturePriority && !b.nextNote.xen.hasLigaturePriority) {
             return -1;
         } else if (!a.nextNote.xen.hasLigaturePriority && b.nextNote.xen.hasLigaturePriority) {
             return 1;
         }
-        
+
         // Choose the one with lesser symbols
         if (a.numSymbols < b.numSymbols) {
             return -1;

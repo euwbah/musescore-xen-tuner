@@ -20,32 +20,46 @@ C4: 440*16/27 // Tune C4 to 16/27 of A4 = 440, setting C4 as the first nominal.
 // Here we declare two accidental chains
 
 // Chain 1: 3-limit accidentals from bbb to #x
-bbb bb b (2187/2048) # x #x
+// This is declared using irregular step sizes as we want to also include
+// the enharmonically equivalent ~#v and ~b^ schisma-altered accidentals.
+
+// Put the ~#v and ~b^ accidentals at the end of the chain so that the plugin
+// will prefer not to use them. Lower accidental degrees are always preferred
+// by the plugin.
+~.b^(243/256) bbb(-113.685*3c) bb(-113.685*2c) b(-113.685c) (0) #(113.685c) x(113.685*2c) #x(113.685*3c) ~.#v(256/243)
 
 // Chain 2: 5-limit acc from -3 to +3
 v3 v2 v (81/80) ^ ^2 ^3
 
-// In HEJI, the tilde can be used to signify 3-limit enharmonics.
-// Since ligatures are implemented as enharmonics, this will allow us to
-// use the cycle enharmonic operation to cycle between standard 3-limit
-// sharp/flat and schisma-altered enharmonics.
+// First we declare a weak important ligature for the special schisma-altered
+// enharmonics that we declared at deg. -4 and 4 of the 1st chain
+//
+// - We declare it as important (!) so that it is still accessible via the
+// enharmonic cycle operation, 
+// - We declare it as weak (?) so that during
+// up/down operations, the plugin will prefer to use standard sharps and flats
+// rather than the schisma-enharmonic variants.
+//
+// ⚠️ We must declare this ligature before the one below, as this ligature
+// contains shares similar symbols as the one below.
+//
+// If we flip the order of declaration, the 'b^' and '#v' symbols will be 
+// parsed & eaten up by the other ligature, leaving a stray '~' symbol, which
+// is not parseable.
+lig(1,2)!?
+-4 0 ~.b^
+4 0 ~.#v
 
-// To implement this, we declare a ligature acting on the 1st accidental chain
-// The ? signifies that this is a weak ligature.
-lig(1)?
--1 ~.#v // flat equals ~#v
-1 ~.b^ // sharp equals ~b^
-
-// Unlike normal ligatures, weak ligatures don't get extra priority
-// when the plugin has to decide which enharmonic spelling to choose.
-// In HEJI, it makes sense that these are declared as weak ligatures,
-// as we still want the normal # and b symbols to be more accessible
-// than these.
-
-// We declare a second ligature between the 1st and 2nd chain
+// We declare a ligature between the 1st and 2nd chain
 // In HEJI, syntonic commas can merge with sharp/flat/natural
 // accidentals into a single ligatured symbol.
-lig(1,2)
+//
+// The "!" denotes an important ligature because we don't want the plugin
+// to suggest a multi-symbol spelling natural arrows + sharp/flat.
+//
+// This means we must declare every symbol that we want to the plugin
+// to use for all permutations of the 1st and 2nd accidental chains.
+lig(1,2)!
 -2 -3 bbv3 // bb and 3 downs become a single double flat with 3 down arrows HEJI symbol
 -2 -2 bbv2
 -2 -1 bbv
@@ -71,11 +85,19 @@ lig(1,2)
 2 2 x^2
 2 3 x^3
 
-// ⚠️IMPORTANT: The second ligature must be declared after the first.
-// The second ligature contains the #v and b^ symbols, which the first ligature
-// also has. If the declaration order was reversed, the #v and b^ symbols of 
-// ~.#v and ~.b^ accidentals will match into the first ligature, leaving an unknown
-// ~ symbol to remain unmatched.
+// Here we also declare basic "non-ligatured symbols" as ligatures
+// because we need the enharmonic cycling operation to work for
+// these as well.
+-2 0 bb
+-1 0 b
+0 -3 v3
+0 -2 v2
+0 -1 v
+0 1 ^
+0 2 ^2
+0 3 ^3
+1 0 #
+2 0 x
 
 // Here we declare 4 auxiliary up/down operations.
 // These will be accessible as the aux1, aux2, aux3, aux4 up/down operations
@@ -104,6 +126,8 @@ aux(0,1) // aux4 will modify both nominals and flats/sharps.
 // and the double-flat will match as a secondary accidental.
 
 sec()
+'~b^' ~.b^ 243/256
+'b^~' ~.b^ 243/256
 'bbb' bbb Math.pow(2187/2048,-3) // converts fingering 'bbb' into triple-flat symbol
 'bb' bb Math.pow(2187/2048,-2)
 'b' b 2048/2187
@@ -118,6 +142,8 @@ sec()
 // Even though both b.b.b and bbb will evaluate to the same interval
 // offset, we rather use the correct symbol for triple flats.
 
+'~#v' ~.#v 256/243
+'#v~' ~.#v 256/243
 '###' #x Math.pow(2187/2048,3)
 '#x' #x Math.pow(2187/2048,3)
 'x#' #x Math.pow(2187/2048,3)

@@ -177,17 +177,31 @@ class XenNote {
      */
     hash;
     /**
-     * If `true`, this {@link XenNote} has ligature priority.
+     * If `true`, this {@link XenNote} has ligature priority (i.e. 'strong ligature')
      * 
      * I.e. this spelling will be chosen over non-ligature enharmonic
-     * spellings.
+     * spellings during up/down operations.
      * 
-     * If this {@link XenNote} was created from a weak ligature, this
-     * will still be `false`.
+     * If this {@link XenNote} was created from a weak ligature (denoted by `lig(...)?`), 
+     * this will still be `false`.
      * 
      * @type {boolean}
      */
     hasLigaturePriority;
+    /**
+     * If `true`, this {@link XenNote} has an important ligature that
+     * should override other enharmonically equivalent spellings in
+     * all cases.
+     * 
+     * This spelling will be chosen over other ligature/non-ligature spellings
+     * during up/down AND ENHARMONIC cycle operations.
+     * 
+     * These are created from important ligatures denoted by `!` as in:
+     * `lig(x,...)`.
+     * 
+     * @type {boolean}
+     */
+    hasImportantLigature;
 }
 
 /**
@@ -401,6 +415,18 @@ class AccidentalChain {
 
 /**
  * Represents a ligature declaration.
+ * 
+ * Note: ligatures can be declared weak and important (or both).
+ * 
+ * A weak ligature will not take special precedence over non-ligatures
+ * (i.e. the default accidental symbols can be favored over the ligature).
+ * This is useful for adding support for sporadic enharmonic spellings or special symbols
+ * that can mean different things depending on other symbols present on the note.
+ * (See heji/5 limit.txt for an example)
+ * 
+ * An important ligature takes precedence over the default accidental chain's symbols and other
+ * non-important ligatures, and overrides the use of non-important spellings in all operations
+ * up/down/enharmonic respell.
  */
 class Ligature {
     /**
@@ -425,16 +451,35 @@ class Ligature {
      */
     ligAvToSymbols;
     /**
-     * `true` if ligature is declared to be weak `lig(x)?`
-     * (Lig declaration line ends with question mark in tuning config)
+     * `true` if ligature is declared to be weak `lig(...)?`
+     * (question mark)
      * 
      * If a ligature is weak, ligatured symbols do not get special
-     * priority over non-ligatured symbols when selecting appropriate
-     * enharmonic spellings.
+     * priority over non-ligatured symbols when choosing between
+     * equivalent spellings during up/down operations.
+     * 
+     * The opposite of a weak ligature is called a 'strong ligature'.
      * 
      * @type {boolean}
      */
     isWeak;
+    /**
+     * `true` if ligature is declared to override default acc symbols declared
+     * in the accidental chains `lig(...)!`
+     * (exclaimation mark)
+     * 
+     * If a ligature overrides the default accidental symbols, the original
+     * accidental symbols will no longer be accessible from the up/down/enharmonic
+     * operations. These important! ligatures also take precedence over non-overidden
+     * ligatures.
+     * 
+     * (The default symbols will still tune and be recognized as valid symbols.)
+     * 
+     * The opposite of an important ligature is called a 'non-important ligature'.
+     * 
+     * @type {boolean}
+     */
+    isImportant;
 }
 
 /**
@@ -899,7 +944,14 @@ class PositionedElement {
  * 
  * Used while it is being parsed/constructed.
  * 
- * @typedef {XNE[]} XenNotesEquaves
+ * @typedef {Object.<string, XNE>} XenNotesEquaves
+ */
+
+/**
+ * After {@link XenNotesEquaves} is populated, the XenNotes' values
+ * are sorted in increasing pitch order to create this list.
+ * 
+ * @typedef {XNE[]} SortedXNE
  */
 
 /** 
