@@ -890,9 +890,9 @@ This plugin does not update automatically. Redownload the code from here, and re
 
 Checklist:
 
-- Suffix your cents with `c`, numbers represent ratios by default.
-- Prefix fingering cent offsets with `+`
-- Suffix fingering JI ratios with `.`
+- In the tuning config, suffix cent values with `c`, by default, numbers represent JI ratios.
+- Per-note cent offsets in fingerings must be prefixed with with `+` or '-'.
+- Per-note JI ratios must be suffixed with `.`, [unless otherwise configured](#2-fingerings-to-denote-ji-intervals)
 - [Clear tuning cache](#4-clear-the-tuning-cache)
   - ⚠️ If you modify a tuning from a `.txt` or `.json` file, you will need to clear the tuning cache for the changes to take effect.
 - Specify [key signature](#how-to-key-signatures)
@@ -973,11 +973,12 @@ If none of the above remedies work, you will need to [file an issue here](https:
 - Debug logs
   - Stop running Xen Tuner (close plugin window/quit button).
   - Open the **Plugin Creator** (Plugins > Plugin Creator).
-  - Open the `xen tuner.qml`
-  - Run the plugin from the Plugin Creator.
+  - Open the `xen tuner.qml` file
+  - Run `xen tuner.qml` from the Plugin Creator.
   - Repeat the action you did that caused the issue.
   - Usually if an error occurs, you should be able to see the error message at the bottom of the log.
-  - Copy and paste as much of the debug log as you can, **making sure that you include the error message** at the bottom.
+  - Copy and paste as much of the debug log as you can, **including the error message** at the bottom.
+  - If you stopped the plugin/modified source code in the Plugin Creator, you will need to restart MuseScore to get the plugin working again.
 
 ## HELP NEEDED!
 
