@@ -6,7 +6,7 @@
 - Make secondary lig/aux/sec declaration parsing cleaner & order-independent
 - Fix `accidentalsHash` mutating original `SymbolCode[]` array
 - Fix 0-cent accidental chain stepsize breaking tuning config parsing.
-- 
+- Improved chooseNextNote algorithm to use prior acc context & apply different ligature priority levels.
 - Better XenNote not found error log messages explaining how the parsing was attempted and how it failed.
 
 ## 0.2.0

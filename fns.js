@@ -3494,7 +3494,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         return null;
     }
 
-    var currAV = tuningConfig.avTable[noteData.xen.hash];
+    var avBeforeNote = accStateBeforeNote == null ? null : tuningConfig.avTable['0 ' + accStateBeforeNote];
 
     if (tuningConfig.equaveSize < 0) {
         equaveOffset = -equaveOffset;
@@ -3579,16 +3579,23 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         // If no immediate match found, calculate metrics and
         // add this to the list of options to be sorted.
 
+        // square distance between prior acc state and this option
         var avDist = 0;
+        // absolute square distance between nominal/natural/origin and this option
         var absAvDist = 0;
 
-        for (var j = 0; j < currAV.length; j++) {
-            avDist += (currAV[j] - optionAV[j]) * (currAV[j] - optionAV[j]);
+        for (var j = 0; j < optionAV.length; j++) {
             absAvDist += optionAV[j] * optionAV[j];
+            
+            if (avBeforeNote != null) {
+                avDist += (avBeforeNote[j] - optionAV[j]) * (avBeforeNote[j] - optionAV[j]);
+            } else {
+                avDist = absAvDist;
+            }
         }
 
         // The lower the sum of degrees the better.
-        var sumOfDeg = currAV.reduce(function (acc, deg) {
+        var sumOfDeg = optionAV.reduce(function (acc, deg) {
             return acc + deg;
         });
 
@@ -3616,6 +3623,13 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         return up ? lineOffset <= 0 : lineOffset >= 0;
     }
 
+    var accStateBeforeNote = getAccidental(
+        cursor, note, tickOfThisBar, tickOfNextBar, 1, note.line);
+    
+    if (accStateBeforeNote == null && keySig && keySig[noteData.xen.nominal]) {
+        accStateBeforeNote = keySig[noteData.xen.nominal];
+    }
+
     // Sort them such that the best option is at the front
     // The sorting precedence & preference is as declared in order:
     nextNoteOptions.sort(function (a, b) {
@@ -3627,28 +3641,18 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
             return 1;
         }
 
-        // Lower AV Dist is better. Give +/- 0.5 leeway for
+        // Lower AV Dist is better. Give leeway for
         // 'similar' AV dist.
-        // if (a.avDist - b.avDist <= -0.5) {
-        //     return -1;
-        // } else if (a.avDist - b.avDist >= 0.5) {
-        //     return 1;
-        // }
+        if (a.avDist - b.avDist <= -0.7) {
+            return -1;
+        } else if (a.avDist - b.avDist >= 0.7) {
+            return 1;
+        }
 
         // Lower absolute AV dist (less accidental degrees) preferred
         if (a.absAvDist - b.absAvDist <= -0.3) {
             return -1;
         } else if (a.absAvDist - b.absAvDist >= 0.3) {
-            return 1;
-        }
-
-        var aMatchDir = matchesDirection(a.lineOffset);
-        var bMatchDir = matchesDirection(b.lineOffset);
-
-        // Prefer line offset matching the direction of transpose
-        if (aMatchDir && !bMatchDir) {
-            return -1;
-        } else if (!aMatchDir && bMatchDir) {
             return 1;
         }
 
@@ -3663,6 +3667,16 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         if (a.nextNote.xen.hasLigaturePriority && !b.nextNote.xen.hasLigaturePriority) {
             return -1;
         } else if (!a.nextNote.xen.hasLigaturePriority && b.nextNote.xen.hasLigaturePriority) {
+            return 1;
+        }
+
+        var aMatchDir = matchesDirection(a.lineOffset);
+        var bMatchDir = matchesDirection(b.lineOffset);
+
+        // Prefer line offset matching the direction of transpose
+        if (aMatchDir && !bMatchDir) {
+            return -1;
+        } else if (!aMatchDir && bMatchDir) {
             return 1;
         }
 
@@ -3798,7 +3812,7 @@ function restoreCursorPosition(savedPosition) {
  * @param {PluginAPINote} note The note to check the accidental of.
  * @param {number} tickOfThisBar Tick of the first segment of the bar to check accidentals in
  * @param {number} tickOfNextBar Tick of first seg of next bar, or -1 if its the last bar.
- * @param {number?} exclude
+ * @param {0|1|2|null} exclude
  *  If `0` or falsey, include accidentals attached to the current operating `note`.
  * 
  *  If `1` ignore accidentals attached to the current `note`

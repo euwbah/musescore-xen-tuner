@@ -265,10 +265,15 @@ lig(1,2) // signifies declaring a ligature that apply to chains 1 and 2
 lig(x, y, z, ...) // create ligature that applies to chains x, y, z, ...
 etc...
 
-// question mark after a ligature declaration signifies that the ligature
-// is a weak ligature.
+// question mark denotes a weak ligature (opposite of weak is 'strong')
 lig(1)?
 etc...
+
+// Exclamation mark denotes an important ligature (opposite is 'non-important')
+lig(2)!
+
+// This is a weak & important ligature (order of '?!' doesn't matter)
+lig(1,2)!?
 
 // 4b. Auxiliary operations
 
@@ -440,7 +445,7 @@ After that, we declare each search-and-replace condition on a new line.
 
 The ligatured symbols can be constructed with multiple symbols. Just like before, you can join symbols with periods.
 
-You can also [specify more than one ligature declaration](#advanced-weak-ligatures--using-multiple-ligatures-at-once), regarding different chains. Though special care must be taken when deciding the order of declaration of the ligatures. [Read more here](#advanced-weak-ligatures--using-multiple-ligatures-at-once).
+You can also [specify more than one ligature declaration](#advanced-weak-ligatures-important-ligatures--alternative-ligature-uses), regarding different chains. Though special care must be taken when deciding the order of declaration of the ligatures. [Read more here](#advanced-weak-ligatures-important-ligatures--alternative-ligature-uses).
 
 ### Auxiliary operations
 
@@ -473,7 +478,7 @@ Finally, `aux(0,1)` means both the nominal and the first accidental chain's degr
 
 You can specify whatever combination of nominal/chains within the parentheses that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
 
-### Advanced: Weak ligatures & using multiple ligatures at once
+### Advanced: Weak ligatures, important ligatures & alternative ligature uses
 
 ```txt
 C4: 440 * 16/27
@@ -481,11 +486,11 @@ C4: 440 * 16/27
 bbb bb b (2187/2048) # x #x
 v3 v2 v (81/80) ^ ^2 ^3
 
-lig(1)?
+lig(1)?!
 -1 ~.#v // flat equals ~#v
 1 ~.b^ // sharp equals ~b^
 
-lig(1,2)
+lig(1,2)!
 -2 -2 bbv2
 -2 -1 bbv
 -2 1 bb^
@@ -523,7 +528,7 @@ lig(1)?
 
 🟥 Note that we use a `?` after the `lig(1)?` declaration line. This is to signify that this is a **weak ligature**. We don't want the plugin to replace every `b` with `~#v` and every `#` with `~b^`, because that is not the point of introducing this ligature. In order for the plugin to not aggressively prefer the ligatured version of the accidental, we need to use `?` to declare it as a weak ligature.
 
-🟥 Note that the order which the ligatures are declared is very important. This wouldn't work if the `lig(1)?` declaration is written after the `lig(1,2)` declaration.
+🟥 The **order of ligature declaration is very important**. This wouldn't work if the `lig(1)?` declaration is written after the `lig(1,2)` declaration.
 
 If we were to declare `lig(1,2)` first, this will cause the plugin to look for and match the `#v` and `b^` symbols first, instead of the composite `~.#v` and `~.b^`. Here's what will happen:
 
