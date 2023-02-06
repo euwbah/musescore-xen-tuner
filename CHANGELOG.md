@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Improve `chooseNextNote` again. Tested & guaranteed consistency of behavior across HEWM JI, HEWM 72edo, HEJI, ups & downs 22edo & 12edo.
+
 ## 0.2.1
 
 - Add important ligatures (for better enharmonic cycling)

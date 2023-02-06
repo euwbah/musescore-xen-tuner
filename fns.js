@@ -3629,21 +3629,6 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
             return sortDirection;
         };
 
-        // Lower AV Dist is better. Give leeway for
-        // 'similar' AV dist.
-        if (a.avDist - b.avDist <= -0.7) {
-            return dlog(-1, 'relative AV dist ' + a.avDist + ' vs ' + b.avDist);
-        } else if (a.avDist - b.avDist >= 0.7) {
-            return dlog(1, 'relative AV dist ' + b.avDist + ' vs ' + a.avDist);
-        }
-
-        // Lower absolute AV dist (less accidental degrees) preferred
-        if (a.absAvDist - b.absAvDist <= -0.3) {
-            return dlog(-1, 'absolute AV dist ' + a.absAvDist + ' vs ' + b.absAvDist);
-        } else if (a.absAvDist - b.absAvDist >= 0.3) {
-            return dlog(1, 'absolute AV dist ' + b.absAvDist + ' vs ' + a.absAvDist);
-        }
-
         // Important ligatures should be preferred
         if (a.nextNote.xen.hasImportantLigature && !b.nextNote.xen.hasImportantLigature) {
             return dlog(-1, 'important ligature');
@@ -3673,6 +3658,21 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
             return dlog(-1, 'line offset');
         } else if (Math.abs(a.lineOffset) > Math.abs(b.lineOffset)) {
             return dlog(1, 'line offset');
+        }
+
+        // Lower AV Dist is better. Give leeway for
+        // 'similar' AV dist.
+        if (a.avDist - b.avDist <= -0.7) {
+            return dlog(-1, 'relative AV dist ' + a.avDist + ' vs ' + b.avDist);
+        } else if (a.avDist - b.avDist >= 0.7) {
+            return dlog(1, 'relative AV dist ' + b.avDist + ' vs ' + a.avDist);
+        }
+
+        // Lower absolute AV dist (less accidental degrees) preferred
+        if (a.absAvDist - b.absAvDist <= -0.3) {
+            return dlog(-1, 'absolute AV dist ' + a.absAvDist + ' vs ' + b.absAvDist);
+        } else if (a.absAvDist - b.absAvDist >= 0.3) {
+            return dlog(1, 'absolute AV dist ' + b.absAvDist + ' vs ' + a.absAvDist);
         }
 
         // Choose the one with lesser symbols
