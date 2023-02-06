@@ -3552,6 +3552,11 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         if (priorAV != null && arraysEqual(optionAV, priorAV)) {
             // Direct accidental match. Return this.
             nextNoteObj.matchPriorAcc = true;
+            
+            // Having the same accidental vector as the prior accidental
+            // doesn't necessarily mean it's the exact same symbols.
+            // Make sure we use the exact same symbols as the prior accidental.
+            nextNoteObj.xen = tuningConfig.notesTable['0 ' + priorAcc];
             return nextNoteObj;
         } else if (priorAV == null && option.split(' ').length == 1) {
             // If there's no prior accidental nor key signature accidental on this line,
