@@ -115,14 +115,14 @@ function download(content, filename, contentType)
     a.click();
 }
 
-function generateTuningConfigJSON() {
+function debugTC() {
     var tuningConfigStr = document.getElementById('tcinput').value.trim();
     var tuningConfig = parseTuningConfig(tuningConfigStr);
 
     if (!tuningConfig) {
         document.getElementById('errormsg').innerText = 
             'Error parsing tuning config! See browser console for details.';
-        return;
+        return null;
     }
     document.getElementById('errormsg').innerText = '';
 
@@ -131,6 +131,13 @@ function generateTuningConfigJSON() {
     // save generated tuning config JSON to `tc` global variable
     // to enable browser console debugging
     window.tc = tuningConfig;
+
+    return tuningConfigJSON;
+}
+
+function generateTuningConfigJSON() {
+    var tuningConfigJSON = debugTC();
+    if (tuningConfigJSON == null) return;
 
     download(tuningConfigJSON, 'tuningconfig.json', 'text/plain');
 }

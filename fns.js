@@ -3494,8 +3494,6 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         return null;
     }
 
-    var avBeforeNote = accStateBeforeNote == null ? null : tuningConfig.avTable['0 ' + accStateBeforeNote];
-
     if (tuningConfig.equaveSize < 0) {
         equaveOffset = -equaveOffset;
         console.log('equaveSize < 0, reversing equaveOffset: ' + equaveOffset);
@@ -3506,14 +3504,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
      * 
      * To be sorted based on the metrics to obtain the best option.
      * 
-     * @type {{
-     *      nextNote: NextNote,
-     *      avDist: number,
-     *      absAvDist: number,
-     *      numSymbols: number,
-     *      lineOffset: number,
-     *      sumOfDegree: number
-     * }[]} 
+     * @type {NextNoteOptions} 
      */
     var nextNoteOptions = [];
 
@@ -3554,26 +3545,21 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         }
 
         priorAcc = removeUnusedSymbols(priorAcc, tuningConfig);
+        var priorAV = priorAcc == null ? null : tuningConfig.avTable['0 ' + priorAcc];
 
         var optionAV = tuningConfig.avTable[option];
 
-        if (priorAcc != null) {
-            var priorAccHash = '0 ' + priorAcc;
-
-            if (arraysEqual(optionAV, tuningConfig.avTable[priorAccHash])) {
-                // Direct accidental match. Return this.
-                nextNoteObj.matchPriorAcc = true;
-                return nextNoteObj;
-            }
-        } else {
+        if (priorAV != null && arraysEqual(optionAV, priorAV)) {
+            // Direct accidental match. Return this.
+            nextNoteObj.matchPriorAcc = true;
+            return nextNoteObj;
+        } else if (priorAV == null && option.split(' ').length == 1) {
             // If there's no prior accidental nor key signature accidental on this line,
-            // if a note can be represented by a nominal, use the nominal. 
+            // and a note can be represented as a nominal, use the nominal.
             // This avoids unnecessary enharmonics.
 
-            if (option.split(' ').length == 1) {
-                nextNoteObj.matchPriorAcc = true;
-                return nextNoteObj;
-            }
+            nextNoteObj.matchPriorAcc = true;
+            return nextNoteObj;
         }
 
         // If no immediate match found, calculate metrics and
@@ -3586,15 +3572,14 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
 
         for (var j = 0; j < optionAV.length; j++) {
             absAvDist += optionAV[j] * optionAV[j];
-            
-            if (avBeforeNote != null) {
-                avDist += (avBeforeNote[j] - optionAV[j]) * (avBeforeNote[j] - optionAV[j]);
+
+            if (priorAV != null) {
+                avDist += (priorAV[j] - optionAV[j]) * (priorAV[j] - optionAV[j]);
             } else {
                 avDist = absAvDist;
             }
         }
 
-        // The lower the sum of degrees the better.
         var sumOfDeg = optionAV.reduce(function (acc, deg) {
             return acc + deg;
         });
@@ -3623,51 +3608,54 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         return up ? lineOffset <= 0 : lineOffset >= 0;
     }
 
-    var accStateBeforeNote = getAccidental(
-        cursor, note, tickOfThisBar, tickOfNextBar, 1, note.line);
-    
-    if (accStateBeforeNote == null && keySig && keySig[noteData.xen.nominal]) {
-        accStateBeforeNote = keySig[noteData.xen.nominal];
-    }
-
-    // Sort them such that the best option is at the front
-    // The sorting precedence & preference is as declared in order:
-    nextNoteOptions.sort(function (a, b) {
-
-        // choose the one with lesser line offset
-        if (Math.abs(a.lineOffset) < Math.abs(b.lineOffset)) {
-            return -1;
-        } else if (Math.abs(a.lineOffset) > Math.abs(b.lineOffset)) {
-            return 1;
-        }
+    /**
+     * 
+     * @param {NextNoteOption} a 
+     * @param {NextNoteOption} b 
+     * @param {boolean} debug set to `true` to print why a note was picked over the other.
+     * @returns 
+     */
+    var nextNoteSortFn = function(a, b, debug) {
+        var dlog = debug ? function(sortDirection, str) {
+            var first = sortDirection <= 0 ? a.nextNote.xen.hash : b.nextNote.xen.hash;
+            var second = sortDirection <= 0 ? b.nextNote.xen.hash : a.nextNote.xen.hash;
+            if (sortDirection == 0) {
+                console.log('No preference between ' + first + ' and ' + second);
+                return 0;
+            }
+            console.log('picked ' + first + ' over ' + second + ' because: ' + str);
+            return sortDirection;
+        } : function(sortDirection, str) {
+            return sortDirection;
+        };
 
         // Lower AV Dist is better. Give leeway for
         // 'similar' AV dist.
         if (a.avDist - b.avDist <= -0.7) {
-            return -1;
+            return dlog(-1, 'relative AV dist ' + a.avDist + ' vs ' + b.avDist);
         } else if (a.avDist - b.avDist >= 0.7) {
-            return 1;
+            return dlog(1, 'relative AV dist ' + b.avDist + ' vs ' + a.avDist);
         }
 
         // Lower absolute AV dist (less accidental degrees) preferred
         if (a.absAvDist - b.absAvDist <= -0.3) {
-            return -1;
+            return dlog(-1, 'absolute AV dist ' + a.absAvDist + ' vs ' + b.absAvDist);
         } else if (a.absAvDist - b.absAvDist >= 0.3) {
-            return 1;
+            return dlog(1, 'absolute AV dist ' + b.absAvDist + ' vs ' + a.absAvDist);
         }
 
-        // Important ligatures should always be preferred
+        // Important ligatures should be preferred
         if (a.nextNote.xen.hasImportantLigature && !b.nextNote.xen.hasImportantLigature) {
-            return -1;
+            return dlog(-1, 'important ligature');
         } else if (!a.nextNote.xen.hasImportantLigature && b.nextNote.xen.hasImportantLigature) {
-            return 1;
+            return dlog(1, 'important ligature');
         }
 
-        // Strong ligatures should always be preferred
+        // Strong ligatures should be preferred
         if (a.nextNote.xen.hasLigaturePriority && !b.nextNote.xen.hasLigaturePriority) {
-            return -1;
+            return dlog(-1, 'strong ligature');
         } else if (!a.nextNote.xen.hasLigaturePriority && b.nextNote.xen.hasLigaturePriority) {
-            return 1;
+            return dlog(1, 'strong ligature');
         }
 
         var aMatchDir = matchesDirection(a.lineOffset);
@@ -3675,31 +3663,53 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
 
         // Prefer line offset matching the direction of transpose
         if (aMatchDir && !bMatchDir) {
-            return -1;
+            return dlog(-1, 'line offset matches direction');
         } else if (!aMatchDir && bMatchDir) {
-            return 1;
+            return dlog(1, 'line offset matches direction');
+        }
+
+        // choose the one with lesser line offset
+        if (Math.abs(a.lineOffset) < Math.abs(b.lineOffset)) {
+            return dlog(-1, 'line offset');
+        } else if (Math.abs(a.lineOffset) > Math.abs(b.lineOffset)) {
+            return dlog(1, 'line offset');
         }
 
         // Choose the one with lesser symbols
         if (a.numSymbols < b.numSymbols) {
-            return -1;
+            return dlog(-1, 'lesser symbols: ' + a.numSymbols + ' vs ' + b.numSymbols);
         } else if (a.numSymbols > b.numSymbols) {
-            return 1;
+            return dlog(1, 'lesser symbols: ' + b.numSymbols + ' vs ' + a.numSymbols);
         }
 
         // Line offset similar, choose the one with sumOfDegree
         // that matches the direction of transpose.
         //
         // Up should favor upward accidentals (sharps)
-        if (a.sumOfDegree > b.sumOfDegree) {
-            return direction == 1 ? -1 : 1;
-        } else {
-            return direction == 1 ? 1 : -1;
+        if ((a.sumOfDegree > b.sumOfDegree && direction == 1) ||
+            (a.sumOfDegree < b.sumOfDegree && direction == -1)) {
+            return dlog(-1, 'sum of degree matches direction: ' + a.sumOfDegree + ' vs ' + b.sumOfDegree);
+        } else if ((a.sumOfDegree < b.sumOfDegree && direction == 1) ||
+            (a.sumOfDegree > b.sumOfDegree && direction == -1)) {
+            return dlog(1, 'sum of degree matches direction: ' + b.sumOfDegree + ' vs ' + a.sumOfDegree);
         }
+
+        return dlog(0, '');
+    }
+
+    // Sort them such that the best option is at the front
+    // The sorting precedence & preference is as declared in order:
+    nextNoteOptions.sort(function (a, b) {
+        var sortOutcome = nextNoteSortFn(a, b, false);
+
+        return sortOutcome;
     });
 
-    // At the end of all the optimizations, bestOption should contain
-    // the best option...
+    // debug log why this option was chosen over the others.
+    // TODO: comment this out when note choices are optimal & thoroughly tested.
+    for (var i = 1; i < nextNoteOptions.length; i++) {
+        nextNoteSortFn(nextNoteOptions[0], nextNoteOptions[i], true);
+    }
 
     return nextNoteOptions[0].nextNote;
 }

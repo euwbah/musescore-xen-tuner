@@ -800,6 +800,28 @@ class SavedCursorPosition {
 }
 
 /**
+ * A list of {@link NextNoteOption} which contains enharmonically equivalent spellings
+ * of a modified note in {@link chooseNextNote}.
+ * 
+ * To be sorted such that the first entry is used.
+ * 
+ * @typedef {NextNoteOption[]} NextNoteOptions
+ */
+
+/**
+ * Represents a single option for a possible note spelling for the modified
+ * note after an up/down operation.
+ * 
+ * @typedef {Object} NextNoteOption
+ * @property {NextNote} nextNote
+ * @property {number} avDist - Squared {@link AccidentalVector} distance from prior accidental context,
+ * @property {number} absAvDist - Squared {@link AccidentalVector} distance from origin nominal,
+ * @property {number} numSymbols - Number of symbols in {@link XenNote.orderedSymbols}
+ * @property {number} lineOffset - Amount to add to {@link PluginAPINote.line} to update the nominal.
+ * @property {number} sumOfDegree - Sum of degrees of {@link AccidentalVector}
+ */
+
+/**
  * Return value of {@link chooseNextNote}() function. Contains info about what
  * which note the plugin chooses to provide as the ‘next note’ during the
  * up/down/enharmonic cycle operations.
