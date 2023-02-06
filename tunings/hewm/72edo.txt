@@ -1,0 +1,41 @@
+// HEWM 72edo based on: http://www.tonalsoft.com/enc/number/72edo.aspx
+
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 1200c
+
+bb b (100c) # x
+'-'.'-' '-' (100/6c) '+' '+'.'+'
+'<'.'<' '<' (100/3c) '>' '>'.'>'
+'v'.'v' 'v' (50c) '^' '^'.'^'
+
+aux(0)
+aux(1)
+aux(2)
+aux(1,2,3,4)
+
+sec()
+'bbb' bbb -300c
+'bb' bb -200c
+'b' b -100c
+'###' #x 300c
+'#x' #x 300c
+'##' x 200c
+'x' x 200c
+'#' # 100c
+'-' -100/6c
+'+' +100/6c
+'<' -100/3c
+'>' +100/3c
+'v' -50c
+'^' +50c
+
+// Other higher-limit accidentals mapped down to
+// standard mappings of 72edo
+'{' -200/3c // 27/26
+'}' 200/3c
+'\\' -100c // 18/17
+'/' 100c
+'(' -100c // 19/18
+')' 100c
+'[' -200/3c // 24/23
+']' 200/3c
