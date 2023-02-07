@@ -37,6 +37,21 @@ var pluginHomePath = '';
 var _curScore = null; // don't clash with namespace
 
 /**
+ * FontStyle enumeration.
+ * 
+ * Values used as bitmask.
+ * 
+ * TODO: This is a polyfill for the missing FontStyle enumeration in the PluginAPI.
+ * Remove this once the PluginAPI has a FontStyle enumeration.
+ */
+var FontStyle = {
+    Normal: 0,
+    Bold: 1,
+    Italic: 2,
+    Underline: 4,
+};
+
+/**
                                             _____                               
   __  __________  _____   _________  ____  / __(_)___ _   _   ______ ___________
  / / / / ___/ _ \/ ___/  / ___/ __ \/ __ \/ /_/ / __ `/  | | / / __ `/ ___/ ___/
@@ -1256,6 +1271,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         secondaryTunings: {},
         asciiToSmuflConv: {},
         asciiToSmuflConvList: [],
+        alwaysExplicitAccidental: false,
+        nonBoldTextAccidental: false,
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -1334,7 +1351,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux|sec)\([0-9,]*\)/);
+        var matches = line.match(/(lig|aux|sec|explicit|nobold)\([0-9,]*\)/);
         if (matches != null) {
             break;
         }
@@ -1464,6 +1481,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var ligMa = line.match(/^lig\(([0-9,\s]+)\)([\?!]*)/);
         var auxMa = line.match(/^aux\(([0-9,\s]+)\)/);
         var secMa = line.match(/^sec\(\)/);
+        var noBold = line.toLowerCase() == 'nobold()';
+        var explicit = line.toLowerCase() == 'explicit()';
 
         // First we check for declaration lines lig, aux, or sec.
         // Is so, we process the declaration and possibly update the parser state.
@@ -1550,12 +1569,24 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             commitParsedSection();
             state = ['sec'];
             continue;
+        } else if (noBold) {
+            commitParsedSection();
+            tuningConfig.nonBoldTextAccidental = true;
+            state = [];
+            continue;
+        } else if (explicit) {
+            commitParsedSection();
+            tuningConfig.alwaysExplicitAccidental = true;
+            state = [];
+            continue;
         }
 
-        // If we are here, then there are no section declarations.
+        // If we are here, then there are no section/setting declarations
 
         if (state.length == 0) {
-            console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Expected aux(...), lig(...), or sec(). Instead, got ' + line);
+            console.error('TUNING CONFIG ERROR: ' + (i + 1) 
+            + ': Expected aux(...), lig(...), sec(), explicit(), or nobold(). Instead, got ' 
+            + line);
             return null;
         }
 
@@ -4041,7 +4072,7 @@ function getAccidental(cursor, note, tickOfThisBar,
  *  A list of `SymbolCode`s representing accidental symbols in left-to-right order.
  * 
  *  `null` or `[]` to remove all accidentals.
- * @param {Function} newElement reference to the `PluginAPI.newElement()` function
+ * @param {newElement} newElement reference to the `PluginAPI.newElement()` function
  * @param {TuningConfig} tuningConfig
  *  If provided, any accidentals symbols that are not included in the tuning config
  *  will not be altered/removed by this function.
@@ -4079,6 +4110,7 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
     var zIdx = 1000;
     // go right-to-left.
     for (var i = orderedSymbols.length - 1; i >= 0; i--) {
+        /** @type {PluginAPIElement} */
         var elem;
         var symCode = orderedSymbols[i];
         if (typeof (symCode) == 'string' && symCode[0] == "'") {
@@ -4090,6 +4122,8 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
                 segments. */
             elem.autoplace = true;
             elem.align = Align.LEFT | Align.VCENTER;
+            elem.fontStyle = tuningConfig.nonBoldTextAccidental ? 
+                FontStyle.Normal : FontStyle.Bold;
             elem.fontSize = ASCII_ACC_FONT_SIZE;
             /*  Set offsetY to some random number to re-trigger vertical align later.
                 Otherwise, the fingering will be auto-placed above the notehead, even though
@@ -4425,6 +4459,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
         // Don't modify parms. Create a fake parms to store current
         // configs applied at this bar.
+        /** @type {Parms} */
         var fakeParms = {};
         resetParms(fakeParms);
 
@@ -4437,6 +4472,12 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
         var tuningConfig = fakeParms.currTuning;
         var keySig = fakeParms.currKeySig;
+
+        if (tuningConfig.alwaysExplicitAccidental) {
+            // don't remove unnecessary accidentals if tuning config requests
+            // all accidentals to be made explicit.
+            continue;
+        }
 
         for (var lineIdx = 0; lineIdx < lines.length; lineIdx++) {
             var lineNum = lines[lineIdx]; // staff line number

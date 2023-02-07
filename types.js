@@ -641,6 +641,33 @@ class TuningConfig {
      * @type {string[]}
      */
     asciiToSmuflConvList;
+
+    /*
+    OTHER SECONDARY SETTINGS
+    */
+
+    /**
+     * If `true`, every accidental symbol is made explicit, even though it matches
+     * a carry-over accidental or key signature.
+     * 
+     * Defaults to `false`.
+     * 
+     * Set to `true` using the `explicit()` secondary declaration.
+     * 
+     * @type {boolean}
+     */
+    alwaysExplicitAccidental;
+
+    /**
+     * If `true`, fingering-based text accidentals will not be bolded.
+     * 
+     * Defaults to `false` (i.e. bold text).
+     * 
+     * Set to `true` using the `nobold()` secondary declaration.
+     * 
+     * @type {boolean}
+     */
+    nonBoldTextAccidental;
 }
 
 /**
@@ -1066,6 +1093,31 @@ const ELEMENT = {
 }
 
 /**
+ * Align enumeration
+ * 
+ * Values used as bitmask.
+ */
+const Align = {
+    LEFT: 0,
+    RIGHT: 1,
+    HCENTER: 2,
+    TOP: 0,
+    BOTTOM: 4,
+    VCENTER: 8,
+    BASELINE: 16,
+    CENTER: 8|2,
+    HMASK: 0|1|2,
+    VMASK: 0|4|8|16,
+};
+
+
+/**
+ * @callback newElement
+ * @param {ElementType} elem Element type from {@link ELEMENT} enumeration
+ * @returns {PluginAPIElement}
+ */
+
+/**
  * Instantiates a new element of the given type.
  * @param {ElementType} elemType - type of element to create
  * @return {PluginAPIElement} newly created {@link PluginAPIElement}
@@ -1126,6 +1178,29 @@ class PluginAPIElement {
      * @type {number?}
      */
     velocity;
+    
+    /**
+     * Text alignment setting. Uses a bitmask.
+     * 
+     * Refer to the {@link Align} enumeration.
+     * 
+     * @type {number?}
+     */
+    align;
+    /**
+     * Font size of text in pts
+     * @type {number?}
+     */
+    fontSize;
+    /**
+     * Font style (bold/italic/underline). Uses a bitmask.
+     * 
+     * Refer to the {@link FontStyle} enumeration.
+     * 
+     * @type {number?}
+     */
+    fontStyle;
+
     /**
      * Z-index of this element.
      * 
