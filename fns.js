@@ -603,8 +603,8 @@ function removeUnusedSymbols(accHashOrSymbols, tuningConfig) {
  * To differentiate between ASCII and SMuFL internally, ASCII accidental 
  * {@link SymbolCode}s are represented with a prefixed quote (`'`).
  * 
- * @param {AccidentalSymbols|SymbolCode[]} accidentals 
- *      The AccidentalSymbols object, or a list of `SymbolCode` numbers
+ * @param {AccidentalSymbols|SymbolCode[]|null|undefined} accidentals 
+ *      The AccidentalSymbols object, or a list of `SymbolCode` numbers, or nothing.
  * @returns {string}
  * {@link AccidentalSymbols} hash string.
  * If no accidentals are present, returns an empty string.
@@ -612,8 +612,6 @@ function removeUnusedSymbols(accHashOrSymbols, tuningConfig) {
 function accidentalsHash(accidentals) {
 
     if (accidentals == undefined) {
-        // just in case...
-        // console.log('WARN: undefined accidentals passed to accidentalsHash');
         return '';
     }
 
@@ -850,7 +848,7 @@ function accidentalSymbolsFromHash(accHash) {
  * Calculate a {@link XenNote.hash} string from its nominal and accidentals.
  * 
  * @param {number} nominal
- * @param {AccidentalSymbols|SymbolCode[]} accidentals
+ * @param {AccidentalSymbols|SymbolCode[]|null|undefined} accidentals
  */
 function createXenHash(nominal, accidentals) {
     return (nominal + ' ' + accidentalsHash(accidentals)).trim();
@@ -1584,9 +1582,9 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // If we are here, then there are no section/setting declarations
 
         if (state.length == 0) {
-            console.error('TUNING CONFIG ERROR: ' + (i + 1) 
-            + ': Expected aux(...), lig(...), sec(), explicit(), or nobold(). Instead, got ' 
-            + line);
+            console.error('TUNING CONFIG ERROR: ' + (i + 1)
+                + ': Expected aux(...), lig(...), sec(), explicit(), or nobold(). Instead, got '
+                + line);
             return null;
         }
 
@@ -1902,56 +1900,90 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
             tuningConfig.avToSymbols[accidentalVector] = orderedSymbols;
 
+
             // SETTLE IMPLEMENTING LIGATURES AS ENHARMONICS
             //
             //
 
+            /** 
+             * A list of orderedSymbols that are populated as ligatures are found.
+             * Every subsequent ligature match builds upon prior enharmonically equivalent spellings.
+             * 
+             * E.g. lets say we have symbols [a,b,c,d].
+             * Ligature 1 matches [a,b] into X and ligature 2 matches [c,d] into Y.
+             * 
+             * This value will initialize with only [[1,2,3,4]].
+             * After processing lig 1, it will contain [[1,2,3,4], [X,3,4]].
+             * After processing lig 2, it will contain [[1,2,3,4], [X,3,4], [1,2,Y], [X,Y]], where
+             * each new value is lig2 applied to each of the previous values.
+             * 
+             * All of which are valid equivalent ligatured spellings of the original symbols.
+             * 
+             * This implementation relies on the fact that ligatures declared do not entirely overlap.
+             * It is up to the user's discretion to ensure ligatures are sensible.
+             * 
+             * @type {SymbolCode[][]} 
+             */
+            var ligatureEnharmonics = [orderedSymbols];
+
+            /**
+             * Keeps track of the highest ligature precedence encountered so far, so
+             * that a lower-precedence ligature does not override the
+             * {@link TuningConfig.avToSymbols} lookup which determines the best way to
+             * represent a particular AV when accidentals are entered via fingering.
+             * 
+             * 0: weak, non-important (does not override avToSymbols lookup)
+             * 1: strong, non-important
+             * 2: weak, important
+             * 3: strong, important
+             */
+            var highestPrecedenceEncountered = 0;
+
             tuningConfig.ligatures.forEach(function (lig) {
-                var ligAv = [];
+                var newEnharmonicsToAdd = [];
+                var currLigPrecedence = lig.isWeak + lig.isImportant * 2;
+                ligatureEnharmonics.forEach(function (unligSymbols) {
+                    var ligAv = [];
 
-                // These values will contain the ligatured spelling of the accidental.
-                // Only used when a ligature match is found.
-                var ligaturedSymbols = {};
-                for (var k in accidentalSymbols) {
-                    ligaturedSymbols[k] = accidentalSymbols[k];
-                } // shallow copy;
-                var ligOrderedSymbols = orderedSymbols.map(function (x) { return x; }); // shallow copy
+                    // This list will contain the ligatured spelling of the accidental.
+                    // Only used when a ligature match is found.
+                    var ligOrderedSymbols = unligSymbols.map(function (x) { return x; }); // shallow copy
 
-                /*
-                As per spec, the ligatured symbols take the place of the right-most
-                symbol it replaces.
-                */
+                    /*
+                    As per spec, the ligatured symbols take the place of the right-most
+                    symbol it replaces.
+                    */
 
-                // Stores the index of the right-most symbol it replaces.
-                // This will be where the ligature is inserted.
-                var ligSymbolIdx = 0;
+                    // Stores the index of the right-most symbol it replaces.
+                    // This will be where the ligature is inserted.
+                    var ligSymbolIdx = 0;
 
-                lig.regarding.forEach(function (idx) {
-                    // idx represents each accidental chain that this ligature checks for
-                    var deg = accidentalVector[idx];
+                    lig.regarding.forEach(function (idx) {
+                        // idx represents each accidental chain that this ligature checks for
+                        var deg = accidentalVector[idx];
 
-                    // append this degree to the ligature subspace vector.
-                    ligAv.push(deg);
+                        // append this degree to the ligature subspace vector.
+                        ligAv.push(deg);
 
-                    // Remove symbols from ligaturedSymbols that are
-                    // replaced by the ligature.
+                        // Remove symbols from ligOrderedSymbols that are
+                        // replaced by the ligature.
 
-                    var accChain = tuningConfig.accChains[idx];
-                    var symbolsCausedByDegree = accChain.degreesSymbols[avIndices[idx]];
+                        var accChain = tuningConfig.accChains[idx];
+                        var symbolsCausedByDegree = accChain.degreesSymbols[avIndices[idx]];
 
-                    if (symbolsCausedByDegree == null) {
-                        // continue. the current degree of this accidental vector doesn't need any symbols
-                        return;
-                    }
+                        if (symbolsCausedByDegree == null) {
+                            // continue. the current degree of this accidental vector doesn't need any symbols
+                            return;
+                        }
 
-                    symbolsCausedByDegree.forEach(function (symCode) {
-                        if (ligaturedSymbols[symCode]) {
-                            // reduce count of symbols
-                            var numSymbols = --ligaturedSymbols[symCode];
-                            if (numSymbols == 0) {
-                                delete ligaturedSymbols[symCode];
-                            }
+                        for (var sIdx = 0; sIdx < symbolsCausedByDegree.length; sIdx++) {
+                            var symCode = symbolsCausedByDegree[sIdx];
                             var idxOfSymbol = ligOrderedSymbols.lastIndexOf(symCode);
+                            if (idxOfSymbol == -1) {
+                                console.warn('TUNING CONFIG WARN: Cannot find symbol to remove based on standard accidental chain when creating ligatures.'
+                                    + ' This shouldn\'t happen. Pretending the nothing is wrong.');
+                                return;
+                            }
                             ligOrderedSymbols.splice(idxOfSymbol, 1);
                             if (idxOfSymbol > ligSymbolIdx) {
                                 ligSymbolIdx = idxOfSymbol;
@@ -1962,54 +1994,50 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                             }
                         }
                     });
-                });
 
-                // contains symbols from ligature, in user-specified order.
-                var ligSymbols = lig.ligAvToSymbols[ligAv];
+                    // contains symbols from ligature, in user-specified order.
+                    var ligSymbols = lig.ligAvToSymbols[ligAv];
 
-                if (ligSymbols) {
-                    // A ligature match is found.
+                    if (ligSymbols) {
+                        // A ligature match is found.
 
-                    ligSymbols.forEach(function (symCode) {
-                        // Add the lig symbol to the accidentals map
-                        if (ligaturedSymbols[symCode]) {
-                            ligaturedSymbols[symCode]++;
-                        } else {
-                            ligaturedSymbols[symCode] = 1;
+                        // Insert the ligature symbols into the ordered symbols.
+                        ligOrderedSymbols = ligOrderedSymbols
+                            .slice(0, ligSymbolIdx)
+                            .concat(ligSymbols)
+                            .concat(ligOrderedSymbols.slice(ligSymbolIdx));
+
+                        // Add the ligature as if it were an enharmonic equivalent.
+
+                        var hash = createXenHash(nomIdx, ligOrderedSymbols);
+                        // console.log(hash + ': ligOrderedSymbols: ' + JSON.stringify(ligOrderedSymbols));
+                        xenNotesEquaves[hash] = {
+                            av: accidentalVector,
+                            xen: { // XenNote
+                                nominal: nomIdx,
+                                orderedSymbols: ligOrderedSymbols,
+                                accidentals: ligOrderedSymbols.length == 0 ? null : accidentalSymbolsFromList(ligOrderedSymbols),
+                                hash: hash,
+                                hasLigaturePriority: !lig.isWeak,
+                                hasImportantLigature: lig.isImportant,
+                            },
+                            cents: cents,
+                            equavesAdjusted: equavesAdjusted,
+                        };
+
+                        newEnharmonicsToAdd.push(ligOrderedSymbols);
+
+                        if (currLigPrecedence >= 1 && currLigPrecedence >= highestPrecedenceEncountered) {
+                            // Only strong or important ligatures can override the default
+                            // best representation of the accidental vector.
+                            tuningConfig.avToSymbols[accidentalVector] = ligOrderedSymbols;
+                            highestPrecedenceEncountered = currLigPrecedence;
                         }
-                    });
-
-                    // Insert the ligature symbols into the ordered symbols.
-                    ligOrderedSymbols = ligOrderedSymbols
-                        .slice(0, ligSymbolIdx)
-                        .concat(ligSymbols)
-                        .concat(ligOrderedSymbols.slice(ligSymbolIdx));
-
-                    // Add the ligature as if it were an enharmonic equivalent.
-
-                    var hash = createXenHash(nomIdx, ligOrderedSymbols);
-                    // console.log(hash + ': ligOrderedSymbols: ' + JSON.stringify(ligOrderedSymbols));
-                    xenNotesEquaves[hash] = {
-                        av: accidentalVector,
-                        xen: { // XenNote
-                            nominal: nomIdx,
-                            orderedSymbols: ligOrderedSymbols,
-                            accidentals: ligOrderedSymbols.length == 0 ? null : ligaturedSymbols,
-                            hash: hash,
-                            hasLigaturePriority: !lig.isWeak,
-                            hasImportantLigature: lig.isImportant,
-                        },
-                        cents: cents,
-                        equavesAdjusted: equavesAdjusted,
-                    };
-
-                    if (!lig.isWeak) {
-                        // Strong ligatures should take precedence.
-                        tuningConfig.avToSymbols[accidentalVector] = ligOrderedSymbols;
                     }
-                }
-            });
-        }
+                });
+                ligatureEnharmonics = ligatureEnharmonics.concat(newEnharmonicsToAdd);
+            }); // end iterating ligatures
+        } // end iterating idxPermutations
     }
     // end of xenNotesEquaves population
 
@@ -2619,27 +2647,13 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         return null;
     }
 
-    // If new accidentals created from fingerings, make sure ligatures apply.
+    // If new accidentals created from fingerings, use the best representation
+    // of the accidental so that the proper ligatures are applied.
 
     if (maybeFingeringAccSymbols != null) {
-        var traversedHash = xenNote.hash;
-
-        while (true) {
-            // Loop all enharmonics
-            traversedHash = tuningConfig.enharmonics[traversedHash];
-            if (!traversedHash)
-                break; // no enharmonics
-
-            if (traversedHash == xenNote.hash) {
-                // made one loop without finding any ligatures
-                break;
-            }
-
-            if (tuningConfig.notesTable[traversedHash].hasLigaturePriority) {
-                xenNote = tuningConfig.notesTable[traversedHash];
-                break;
-            }
-        }
+        var av = tuningConfig.avTable[xenNote.hash];
+        var newHash = createXenHash(xenNote.nominal, tuningConfig.avToSymbols[av]);
+        xenNote = tuningConfig.notesTable[newHash];
     }
 
     return {
@@ -3583,7 +3597,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         if (priorAV != null && arraysEqual(optionAV, priorAV)) {
             // Direct accidental match. Return this.
             nextNoteObj.matchPriorAcc = true;
-            
+
             // Having the same accidental vector as the prior accidental
             // doesn't necessarily mean it's the exact same symbols.
             // Make sure we use the exact same symbols as the prior accidental.
@@ -3651,8 +3665,8 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
      * @param {boolean} debug set to `true` to print why a note was picked over the other.
      * @returns 
      */
-    var nextNoteSortFn = function(a, b, debug) {
-        var dlog = debug ? function(sortDirection, str) {
+    var nextNoteSortFn = function (a, b, debug) {
+        var dlog = debug ? function (sortDirection, str) {
             var first = sortDirection <= 0 ? a.nextNote.xen.hash : b.nextNote.xen.hash;
             var second = sortDirection <= 0 ? b.nextNote.xen.hash : a.nextNote.xen.hash;
             if (sortDirection == 0) {
@@ -3661,7 +3675,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
             }
             console.log('picked ' + first + ' over ' + second + ' because: ' + str);
             return sortDirection;
-        } : function(sortDirection, str) {
+        } : function (sortDirection, str) {
             return sortDirection;
         };
 
@@ -4122,7 +4136,7 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
                 segments. */
             elem.autoplace = true;
             elem.align = Align.LEFT | Align.VCENTER;
-            elem.fontStyle = tuningConfig.nonBoldTextAccidental ? 
+            elem.fontStyle = tuningConfig.nonBoldTextAccidental ?
                 FontStyle.Normal : FontStyle.Bold;
             elem.fontSize = ASCII_ACC_FONT_SIZE;
             /*  Set offsetY to some random number to re-trigger vertical align later.

@@ -3,10 +3,12 @@
 ## 0.2.2
 
 - Improve `chooseNextNote` again. Tested & guaranteed consistency of behavior across HEWM JI, HEWM 72edo, HEJI, ups & downs 22edo & 12edo.
+- Default fingering text-based accidentals to bold fontStyle. Added `nobold()` option in tuning config to use non-bold fontStyle.
+- Added `explicit()` option in tuning config for atonal music / no accidental carry over
 - Fix broken ligatures
 - Fix ties not working
-- Added `explicit()` option in tuning config for atonal music / no accidental carry over
-- Default fingering text-based accidentals to bold fontStyle. Added `nobold()` option in tuning config to use non-bold fontStyle.
+- Fix multiple ligature matches on one accidental not working
+- Fix accidentals entered using ligatures not using optimum ligatured spelling.
 
 ## 0.2.1
 
