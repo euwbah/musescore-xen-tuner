@@ -221,13 +221,13 @@ To refer to a SMuFL symbol when setting up a tuning/key signature, you can eithe
 
 ![](imgs/spreadsheet%20lookup.png)
 
-> E.g. both `#` and `5` can be used to refer to the sharp symbol.
+> 🟡 **E.g.** both `#` and `5` can be used to refer to the sharp symbol.
 > 
 > Code `100` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `100`.
 
 You can also use text-based accidentals by referring to them in single quotes, as long as the text does not contain a space.
 
-> E.g. `'abc'` represents the literal text abc as a single accidental symbol.
+> 🟡 **E.g.** `'abc'` represents the literal text abc as a single accidental symbol.
 
 ### Escape codes
 
@@ -245,7 +245,7 @@ For example, the down arrow symbol (SymbolCode 43) must be referred to as `\\` e
 
 Multiple symbols can combine to form a single logical accidental that represents a single pitch adjustment in an accidental chain. Separate each symbol code/quoted text with a period to combine them.
 
-> E.g. `x./.'hi'` refers to a single accidental comprised of the double sharp symbol, up arrow symbol and the text 'hi', left to right order.
+> 🟡 **E.g.** `x./.'hi'` refers to a single accidental comprised of the double sharp symbol, up arrow symbol and the text 'hi', left to right order.
 
 ### Accidental chains & degrees
 
@@ -279,7 +279,7 @@ System Text elements will apply to all staves, whereas Staff Text will only appl
 
 You do not need to write the entire tuning configuration within a staff text. E.g. if you frequently use a tuning with rather lengthy configuration text, you can create a `.txt` file ([or pre-computed `.json` file](#1-pre-compute-the-tuning-config)) inside the included `tunings/` folder.
 
-> 🟢 **E.g.** to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
+> 🟡 **E.g.** to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
 
 
 > 🟢 **Recommended:** have a look at the provided tuning configs in the `tunings/` folder to see how notation/tuning systems are configured.
@@ -543,7 +543,7 @@ After that, we declare each search-and-replace condition on a new line.
 
 > ⚠️ IMPORTANT: The degrees `-2 -1` **must be specified in the same order as the ligature's chain declaration**.
 >
-> For example, if we declared `lig(2,1)` instead, with the second accidental chain on the left, then you would need to write the search-and-replace condition as `-1 -2 bbv`, since now the left number refers to the second accidental chain.
+> 🟡 **For example**, if we declared `lig(2,1)` instead, with the second accidental chain on the left, then you would need to write the search-and-replace condition as `-1 -2 bbv`, since now the left number refers to the second accidental chain.
 
 The ligatured accidentals can be constructed with multiple symbols. As per usual, you join multiple symbols with periods.
 
@@ -644,7 +644,7 @@ This symbol-parsing process is how the plugin understands the accidental symbols
 
 > ⚠️ **IMPORTANT:** Note that because the plugin always tries to read the most number of symbols for each ligature set/accidental chain at a time, it's important that if the same symbol appears across different ligature sets/accidental chains, they should be declared in an order such that it is not ambiguous which ligature/accidental chain the symbol belongs to.
 >
-> For example, let's say that the symbol `b^` is in ligature set 1, but we have `~.b^` in ligature set 2. Now let's say the plugin encounters a note with the symbols `~.b^`. It will first look to ligature set 1 to 'eat up' the `b^`, leaving `~` remaining. This means that **`~.b^` in ligature set 2 will never get matched** because the `b^` symbol will get eaten up by the first ligature.
+> 🟡 **For example**, let's say that the symbol `b^` is in ligature set 1, but we have `~.b^` in ligature set 2. Now let's say the plugin encounters a note with the symbols `~.b^`. It will first look to ligature set 1 to 'eat up' the `b^`, leaving `~` remaining. This means that **`~.b^` in ligature set 2 will never get matched** because the `b^` symbol will get eaten up by the first ligature.
 >
 > To solve this, we just need to flip the order the ligature sets are declared.
 
@@ -1059,8 +1059,8 @@ One of the culprits of requiring a huge Tuning Config is if you're writing a pie
 
 You can also use standard JavaScript/math expressions to accomplish more complicated comma shifts.
 
-> E.g., shifting with respect to C4 instead: `C4: 440 * 16/27 * 80/81`.
-> 
+> 🟡 **E.g.** shifting with respect to C4 instead: `C4: 440 * 16/27 * 80/81`.
+>
 > ...or shifting up 10 syntonic commas and down 3 septimal commas: `A4: 440 * Math.pow(80/81, 10) * Math.pow(64/63, -3)`.
 
 ## How to: export MIDI/MPE
@@ -1128,7 +1128,7 @@ If all else fails, [report an issue](#reporting-an-issue). Include the tuning co
 
 This is most likely a tuning config issue &mdash; certain accidental combinations would be created by the tuning config, but because of the order of declarations, it can't be properly parsed back.
 
-> 🟢 For example, in `heji/5 limit.txt`, if you shift the second ligature set declaration before the first, you will encounter this issue.
+> 🟡 For example, in `heji/5 limit.txt`, if you shift the second ligature set declaration before the first, you will encounter this issue.
 
 See how to [report an issue](#reporting-an-issue), and take note of the debug logs & error messages you find in the Plugin Creator. If it is really this issue, the debug messages will contain detailed info on how the plugin tried to parse a note and failed, and you can use that info to fix the tuning config yourself, or ask for help.
 
