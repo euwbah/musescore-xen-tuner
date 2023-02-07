@@ -89,15 +89,15 @@ However, the recommended way to enter accidentals would be to use up/down operat
 
 What the auxiliary operations do can be changed by [modifying auxiliary operations defined in the tuning configuration](#auxiliary-operations)
 
+#### Entering accidentals directly using fingerings
+
 The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. To use this feature, the tuning config should declare [text representations](#advanced-declaring-text-representations-of-accidentals) which matches specific strings of text and converts them into accidental symbols (which can either be SMuFL or text-based).
 
-When using this, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
+When using this feature, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
 
 Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
 
 Once fingerings are entered, hit `Alt+R` and the accidentals will render themselves.
-
-This method is recommended for entering the occasional accidental that need not be part of a main accidental chain. If there are too many [accidental chains](#accidental-chains--degrees), a tuning config will take longer to load.
 
 Read [how the plugin conceptualizes tunings & accidentals](#introduction) to make your own tuning configurations.
 
@@ -122,6 +122,7 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [3. Start Xen Tuner](#3-start-xen-tuner)
   - [4. Select tuning configuration \& key signatures](#4-select-tuning-configuration--key-signatures)
   - [5. Entering notes \& accidentals](#5-entering-notes--accidentals)
+    - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
   - [List of Supported Symbols](#list-of-supported-symbols)
     - [Keeping accidentals up to date](#keeping-accidentals-up-to-date)
 - [Introduction](#introduction)
@@ -132,6 +133,7 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [Accidental chains \& degrees](#accidental-chains--degrees)
   - [Accidental vectors](#accidental-vectors)
 - [How to: tuning configuration](#how-to-tuning-configuration)
+  - [Tuning configuration overview](#tuning-configuration-overview)
   - [Tuning configuration syntax overview](#tuning-configuration-syntax-overview)
   - [Full example](#full-example)
   - [Simple example](#simple-example)
@@ -259,7 +261,7 @@ To combine and permute different accidentals, declare multiple accidental chains
 
 You can combine different accidental degrees from different accidental chains. The degrees of each accidental chain forms a list of numbers called the **accidental vector**. This is a unique representation of all the accidentals attached to one notehead.
 
-> E.g. in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**. 
+> 🟡 **E.g.** in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**. 
 > 
 > First, the chain of sharps and flats, where each step in the 'sharp' direction corresponds to the apotome interval (2187/2048). These accidentals allow us to access 3-limit just intonation.
 > 
@@ -277,9 +279,11 @@ System Text elements will apply to all staves, whereas Staff Text will only appl
 
 You do not need to write the entire tuning configuration within a staff text. E.g. if you frequently use a tuning with rather lengthy configuration text, you can create a `.txt` file ([or pre-computed `.json` file](#1-pre-compute-the-tuning-config)) inside the included `tunings/` folder.
 
-> E.g. to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
->
-> 🟢 **Recommended**: have a look at the provided tuning configs in the `tunings/` folder to see how notation/tuning systems are configured.
+> 🟢 **E.g.** to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
+
+
+> 🟢 **Recommended:** have a look at the provided tuning configs in the `tunings/` folder to see how notation/tuning systems are configured.
+
 
 > 🔴 **Beware:** if you find two files with the same name where one is a `.txt` and the other a `.json` file, this means that the tuning configuration is [pre-computed. Read more about it in this section](#1-pre-compute-the-tuning-config).
 >
@@ -287,7 +291,22 @@ You do not need to write the entire tuning configuration within a staff text. E.
 
 Now lets dive into how we can create our own tuning/notation systems.
 
+### Tuning configuration overview
+
+A tuning/notation system consists of the following parts:
+
+1. [Reference note](#simple-example) e.g. `A4: 440`
+2. [Nominals](#simple-example) & equave size
+3. [Accidental chains](#adding-accidentals) (optional)
+4. Other optional declarations
+   - [Ligatures](#accidental-ligatures-real-heji) allow you to declare how different symbols combine into other symbols. [Advanced ligatures](#advanced-advanced-ligature-use-weak--important-ligatures) can control which enharmonic spellings/accidentals are present in a tuning.
+   - [Auxiliary operations](#auxiliary-operations) define what the other keyboard shortcuts (e.g. `Alt+Up/Down`) do. You can control which accidental chains will be affected, and whether or not the nominal is allowed to change when using those auxiliary up/down operations.
+   - [Secondary accidentals](#advanced-secondary-accidentals) define additional symbols that are not part of the main set of notes accessible by up/down operations, but will still act like accidentals. You can access these by declaring [text representations](#advanced-declaring-text-representations-of-accidentals) of the accidentals and [entering the accidentals as fingerings](#entering-accidentals-directly-using-fingerings).
+   - Other preference settings like [nobold()](#nobold) and [explicit()](#explicit).
+
 ### Tuning configuration syntax overview
+
+You can try to make sense of this yourself to fast-forward the learning process, otherwise, the rest of the guide will explain this is greater detail.
 
 ```
 // This is a comment. Comments are ignored by the plugin.
@@ -400,7 +419,7 @@ The declarations are to be done in the above specified order. Apart from the ref
 
 ### Full example
 
-See [heji/5 limit.txt](tunings/heji/5%20limit.txt) for a full annotated example of implementing the tuning configuration for the [extended Helmholtz-Ellis just intonation notation (2020 edition)](https://marsbat.space/pdfs/HEJI2_legend+series.pdf). In this tuning config, the up/down operations are implemented for up to the 5 limit, but higher limit accidentals are available as secondary accidentals, and can be entered via fingerings with the accidentals' text representations.
+See [heji/5 limit.txt](tunings/heji/5%20limit.txt) for a fully annotated example of implementing the tuning configuration for the [extended Helmholtz-Ellis just intonation notation (2020 edition)](https://marsbat.space/pdfs/HEJI2_legend+series.pdf). All the features of the plugin is featured in that tuning config. the up/down operations are implemented for up to the 5 limit, but higher limit accidentals are available as secondary accidentals, and can be entered via fingerings with the accidentals' text representations.
 
 Most of this section revolves around the [heji/5 limit.txt](tunings/heji/5%20limit.txt) tuning config. Continue reading for a detailed explanation on how you would go about creating tuning configs like this:
 
