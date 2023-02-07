@@ -784,7 +784,7 @@ Otherwise, fingering text accidentals will be bold by default.
 
 #### `explicit()`
 
-> ⚠️ **Still experimental!** Doesn't work properly with tied notes.
+> ⚠️ **Experimental!** May have bugs with tied notes etc...
 
 Declare `explicit()` anywhere after declaring accidental chains to explicitly display all accidentals (even naturals).
 

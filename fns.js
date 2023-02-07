@@ -4382,6 +4382,10 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         // if we're in explicit accidentals/atonal mode, make sure that explicit
         // accidentals also appear on all tied notes, and that these accidentals are
         // updated.
+
+        // We don't have to worry about these accidentals affecting subsequent notes
+        // in the next bar (if the tie carries over a barline), because we're in
+        // atonal/explicit accidental mode.
         var notePointer = note;
         while (notePointer.tieForward) {
             notePointer = notePointer.tieForward.endNote;
