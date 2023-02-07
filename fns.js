@@ -4205,13 +4205,23 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) 
 /**
  * Executes up/down/enharmonic on a note.
  * 
- * **IMPORTANT: The cursor must currently be at the note position.**
+ * **IMPORTANT:**
+ * - **The cursor must currently be at the note position**
+ * - **In a sequence of tied notes, this function should only be called on
+ *   the {@link PluginAPINote.firstTiedNote firstTiedNote}**
  * 
+ * <br/>
+ * 
+ * What it does:
  * - Finds next pitch to transpose to
  * - Aggresively apply explicit accidentals on notes that may be affected by the
  *   modification of the current note.
- * - Modifies pitch & accidental of note. Explicit accidental is always used.
+ * - Modifies pitch & accidental of note. Explicit accidentals are always used.
+ * - If tuningConfig has {@link TuningConfig.alwaysExplicitAccidental} `true`, then
+ *   sets all tied notes to have the updated explicit accidental.
  * - Tunes the note.
+ * 
+ * <br/>
  * 
  * This function will create some unnecessary accidentals that should be
  * removed after this bar is processed.
@@ -4275,15 +4285,12 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var ogCursorPos = saveCursorPosition(cursor);
 
     /*
-    Applies explicit accidental to ALL notes with the same Note.line 
+    Aggressively applies explicit accidental to ALL notes with the same Note.line 
     as the current (old) note or the new Note.line of the modified note,
     whose .tick values match, or come after the current note's .tick value.
     
     This will include grace notes that come before the actual note,
     or other notes within the same chord & line.
-
-    Of course, logically, only notes coming after the current will be affected, 
-    but there's no point writing a whole bunch of if statements.
 
     The idea is to brute-force as many explicit accidentals as possible first,
     then remove unnecessary accidentals later.
@@ -4301,16 +4308,20 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
                 continue;
             }
 
-            var notes = cursor.element.notes;
-            var graceChords = cursor.element.graceNotes;
+            /** @type {PluginAPIChord} */
+            var chord = cursor.element;
+
+            var notes = chord.notes;
+            var graceChords = chord.graceNotes;
 
             for (var i = 0; i < graceChords.length; i++) {
                 var graceNotes = graceChords[i].notes;
                 for (var j = 0; j < graceNotes.length; j++) {
                     var gnote = graceNotes[j];
-                    if (!gnote.is(note) &&
-                        (gnote.line == note.line
-                            || gnote.line == newLine)) {
+                    // We need to ensure that we're not mistakenly setting
+                    // an accidental of a note that ties back to the current note.
+                    if (!gnote.is(note) && !gnote.firstTiedNote.is(note) &&
+                        (gnote.line == note.line || gnote.line == newLine)) {
                         makeAccidentalsExplicit(gnote, tuningConfig, keySig,
                             tickOfThisBar, tickOfNextBar, newElement, cursor);
                     }
@@ -4319,7 +4330,8 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
             for (var i = 0; i < notes.length; i++) {
                 var n = notes[i];
-                if (!n.is(note) && (n.line == note.line || n.line == newLine)) {
+                if (!n.is(note) && !n.firstTiedNote.is(note) &&
+                    (n.line == note.line || n.line == newLine)) {
                     makeAccidentalsExplicit(n, tuningConfig, keySig,
                         tickOfThisBar, tickOfNextBar, newElement, cursor);
                 }
@@ -4365,6 +4377,17 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     }
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
+
+    if (tuningConfig.alwaysExplicitAccidental) {
+        // if we're in explicit accidentals/atonal mode, make sure that explicit
+        // accidentals also appear on all tied notes, and that these accidentals are
+        // updated.
+        var notePointer = note;
+        while (notePointer.tieForward) {
+            notePointer = notePointer.tieForward.endNote;
+            setAccidental(notePointer, accSymbols, newElement, tuningConfig);
+        }
+    }
 
     //
     // STEP 4
@@ -5601,6 +5624,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
             console.log('no individual selection. quitting.');
             return;
         } else {
+            /** @type {PluginAPINote[]} */
             var selectedNotes = [];
             for (var i = 0; i < _curScore.selection.elements.length; i++) {
                 if (curScore.selection.elements[i].type == Element.NOTE) {

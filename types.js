@@ -1304,6 +1304,19 @@ class PlayEvent {
     len;
 }
 
+class PluginAPITie extends PluginAPIElement {
+    /**
+     * The left note attached to this tie.
+     * @type {PluginAPINote}
+     */
+    startNote;
+    /**
+     * The right note attached to this tie.
+     * @type {PluginAPINote}
+     */
+    endNote;
+}
+
 /**
  * The internal `PluginAPI::Note` object.
  */
@@ -1338,6 +1351,24 @@ class PluginAPINote extends PluginAPIElement {
      * @type {PlayEvent[]
      */
     playEvents;
+    /**
+     * Reference to the first {@link PluginAPINote} in a sequence
+     * of notes tied together.
+     * 
+     * @type {PluginAPINote}
+     */
+    firstTiedNote;
+    /**
+     * Reference to the last {@link PluginAPINote} in a sequence
+     * of notes tied together.
+     * 
+     * @type {PluginAPINote}
+     */
+    lastTiedNote;
+    /** @type {PluginAPITie?} */
+    tieBack;
+    /** @type {PluginAPITie?} */
+    tieForward;
     /**
      * Attach the {@link PluginAPIElement} to this notehead
      * @param {PluginAPIElement} elem element to add
@@ -1415,6 +1446,9 @@ class PluginAPIScore {
      */
     newCursor() { }
 }
+
+/** @type {PluginAPIScore} */
+var curScore;
 
 class FileIO {
     /**
