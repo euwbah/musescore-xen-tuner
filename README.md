@@ -307,6 +307,12 @@ sec() // signifies start of secondary accidental declaration.
 'abc' 0.01c // this is also a single-symbol text-based accidental
 'a'.'b'.'c' 0 // this isn't single-symbol.
 
+// 4d. nobold()
+nobold() // declaring this will make text-based accidentals not bold by default
+
+// 4e. explicit()
+explicit() // declaring this will make every note use explicit accidentals
+
 ```
 
 The declarations are to be done in the above specified order. Apart from the reference note and nominals, all the other declarations are optional:
@@ -767,6 +773,22 @@ sec()
 // do this instead:
 '++' '+'.'+' 50c
 ```
+
+### Advanced: Other configurations
+
+#### `nobold()`
+
+Declare `nobold()` anywher after declaring accidental chains to make the font style of fingering text based accidentals non-bold.
+
+Otherwise, fingering text accidentals will be bold by default.
+
+#### `explicit()`
+
+> ⚠️ **Still experimental!** Doesn't work properly with tied notes.
+
+Declare `explicit()` anywhere after declaring accidental chains to explicitly display all accidentals (even naturals).
+
+Useful for atonal writing etc...
 
 -----
 
