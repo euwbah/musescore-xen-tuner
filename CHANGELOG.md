@@ -8,7 +8,7 @@
 - Fix broken ligatures
 - Fix ties not working
 - Fix multiple ligature matches on one accidental not working
-- Fix accidentals entered using ligatures not using optimum ligatured spelling.
+- Fix accidentals entered using fingerings not using optimum ligatured spelling.
 
 ## 0.2.1
 
