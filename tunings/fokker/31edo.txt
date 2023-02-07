@@ -1,0 +1,22 @@
+// 31 EDO using semi & sesqui sharp/flats
+// Based on: https://www.huygens-fokker.org/docs/rap31.html
+
+A4: 440
+0c 1200/31*5c 1200/31*8c 1200/31*13c 1200/31*18c 1200/31*23c 1200/31*28c 1200c
+
+bb db b d (1200/31c) + # #+ x
+
+aux(0)
+
+sec()
+'bb' bb -1200/31*4c
+'db' db -1200/31*3c
+'b' b -1200/31*2c
+'d' d -1200/31c
+
+'x' x 1200/31*4c
+'##' x 1200/31*4c
+'+#' #+ 1200/31*3c
+'#+' #+ 1200/31*3c
+'#' # 1200/31*2c
+'+' + 1200/31c
