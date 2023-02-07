@@ -22,7 +22,6 @@ A **MuseScore 3.6** plugin to give first-class support for microtonal/alternativ
 
 - [x] MIDI/MPE export with channel pitch bend support. (WIP. MIDI files containing MPE data are generated, but no workflow exists to import these directly to a DAW)
 
-
 ## Quick Start
 
 > :warning: This project is very experimental. Please check [Caveats](#caveats)
@@ -115,6 +114,8 @@ Though, if you don't want to repeatedly download the plugin files to update the 
 If you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes numbers still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code index may change and is unstable.
 
 -----
+
+[TOC]
 
 ## Introduction
 
@@ -401,14 +402,16 @@ If we want to notate in HEJI proper, those arrows aren't the right symbol for th
 
 In HEJI, the first two accidental chains (syntonic commas & sharps/flats) are represented by a single ligatured accidental with the up/down arrows being attached to the sharp/flat symbol.
 
-To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature**. You can think of it as a list of "search-and-replace" conditions.
+To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature set**. You can think of it as a list of "search-and-replace" conditions that **ligatures** (joins/connects/substitutes) different symbols into a different unique symbol. A ligatured accidental functions exactly like the original accidentals it substitutes, and only differs in visual appearance.
+
+Think of them like [font ligatures](https://en.wikipedia.org/wiki/Ligature_(writing)) where multiple characters conjoin into a unique shape.
 
 ```txt
 C4: 440 * 16/27
 0 9/8 81/64 4/3 3/2 27/16 243/128 2
 bbb bb b (2187/2048) # x #x
 v3 v2 v (81/80) ^ ^2 ^3
-lig(1,2)
+lig(1,2)?
 -2 -2 bbv2
 -2 -1 bbv
 -2 1 bb^
@@ -431,21 +434,26 @@ lig(1,2)
 2 2 x^2
 ```
 
-We start declaring a ligature with `lig(1,2)`. The numbers `1,2` represent the Nth accidental chains that this ligature applies to &mdash; meaning that it will only replace symbols that are part of the 1st and 2nd accidental chains, leaving other chain's symbols untouched.
+We start declaring a ligature with `lig(1,2)?`. The numbers `1,2` represent the Nth accidental chains that this ligature applies to &mdash; meaning that it will only replace symbols that are part of the 1st and 2nd accidental chains, leaving other chain's symbols untouched. The `?` signifies that this is a [weak ligature](#weak--important-attributes-on-a-ligature-set) (don't worry too much about that for now).
 
 After that, we declare each search-and-replace condition on a new line.
 
 `-2 -1 bbv` means that if the 1st accidental chain is on degree -2 (double flat), and the second accidental chain is on degree -1 (down arrow), then we replace it with the single symbol `bbv` (double flat with single down arrow).
 
 > ⚠️ IMPORTANT: The degrees `-2 -1` **must be specified in the same order as the ligature's chain declaration**.
-> 
-> For example, if we declared `lig(2,1)` instead, with the second accidental chain on the left, then you would need to write the search-and-replace condition as `-1 -2 bbv`, since now the left number refers to the second accidental chain.
 >
-> ⚠️ Ligatured symbols **must not contain symbols that are already used as part of an accidental chain.**
+> For example, if we declared `lig(2,1)` instead, with the second accidental chain on the left, then you would need to write the search-and-replace condition as `-1 -2 bbv`, since now the left number refers to the second accidental chain.
 
-The ligatured symbols can be constructed with multiple symbols. Just like before, you can join symbols with periods.
+The ligatured accidentals can be constructed with multiple symbols. As per usual, you join multiple symbols with periods.
 
-You can also [specify more than one ligature declaration](#advanced-weak-ligatures-important-ligatures--alternative-ligature-uses), regarding different chains. Though special care must be taken when deciding the order of declaration of the ligatures. [Read more here](#advanced-weak-ligatures-important-ligatures--alternative-ligature-uses).
+🟠**For basic ligature usage,** ligatured symbols should not contain symbols that are already used as part of an accidental chain, and ligature declarations should always be [weak](#weak--important-attributes-on-a-ligature-set) (suffixed with `?`). However, more intricate behaviors/notation systems can be configured with [advanced ligature usage](#advanced-advanced-ligature-use-weak--important-ligatures).
+
+> 🟢 A ligature definition can be made **weak** (`?`), **important** (`!`), or **weak and important** (`!?`).
+> If no modifiers are specified, it is by default a **strong** ligature (opposite of weak).
+> 
+> [Read more about advanced ligature usage here](#advanced-advanced-ligature-use-weak--important-ligatures).
+
+You can also declare more than one ligature set, regarding different chains. Though special care must be taken when [deciding the order of declaration of the ligatures](#understanding-how-the-plugin-parses--reads-accidentals).
 
 ### Auxiliary operations
 
@@ -476,66 +484,9 @@ Similarly, `aux(2)` means only the second chain's degree can change. This adjust
 
 Finally, `aux(0,1)` means both the nominal and the first accidental chain's degree can change. This behaviour will be assigned to the 'aux 4 up/down' commands (default: `Ctrl+Shift+Alt+Up/Down`)
 
-You can specify whatever combination of nominal/chains within the parentheses that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
+You can specify whichever combinations of numbers from 0 to N (number of accidental chains) that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
 
-### Advanced: Weak ligatures, important ligatures & alternative ligature uses
-
-```txt
-C4: 440 * 16/27
-0 9/8 81/64 4/3 3/2 27/16 243/128 2
-bbb bb b (2187/2048) # x #x
-v3 v2 v (81/80) ^ ^2 ^3
-
-lig(1)?!
--1 ~.#v // flat equals ~#v
-1 ~.b^ // sharp equals ~b^
-
-lig(1,2)!
--2 -2 bbv2
--2 -1 bbv
--2 1 bb^
--2 2 bb^2
--1 -2 bv2
--1 -1 bv
--1 1 b^
--1 2 b^2
-0 -2 v2
-0 -1 v
-0 1 ^
-0 2 ^2
-1 -2 #v2
-1 -1 #v
-1 1 #^
-1 2 #^2
-2 -2 xv2
-2 -1 xv
-2 1 x^
-2 2 x^2
-```
-
-If we want to follow the [HEJI specification (2020)](https://marsbat.space/pdfs/HEJI2_legend+series.pdf) to the letter, we will need to also implement the enharmonic schisma tilde symbol (`~`), such that `C#` = `Db~`, and `Db = C#~`.
-
-Upon taking a closer look, the `~` symbol in HEJI can imply both an upwards or downwards offset depending on what symbol it is attached to. This plugin does not inherently support accidentals that change their meaning depending on the context, making it seemingly impossible to implement `~` per-se in Xen Tuner.
-
-However, as stated above, the purpose of these symbols is to allow enharmonic spelling. Ligatures in this plugin are treated as **enharmonically equivalent spellings** of a note, meaning we can trick the plugin into implementing these enharmonics as ligatures:
-
-
-```txt
-lig(1)?
--1 ~.#v // "b" becomes "~#v"
-1 ~.b^ // "#" becomes "~b^"
-```
-
-🟥 Note that we use a `?` after the `lig(1)?` declaration line. This is to signify that this is a **weak ligature**. We don't want the plugin to replace every `b` with `~#v` and every `#` with `~b^`, because that is not the point of introducing this ligature. In order for the plugin to not aggressively prefer the ligatured version of the accidental, we need to use `?` to declare it as a weak ligature.
-
-🟥 The **order of ligature declaration is very important**. This wouldn't work if the `lig(1)?` declaration is written after the `lig(1,2)` declaration.
-
-If we were to declare `lig(1,2)` first, this will cause the plugin to look for and match the `#v` and `b^` symbols first, instead of the composite `~.#v` and `~.b^`. Here's what will happen:
-
-- A note has the `~.b^` accidental, which should, by right, be interpreted as `#` enharmonically
-- `b^` gets eaten up by matching the `lig(1,2)` ligature, because it was declared first.
-- `~` remains, and the plugin will not be able to figure out what to do with it
-- [Halt & catch fire](https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing))
+If you require more than 4 auxiliary operations, you can [set up more keyboard shortcuts](#more-auxiliary-operations) to invoke more auxiliary operations.
 
 ### Advanced: Irregularly sized accidental chains
 
@@ -558,6 +509,156 @@ If you have very irregular interval sizes between accidentals, it might be bette
 ```txt
 bb(8/9) b(15/16) (0) #(17/16) x(8/7)
 ```
+
+### Advanced: advanced ligature use, weak & important ligatures
+
+> 🟠 Make sure you understand the basics of [ligatures](#accidental-ligatures-real-heji) before reading this section.
+
+If you've tried out the [simple ligature example tuning config](#accidental-ligatures-real-heji) for HEJI, you may have noticed that you can press `J` (enharmonic respell) on accidentals like `#^` (sharp with one arrow up) which turns it into `^.#` (natural with one arrow up & sharp). While the tuning is technically correct, it is improper use of the symbols according to the [HEJI](https://marsbat.space/pdfs/HEJI2_legend+series.pdf) standard.
+
+> 🟠 In the simple HEJI ligature example, you may also notice that some enharmonic spelling choices are suboptimal, e.g. sharps and flats with arrows are spelt weird.
+
+This seems like a small matter as most people don't bother with enharmonics in JI anyway. However, this same issue also affects tempered tunings notated with HEJI, plus, exact enharmonic substitutions via the `~` (tilde accidental: schisma alteration) are defined in the HEJI spec, such that `C#v~` = `Db`, and `Db^~` = `C#`.
+
+We can modify how ligatures behave to improve the user experience for more intricate notation systems like HEJI/Sagittal.
+
+**Ligatures can be used to:**
+
+- Limit the plugin to use only certain accidental spellings so that _"technically correct but wrong"_ spellings don't show up after up/down/enharmonic cycle operations.
+- Emulate support for symbols that can change their meaning depending on the context.
+
+But first, to use ligatures effectively, we need to understand **how the plugin reads & breaks down accidental symbols** into actual note information.
+
+#### Understanding how the plugin parses & reads accidentals
+
+SMuFL & text-based accidental symbols attached to a note are tokenized into an unordered list of [Symbol Codes](#symbol-codes-text-codes-text-based-accidental-symbols). These symbols are **'eaten up'** one-by-one, according to the order specified in the tuning config declarations. Once a symbol is matched, it cannot be reused as a symbol in another ligature/accidental chain/secondary accidental. There are 3 different sources of accidental symbols, and the reading/parsing/matching/eating of the symbols happens in this order:
+
+1. The plugin attempts to match ligatures, set-by-set, testing for matches in the order the ligature sets were declared in the tuning config. In each ligature set, the ligatured accidental with the most symbol matches will be chosen.
+   E.g. if some ligature set contains `bb.bb` and `bb`, and `bb.bb.bb` is attached to the note, `bb.bb` will be 'eaten up' and matched by that ligature, leaving `bb` to be matched by the other declarations
+2. The plugin attempts to match main accidentals in [accidental chains](#accidental-chains--degrees), testing for matches in the order the chains were declared. Just like the ligatures, the accidental with the most symbol matches will be chosen.
+3. Finally, the plugin matches remaining leftover symbols as [secondary accidentals](#advanced-secondary-accidentals). It checks for secondary accidentals in the order they were declared, matching repeated secondary accidentals all at once.
+4. Any other left over symbols will be ignored. In some cases, if the tuning config is specified incorrectly and matches symbols in the wrong order, [the plugin will not work](#the-plugin-just-doesnt-respond-for-certain-notes).
+
+This symbol-parsing process is how the plugin understands the accidental symbols attached on to notes, and it will base its operations on this information.
+
+> ⚠️ **IMPORTANT:** Note that because the plugin always tries to read the most number of symbols for each ligature set/accidental chain at a time, it's important that if the same symbol appears across different ligature sets/accidental chains, they should be declared in an order such that it is not ambiguous which ligature/accidental chain the symbol belongs to.
+>
+> For example, let's say that the symbol `b^` is in ligature set 1, but we have `~.b^` in ligature set 2. Now let's say the plugin encounters a note with the symbols `~.b^`. It will first look to ligature set 1 to 'eat up' the `b^`, leaving `~` remaining. This means that **`~.b^` in ligature set 2 will never get matched** because the `b^` symbol will get eaten up by the first ligature.
+>
+> To solve this, we just need to flip the order the ligature sets are declared.
+
+Now that's out of the way:
+
+#### What exactly are ligatures?
+
+A note with a ligatured accidental is treated as a unique _'Xen Tonal Pitch Class'_ (`XenNote` in the code) that is enharmonically equivalent to the same note with the original accidental it 'substitutes'.
+
+In other words, notes with ligatures will (by default) be accessible as enharmonics of the non-ligatured note. Ligatured spellings will (by default) show up as possible note spelling choices for up/down/enharmonic operations.
+
+Once ligatured accidentals are declared, it affects how the plugin parses symbols. As mentioned [above](#understanding-how-the-plugin-parses--reads-accidentals), accidental symbols are tested to match against ligatures first, before the primary accidentals that are part of the tuning config.
+
+This means that we can use ligatures to affect how the plugin reads symbols, and we can intentionally reuse the same symbols between ligature sets & accidental chains to affect how the plugin reads symbols and create an intricate layered accidental system, if need be.
+
+#### Weak & important attributes on a ligature set
+
+A ligature set is defined with two attributes: weak/strong, and important/non-important.
+
+**By default, all ligature sets are strong and non-important**. We can suffix `!` and/or `?` to our `lig(...)` declaration to change these attributes.
+
+- `lig(...)?` makes a weak ligature
+- `lig(...)!` makes an important ligature
+- `lig(...)!?` makes a weak and important ligature.
+
+The point of having these attributes is to have fine-grained control for when to prefer using some ligatures over other ligatures, or whether other primary accidental symbols can be accessible from up/down/enharmonic operations at all.
+
+Here's a table summarizing the effect of these attributes, in increasing order of precedence:
+
+| | | | |
+|---|---|---|---------------|
+| `lig(...)?` | Weak | Non-important  | Same priority as standard accidentals. These note spellings are treated exactly like standard enharmonic equivalent spellings declared in accidental chains |
+| `lig(...)` | Strong | Non-important | Prefered over standard accidentals during up/down operations only. Allows cycling between ligatured & non-ligatured spellings as long as all enharmonic equivalents of this note doesn't contain important ligature symbols |
+| `lig(...)!?` | Weak | Important | Prefered over standard accidentals & non-important ligatures. Prevents non-important/standard spellings from showing up in enharmonic cycling |
+| `lig(...)!` | Strong | Important | Highest priority of all. Prevents non-important/standard spellings from showing up in enharmonic cycling |
+
+#### Strong vs weak ligatures
+
+During the up/down operations, whenever the plugin has to decide between choosing to spell note with a strong ligature vs without, it will always prefer the strong ligatured spelling over a weak-ligatured spelling or non-ligatured spelling (i.e. primary accidental symbols from the accidental chains).
+
+Setting a ligature to weak means that the ligatured spelling will be considered on equal-footing with other non-ligature/weak-ligatured spellings. Thus, enharmonic spellings are picked based on the other usual factors (such as transposition direction, number of symbols, etc...).
+
+#### Important vs non-important ligatures
+
+If a tuning config has an enharmonically equivalent set of notes and some of them have an important ligature, the other non-important ligatures will be removed from the enharmonic cycling operation. The main point of using important ligatures is to exact **fine-grained control over the available enharmonic spellings that a note has**.
+
+When given the option, the plugin will always choose to spell notes with important ligatures over non-important ligatures. This choice is made with a higher priority than the choice between strong vs weak ligatures.
+
+The reason to use important ligatures is to **override the use of all original accidental symbols** in the accidental chains that the ligature applies to. This applies to all plugin operations (up/down/enharmonic).
+
+> 🟢 Because important ligatures take precedence over all other enharmonic spellings, we need to make sure that &mdash; amongst the accidental chains the ligature applies to &mdash; all the symbols we need are represented in the ligature, including "non-ligatured" standard spellings.
+
+In a nutshell, the difference between a strong ligature and an important ligature is that a strong ligature still allows the original accidental chains' symbols to show up when respelling enharmonics (`J`), but an important ligature will not.
+
+> 🟠 While these non-ligatured symbols being overriden by an important ligature are not accessible from standard plugin operations (up/down/enharmonic), they will still be read correctly if these symbols are manually attached to the note.
+
+#### Weak & important ligatures case study: HEJI
+
+Building from the [simple HEJI ligature example](#accidental-ligatures-real-heji), there are a few changes to configure full support for HEJI:
+
+- We need to use important ligatures to prevent incorrect accidental spellings like `#.v2` from showing up in enharmonic cycling. We need to override all degrees of accidental chains 1 and 2 so that when we have a mixture of #/b and ^/v symbols, it will always show up using the correct ligatured spellings.
+  - This means we declare important ligatures for all symbols (including the standard #/b and ^/v symbols), otherwise those symbols will not show up after moving a note up/down/enharmonic cycling.
+- We need to implement the enharmonic schisma `~` using pseudo accidental degrees and [irregular accidental tuning sizes](#advanced-irregularly-sized-accidental-chains), and create an important ligature for those symbols as well so that they can appear when cycling through enharmonics (`J`).
+  - These ligatures also declared as weak so that the standard spellings are preferred over these enharmonic schisma ones.
+  - `C#v~` = `Db` and `Db^~` = `C#`.
+
+This is what that looks like:
+
+```txt
+C4: 440 * 16/27
+0 9/8 81/64 4/3 3/2 27/16 243/128 2
+~.b^(243/256) bb(-113.685*2c) b(-113.685c) (0) #(113.685c) x(113.685*2c) ~.#v(256/243)
+v3 v2 v (81/80) ^ ^2 ^3
+
+lig(1)?! // weak and important ligature set
+-3 ~.#v // pseudo degree -3 =  ~#v
+3 ~.b^ // pseudo degree 3 = ~b^
+
+lig(1,2)!
+-2 -2 bbv2
+-2 -1 bbv
+-2 0 bb // duplicate standard symbols when declaring important ligatures
+-2 1 bb^
+-2 2 bb^2
+-1 -2 bv2
+-1 -1 bv
+-1 0 b
+-1 1 b^
+-1 2 b^2
+0 -2 v2
+0 -1 v
+0 1 ^
+0 2 ^2
+1 -2 #v2
+1 -1 #v
+1 0 #
+1 1 #^
+1 2 #^2
+2 -2 xv2
+2 -1 xv
+2 0 x
+2 1 x^
+2 2 x^2
+```
+
+🟥 The **order of ligature declaration is very important**. This wouldn't work if the `lig(1)?!` declaration is written after the `lig(1,2)!` declaration.
+
+Recall [how the order of declarations affect how the plugin reads notes](#understanding-how-the-plugin-parses--reads-accidentals). Here's what will happen if the ligature declaration order was flipped:
+
+- A note has the `~.b^` accidental
+- `b^` gets eaten up by matching the `lig(1,2)` ligature, because it was declared first.
+- `~` remains unmatched, and the plugin will not be able to figure out what to do with it
+- [Halt & catch fire](https://en.wikipedia.org/wiki/Halt_and_Catch_Fire_(computing))
+
+> 🟢 Refer to the [heji/5 limit.txt](./tunings/heji/5%20limit.txt) tuning config to learn how HEJI is implemented.
 
 ### Advanced: Text based accidentals
 
@@ -839,9 +940,11 @@ One of the culprits of requiring a huge Tuning Config is if you're writing a pie
 
 **You can notate comma shifts by changing the reference note's frequency.** For example, if you want to shift down by 81/80 you can do this: `A4: 440 * 80/81`.
 
-You can also use standard JavaScript/math expressions to accomplish more complicated comma shifts. E.g., shifting with respect to C4 instead: `C4: 440 * 16/27 * 80/81`.
+You can also use standard JavaScript/math expressions to accomplish more complicated comma shifts.
 
-or shifting up 10 syntonic commas and down 3 septimal commas: `A4: 440 * Math.pow(80/81, 10) * Math.pow(64/63, -3)`.
+> E.g., shifting with respect to C4 instead: `C4: 440 * 16/27 * 80/81`.
+> 
+> ...or shifting up 10 syntonic commas and down 3 septimal commas: `A4: 440 * Math.pow(80/81, 10) * Math.pow(64/63, -3)`.
 
 ## How to: export MIDI/MPE
 
@@ -904,6 +1007,14 @@ Checklist:
 
 If all else fails, [report an issue](#reporting-an-issue). Include the tuning config text you were trying to use and provide a score example.
 
+### The plugin just doesn't respond for certain notes
+
+This is most likely a tuning config issue &mdash; certain accidental combinations would be created by the tuning config, but because of the order of declarations, it can't be properly parsed back.
+
+> 🟢 For example, in `heji/5 limit.txt`, if you shift the second ligature set declaration before the first, you will encounter this issue.
+
+See how to [report an issue](#reporting-an-issue), and take note of the debug logs & error messages you find in the Plugin Creator. If it is really this issue, the debug messages will contain detailed info on how the plugin tried to parse a note and failed, and you can use that info to fix the tuning config yourself, or ask for help.
+
 ### I changed the tuning config text, but the plugin isn't picking up the changes
 
 - If there's a [pre-computed `.json` tuning file](#1-pre-compute-the-tuning-config), you will need to either delete it or use the [Xen Tuner pre-compute config tool](https://euwbah.github.io/musescore-xen-tuner/) to generate a new one with the updated tuning config text.
@@ -953,14 +1064,14 @@ Doing this will change how the note's MIDI pitch is represented internally so th
 Around line 127 of `fns.js`, there is this setting:
 
 ```js
-var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.005;
+var ENHARMONIC_EQUIVALENT_THRESHOLD = 0.005; 
 ```
 
 This sets the threshold interval (in cents) where two notes should be considered enharmonically equivalent.
 
 If enharmonic equivalents in your ET/temperament are not showing up, try increasing this number slightly (e.g. 0.01). Floating point errors (inaccuracies in computer number-crunching) may cause enharmonically equivalent notes to have slightly different cent values. Also, make sure you specify your cent offsets to as many decimal places as possible to reduce this error.
 
-If you're working in a very large JI subset and there are no enharmonic equivalents, it's recommended to set this number smaller (or even to 0), to prevent two very similar notes being regarded as enharmonically equivalent, since there are no equivalents in JI.
+If you're working in a very large JI subset and there is no need for enharmonic equivalents, it's recommended to set this number smaller (even to 0.000001), to prevent two very similar notes being regarded as enharmonically equivalent, since there are no equivalents in JI.
 
 ### Keyboard shortcuts stop working
 
@@ -975,6 +1086,8 @@ If none of the above remedies work, you will need to [file an issue here](https:
 - Version of MuseScore
 - Version of plugin
 - Operating system
+- Example score
+- Tuning config you were using
 - Debug logs
   - Stop running Xen Tuner (close plugin window/quit button).
   - Open the **Plugin Creator** (Plugins > Plugin Creator).
