@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.2.2"
+      version: "0.2.3"
       description: "Debug Tune function.\n\n" +
         "The docking Xen Tuner plugin is hard to debug as the shortcuts break everytime you re-run " +
         "the plugin in the plugin creator. Use this instead to test functions without having to " +
@@ -58,7 +58,7 @@ MuseScore {
         console.log('present working dir: ' + Qt.resolvedUrl("."));
 
         // Debug code here.
-        // Fns.operationTune(); // test tune
-        Fns.operationTranspose(-1, 0); // test diatonic transpose
+        Fns.operationTune(); // test tune
+        // Fns.operationTranspose(-1, 0); // test diatonic transpose
       }
 }

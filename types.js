@@ -543,19 +543,39 @@ class TuningConfig {
     equaveSize;
     /**
      * MIDI note number of reference note.
+     * 
+     * The first note of the nominals will be this reference note.
+     * 
      * @type {number}
      */
     tuningNote;
     /**
      * How many 12edo nominals from A4 is the reference note.
+     * 
+     * The first note of the nominals will be this reference note.
+     * 
      * @type {number}
      */
     tuningNominal;
     /**
-     * Hz of the reference note.
+     * Effective hz of the reference note ({@link tuningNote} & {@link tuningNominal}).
+     * 
+     * This value is initially set to {@link originalTuningFreq}, but after a reference
+     * pitch change (that doesn't change the mode), this value will be updated to match
+     * the required reference pitch, without actually changing the {@link tuningNote} or
+     * {@link tuningNominal}.
+     * 
      * @type {number}
      */
     tuningFreq;
+    /**
+     * Stores the original Hz of the reference. This value is read from the tuning config
+     * file and does not change unless a reference pitch change with mode change is called
+     * for.
+     * 
+     * @type {number}
+     */
+    originalTuningFreq;
     /**
      * The 0-based Nth entry of this list corresponds to the Nth auxiliary
      * operation's {@link ConstantConstrictions} conditions on how a note
@@ -723,6 +743,23 @@ class ChangeReferenceTuning {
      * @type {number}
      */
     tuningFreq;
+    /**
+     * `false` if the change reference tuning declaration is prefixed
+     * with `!` which signifies that the tuning config's nominals should
+     * be redeclared starting on the new reference note, effectively
+     * changing the 'mode' of the nominal scale.
+     * 
+     * E.g. if a tuning config is originally declared to be A4: 440,
+     * but a reference tuning change is declared as `!C4: 263`, then
+     * the new interval between the written D and E will actually be
+     * the same as the interval between B and C before the reference
+     * tuning change.
+     * 
+     * Otherwise, if `!` is not stated, then this value is `true`.
+     * 
+     * @type {boolean}
+     */
+    preserveNominalsMode;
 }
 
 /**

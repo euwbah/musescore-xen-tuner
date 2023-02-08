@@ -89,6 +89,30 @@ However, the recommended way to enter accidentals would be to use up/down operat
 
 What the auxiliary operations do can be changed by [modifying auxiliary operations defined in the tuning configuration](#auxiliary-operations)
 
+### 6. Change reference pitch
+
+You can change the reference pitch of a score by adding a System Text or Staff Text element with the text `<midi note name>: <frequency>`.
+
+🟡 **For example**, `A4: 440` will set the written note A4 to sound at 440hz.
+
+You can use math/javascript expressions to calculate the frequency:
+
+🟡 **e.g.**:
+
+- `C4: 16/27 * 440` will set the written note C4 to sound at a 3-limit major 6th below A4=440
+- `C4: 440 * Math.pow(2, -17/22)` will set the written note C4 to sound at 17 steps of 22edo below A4=440.
+
+🟠 **Advanced feature:** when you change the MIDI reference pitch, the plugin will preserve the mode of the [nominals](#nominals--equave), but you can override the starting note of the nominals by prefixing a `!`, e.g. `!C4: 263`.
+
+> 🟡 **E.g.** Let's say [the tuning config declares](#simple-example) `A4: 440` and nominals according the "white keys" (A aeolian mode ABCDEFG).
+> If we change the reference pitch to `C4: 256`, it will still preserve the nominal's mode such that ABCDEFG will be LsLLsLL (W-H-W-W-H-W-W), preserving the 'white keys'
+>
+> However if we use `!C4: 256`, it will override the starting note of the nominals to C, and the nominals will be CDEFGABC (W-H-W-W-H-W-W), which means the written 'white keys' now sound like C minor.
+>
+> This is rarely ever useful though, and only provided as an advanced feature for esoteric notation systems/notating changing alternate clefs.
+>
+> 🔴 **If you intended to use a custom key signature, declare a [key signature](#how-to-key-signatures) instead.**
+
 #### Entering accidentals directly using fingerings
 
 The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. To use this feature, the tuning config should declare [text representations](#advanced-declaring-text-representations-of-accidentals) which matches specific strings of text and converts them into accidental symbols (which can either be SMuFL or text-based).
@@ -115,6 +139,8 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
 
 -----
 
+# Full documentation
+
 - [Features/Goals](#featuresgoals)
 - [Quick Start](#quick-start)
   - [1. Download \& activate plugin](#1-download--activate-plugin)
@@ -122,6 +148,7 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [3. Start Xen Tuner](#3-start-xen-tuner)
   - [4. Select tuning configuration \& key signatures](#4-select-tuning-configuration--key-signatures)
   - [5. Entering notes \& accidentals](#5-entering-notes--accidentals)
+  - [6. Change reference pitch](#6-change-reference-pitch)
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
   - [List of Supported Symbols](#list-of-supported-symbols)
     - [Keeping accidentals up to date](#keeping-accidentals-up-to-date)
@@ -1051,17 +1078,11 @@ If you've been experimenting with several large-sized tuning systems within the 
 - Run `Plugins > Xen Tuner > Clear Tuning Cache`
 - Restart Xen Tuner
 
-### 5. Notate comma shifts using reference pitch changes
+### 5. Notate comma shifts using [reference pitch changes](#6-change-reference-pitch)
 
-One of the culprits of requiring a huge Tuning Config is if you're writing a piece that utilizes regular comma shifts, requiring many accidentals per note throughout a particular comma-shifted section of the piece.
+One of the culprits of a huge Tuning Config is if you're writing a piece that utilizes tons of comma pumps that add up, requiring many accidentals per note throughout a particular comma-shifted section of the piece.
 
-**You can notate comma shifts by changing the reference note's frequency.** For example, if you want to shift down by 81/80 you can do this: `A4: 440 * 80/81`.
-
-You can also use standard JavaScript/math expressions to accomplish more complicated comma shifts.
-
-> 🟡 **E.g.** shifting with respect to C4 instead: `C4: 440 * 16/27 * 80/81`.
->
-> ...or shifting up 10 syntonic commas and down 3 septimal commas: `A4: 440 * Math.pow(80/81, 10) * Math.pow(64/63, -3)`.
+**You can notate comma shifts by [changing the reference tuning note & frequency](#6-change-reference-pitch).** For example, if you want to shift down by 81/80 you can do this: `A4: 440 * 80/81`.
 
 ## How to: export MIDI/MPE
 

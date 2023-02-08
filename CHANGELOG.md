@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- Reference tuning changes no longer change the nominals mode my default. Added `!<midinote>: <freq>` syntax to change mode of the nominals.
+
 ## 0.2.2
 
 - Improve `chooseNextNote` again. Tested & guaranteed consistency of behavior across HEWM JI, HEWM 72edo, HEJI, ups & downs 22edo & 12edo.

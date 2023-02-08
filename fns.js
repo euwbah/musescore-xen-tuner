@@ -1312,6 +1312,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     tuningConfig.tuningNominal = nominalsFromA4;
     tuningConfig.tuningNote = Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
     tuningConfig.tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
+    tuningConfig.originalTuningFreq = tuningConfig.tuningFreq;
 
     if (isNaN(tuningConfig.tuningFreq)) {
         return null;
@@ -2222,6 +2223,16 @@ function parseKeySig(text) {
  * comma shifts implemented as reference tuning changes, or
  * when the user wants to write for transposing instruments.
  * 
+ * When only reference tuning is changed, the mode of the nominals
+ * will be preserved, unless `!` is prefixed to the change reference
+ * tuning declaration. 
+ * 
+ * E.g.: `!C4: 263` will set the 0th nominal to the midi note C4, whereas 
+ * `C4: 263` will keep the 0th nominal as per the tuning config (
+ * which is {@link TuningConfig.tuningNominal}), but change the
+ * 0th nominal's tuning frequency such that the written C4 on the
+ * score will be exactly 263 Hz.
+ * 
  * @param {string} text reference tuning text
  * @returns {ChangeReferenceTuning?}
  */
@@ -2243,6 +2254,12 @@ function parseChangeReferenceTuning(text) {
     if (referenceTuning.length != 2) {
         // console.log(text + ' is not a reference tuning');
         return null;
+    }
+
+    var preserveNominalsMode = true;
+    if (referenceTuning[0][0] == '!') {
+        referenceTuning[0] = referenceTuning[0].slice(1).trim();
+        preserveNominalsMode = false;
     }
 
     var referenceLetter = referenceTuning[0][0].toLowerCase();
@@ -2268,10 +2285,12 @@ function parseChangeReferenceTuning(text) {
     if (lettersNominal >= 2)
         nominalsFromA4 -= 7;
 
-    var changeReferenceNote = {};
-    changeReferenceNote.tuningNominal = nominalsFromA4;
-    changeReferenceNote.tuningNote = Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
-    changeReferenceNote.tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
+    var changeReferenceNote = {
+        preserveNominalsMode: preserveNominalsMode,
+        tuningNominal: nominalsFromA4,
+        tuningNote: Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69,
+        tuningFreq: parseFloat(eval(referenceTuning[1])) // specified in Hz.
+    };
 
     if (isNaN(changeReferenceNote.tuningFreq)) {
         return null;
@@ -2365,9 +2384,42 @@ function parsePossibleConfigs(text, tick) {
         return { // ConfigUpdateEvent
             tick: tick,
             config: function (parms) {
-                parms.currTuning.tuningNominal = maybeConfig.tuningNominal;
-                parms.currTuning.tuningNote = maybeConfig.tuningNote;
-                parms.currTuning.tuningFreq = maybeConfig.tuningFreq;
+                if (!maybeConfig.preserveNominalsMode) {
+                    // Changes mode of the nominals.
+                    // When the user declares "!C4: 440", the nominals will start
+                    // from C4 instead of whatever it was.
+
+                    parms.currTuning.tuningNominal = maybeConfig.tuningNominal;
+                    parms.currTuning.tuningNote = maybeConfig.tuningNote;
+                    parms.currTuning.tuningFreq = maybeConfig.tuningFreq;
+                    parms.currTuning.originalTuningFreq = maybeConfig.tuningFreq;
+                } else {
+                    // We need to preserve the tuning nominal & tuning note, but change
+                    // the tuning frequency so that the declared reference note is
+                    // effectively correct.
+                    //
+                    // This prevents the nominals mode from going out of sync, unless
+                    // explicitly wanted by the user.
+
+                    /*
+                    Method:
+
+                    1. Calculate actual Hz of the new reference nominal using the original reference tuning.
+                    2. Calculate interval between the above frequency and the actual frequency the user specified.
+                    3. Apply that interval to currTuning.originalTuningFreq to get the new tuning frequency.
+                    */
+
+                    var nominalsFromReference = maybeConfig.tuningNominal - parms.currTuning.tuningNominal;
+                    var xenNominal = mod(nominalsFromReference, parms.currTuning.numNominals);
+                    var equaves = Math.floor(nominalsFromReference / parms.currTuning.numNominals);
+                    var oldCentsFromReference = parms.currTuning.nominals[xenNominal] + equaves * parms.currTuning.equaveSize;
+                    var oldHz = parms.currTuning.originalTuningFreq * Math.pow(2, oldCentsFromReference / 1200);
+                    var newHz = maybeConfig.tuningFreq;
+
+                    console.log('oldHz: ' + oldHz, 'newHz: ' + newHz, 'oldCentsFromReference: ' + oldCentsFromReference);
+
+                    parms.currTuning.tuningFreq = newHz / oldHz * parms.currTuning.originalTuningFreq;
+                }
             }
         };
     }
