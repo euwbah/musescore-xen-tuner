@@ -91,15 +91,13 @@ What the auxiliary operations do can be changed by [modifying auxiliary operatio
 
 #### Entering accidentals directly using fingerings
 
-The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. To use this feature, the tuning config should declare [text representations](#advanced-declaring-text-representations-of-accidentals) which matches specific strings of text and converts them into accidental symbols (which can either be SMuFL or text-based).
+The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. This feature can be used when [text representations of accidentals](#advanced-declaring-text-representations-of-accidentals) are declared in the tuning config. The plugin matches strings of text and converts them into accidental symbols (which can either be SMuFL or text-based). Refer to the tuning config .txt files to lookup which characters represent which accidental symbols.
 
 When using this feature, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
 
 Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
 
 Once fingerings are entered, hit `Alt+R` and the accidentals will render themselves.
-
-Read [how the plugin conceptualizes tunings & accidentals](#introduction) to make your own tuning configurations.
 
 ### 6. Change reference pitch
 
@@ -124,6 +122,12 @@ You can use math/javascript expressions to calculate the frequency:
 > This is rarely ever useful though, and only provided as an advanced feature for esoteric notation systems/notating changing alternate clefs.
 >
 > 🔴 **If you intended to use a custom key signature, declare a [key signature](#how-to-key-signatures) instead.**
+
+### 7. Implement your own tunings/notation systems!
+
+Read [how the plugin conceptualizes tunings & accidentals](#introduction) (and the rest of the guide) to start making your own tuning configurations.
+
+If you're facing a bug or need help, [file an issue](#reporting-an-issue).
 
 ### [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
@@ -150,6 +154,7 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [5. Entering notes \& accidentals](#5-entering-notes--accidentals)
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
   - [6. Change reference pitch](#6-change-reference-pitch)
+  - [7. Implement your own tunings/notation systems!](#7-implement-your-own-tuningsnotation-systems)
   - [List of Supported Symbols](#list-of-supported-symbols)
     - [Keeping accidentals up to date](#keeping-accidentals-up-to-date)
 - [Introduction](#introduction)

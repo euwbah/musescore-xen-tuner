@@ -173,7 +173,7 @@ sec()
 'd' d 32/33
 
 '/13' tt 27/26
-'\\13' d| 26/27 // '\\' is a single backslash. To enter this
+'\\13' d| 26/27 // '\\' represents a single backslash. To enter this
                 // accidental, use \13, not \\13
 
 // When referring to SMuFL symbols or text-based accidentals,
