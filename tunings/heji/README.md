@@ -15,8 +15,8 @@ Symbols can be repeated to stack multiple accidentals.
 | `b`/`bb`/...          | n-flats                       |
 | `#`/`x`/`##`/`#x`/... | n-sharps                      |
 | `^`/`v`               | 81/80 comma up/down           |
-| `7`/`l`               | 64/63 comma up/down           |
-| `t`/`d`               | 33/32 11-quartertone up/down  |
+| `/7`/`\7`             | 64/63 comma up/down           |
+| `/11`/`\11`/`t`/`d`   | 33/32 11-quartertone up/down  |
 | `/13` / `\13`         | 27/26 up/down                 |
 | `/17` / `\17`         | 2187/2176                     |
 | `/19`/`\19`           | 513/512                       |

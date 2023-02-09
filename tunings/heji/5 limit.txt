@@ -164,13 +164,15 @@ sec()
 
 // E.g. 'ttl#^' will render into 33/32 * 33/32 * 63/64 * 81/80 * 2187/2048
 
-'77' u77 Math.pow(64/63,2)
-'7' u7 64/63
-'ll' d77 Math.pow(63/64,2)
-'l' d7 63/64
+'/77' u77 Math.pow(64/63,2)
+'/7' u7 64/63
+'\77' d77 Math.pow(63/64,2)
+'\7' d7 63/64
 
 't' t 33/32
+'/11' t 33/32
 'd' d 32/33
+'\11' d 32/33
 
 '/13' tt 27/26
 '\\13' d| 26/27 // '\\' represents a single backslash. To enter this
