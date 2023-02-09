@@ -172,7 +172,7 @@ sec()
 't' t 33/32
 '/11' t 33/32
 'd' d 32/33
-'\11' d 32/33
+'\\11' d 32/33
 
 '/13' tt 27/26
 '\\13' d| 26/27 // '\\' represents a single backslash. To enter this
