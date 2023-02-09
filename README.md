@@ -89,6 +89,18 @@ However, the recommended way to enter accidentals would be to use up/down operat
 
 What the auxiliary operations do can be changed by [modifying auxiliary operations defined in the tuning configuration](#auxiliary-operations)
 
+#### Entering accidentals directly using fingerings
+
+The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. To use this feature, the tuning config should declare [text representations](#advanced-declaring-text-representations-of-accidentals) which matches specific strings of text and converts them into accidental symbols (which can either be SMuFL or text-based).
+
+When using this feature, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
+
+Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
+
+Once fingerings are entered, hit `Alt+R` and the accidentals will render themselves.
+
+Read [how the plugin conceptualizes tunings & accidentals](#introduction) to make your own tuning configurations.
+
 ### 6. Change reference pitch
 
 You can change the reference pitch of a score by adding a System Text or Staff Text element with the text `<midi note name>: <frequency>`.
@@ -113,18 +125,6 @@ You can use math/javascript expressions to calculate the frequency:
 >
 > 🔴 **If you intended to use a custom key signature, declare a [key signature](#how-to-key-signatures) instead.**
 
-#### Entering accidentals directly using fingerings
-
-The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. To use this feature, the tuning config should declare [text representations](#advanced-declaring-text-representations-of-accidentals) which matches specific strings of text and converts them into accidental symbols (which can either be SMuFL or text-based).
-
-When using this feature, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
-
-Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
-
-Once fingerings are entered, hit `Alt+R` and the accidentals will render themselves.
-
-Read [how the plugin conceptualizes tunings & accidentals](#introduction) to make your own tuning configurations.
-
 ### [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
 This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
@@ -148,8 +148,8 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [3. Start Xen Tuner](#3-start-xen-tuner)
   - [4. Select tuning configuration \& key signatures](#4-select-tuning-configuration--key-signatures)
   - [5. Entering notes \& accidentals](#5-entering-notes--accidentals)
-  - [6. Change reference pitch](#6-change-reference-pitch)
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
+  - [6. Change reference pitch](#6-change-reference-pitch)
   - [List of Supported Symbols](#list-of-supported-symbols)
     - [Keeping accidentals up to date](#keeping-accidentals-up-to-date)
 - [Introduction](#introduction)
