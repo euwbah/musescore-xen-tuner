@@ -1891,9 +1891,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     accidentals: orderedSymbols.length == 0 ? null : accidentalSymbols,
                     hash: hash,
                     hasLigaturePriority: false,
-                    // if the note is a nominal, ensure that they always show up
-                    // in enharmonic cycle graphs.
-                    hasImportantLigature: orderedSymbols.length == 0,
+                    hasImportantLigature: false,
                 },
                 cents: cents,
                 equavesAdjusted: equavesAdjusted,
@@ -2110,14 +2108,26 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     for (var i = 0; i < tuningConfig.stepsList.length; i++) {
         var enhEquivNotes = tuningConfig.stepsList[i];
-        var maybeImportantOnly = enhEquivNotes.filter(function (hash) {
-            return tuningConfig.notesTable[hash].hasImportantLigature;
+        // true if hasImportantLigature
+        var containsImportantFlag = false;
+        var importantOrNominal = enhEquivNotes.filter(function (hash) {
+            var note = tuningConfig.notesTable[hash];
+            if (note.hasImportantLigature) {
+                containsImportantFlag = true;
+                return true;
+            }
+
+            if (note.accidentals == null) {
+                return true;
+            }
+            return false;
         });
-        if (maybeImportantOnly.length != 0) {
+        if (containsImportantFlag) {
             // if some notes in the enharmonic equivalent list have important ligatures,
-            // we only want to consider those notes.
-            enhEquivNotes = maybeImportantOnly;
+            // we only want to consider important or nominal notes.
+            enhEquivNotes = importantOrNominal;
         }
+        // otherwise, we should consider all notes as enharmonic cyclable.
 
         if (enhEquivNotes.length > 1) {
             // If there are more than one enharmonic equivalents,
