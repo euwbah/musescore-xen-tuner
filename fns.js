@@ -1766,6 +1766,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     + ': Override declaration has incorrect number of acc vector degrees in: ' + line
                     + '\nExpected ' + tuningConfig.accChains.length + ' degrees, got ' + (words.length - 2)
                     + ' instead.');
+                console.log('HELP: Make sure there are no spaces in the cents/ratio tuning');
                 return null;
             }
 
