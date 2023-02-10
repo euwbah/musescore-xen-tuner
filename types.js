@@ -558,6 +558,20 @@ class TuningConfig {
      */
     tuningNominal;
     /**
+     * If the user specifies a mode-preserving reference tuning change,
+     * the refreence note the user specified is stored in this variable as an offset
+     * of the number of nominals away from the original reference note specified in
+     * the tuning config/most recent mode-changing reference tuning change.
+     * 
+     * Defaults to 0.
+     * 
+     * This value affects JI ratio calculations of fingering-based JI annotations.
+     * 1/1 will be the relative tuning nominal.
+     * 
+     * @type {number}
+     */
+    relativeTuningNominal;
+    /**
      * Effective hz of the reference note ({@link tuningNote} & {@link tuningNominal}).
      * 
      * This value is initially set to {@link originalTuningFreq}, but after a reference
@@ -757,9 +771,25 @@ class ChangeReferenceTuning {
      * 
      * Otherwise, if `!` is not stated, then this value is `true`.
      * 
+     * If this is `false`, then {@link changeRelativeNominalOnly}
+     * must also be `false`, otherwise this wouldn't make sense
+     * 
      * @type {boolean}
      */
     preserveNominalsMode;
+    /**
+     * Signifies that only the relative nominal should be changed
+     * (the frequency is unspecified, e.g. "E5:").
+     * 
+     * This changes the relative 1/1 of fingering annotations
+     * that specify JI ratios.
+     * 
+     * If this is `true`, then {@link preserveNominalsMode} must
+     * also be `true`.
+     * 
+     * @type {boolean}
+     */
+    changeRelativeNominalOnly;
 }
 
 /**

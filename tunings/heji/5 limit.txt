@@ -1,7 +1,7 @@
 // HEJI (2020) notation
 // https://marsbat.space/pdfs/HEJI2_legend+series.pdf
 //
-// A4 is tuned to 440 Hz.
+// C4 is 1/1, with A4 tuned to 440 Hz.
 //
 // Tuning space comprises:
 // 3 flats to 3 sharps

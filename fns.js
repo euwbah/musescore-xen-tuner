@@ -1255,6 +1255,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         equaveSize: null,
         tuningNote: null,
         tuningNominal: null,
+        relativeTuningNominal: 0,
         tuningFreq: null,
         // lookup of symbols used in tuning config.
         // anything not included should be ignored.
@@ -2243,6 +2244,18 @@ function parseKeySig(text) {
  * 0th nominal's tuning frequency such that the written C4 on the
  * score will be exactly 263 Hz.
  * 
+ * If the reference frequency is not specified (e.g. 'D4:'), 
+ * it represents that the reference nominal should change without 
+ * changing the tuning.
+ * 
+ * E.g. If reference is originally A4: 440 and "C4:" is specified,
+ * then the relative reference offset will be -5, but the tuning frequency 
+ * will remain the same (at A4: 440),
+ * 
+ * The use case would be when JI ratios are specified as per-note
+ * fingering annotations, and the ratios are to be related to a
+ * different 1/1 instead of the default.
+ * 
  * @param {string} text reference tuning text
  * @returns {ChangeReferenceTuning?}
  */
@@ -2294,15 +2307,17 @@ function parseChangeReferenceTuning(text) {
     // if the nominal is within C to G.
     if (lettersNominal >= 2)
         nominalsFromA4 -= 7;
-
+    
+    var changeRelativeNominalOnly = referenceTuning[1] == '';
     var changeReferenceNote = {
         preserveNominalsMode: preserveNominalsMode,
         tuningNominal: nominalsFromA4,
         tuningNote: Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69,
-        tuningFreq: parseFloat(eval(referenceTuning[1])) // specified in Hz.
+        tuningFreq: changeRelativeNominalOnly ? null : parseFloat(eval(referenceTuning[1])), // specified in Hz.
+        changeRelativeNominalOnly: changeRelativeNominalOnly
     };
 
-    if (isNaN(changeReferenceNote.tuningFreq)) {
+    if (isNaN(changeReferenceNote.tuningFreq) && !changeRelativeNominalOnly) {
         return null;
     }
 
@@ -2380,7 +2395,8 @@ function parsePossibleConfigs(text, tick) {
 
     var text = removeFormattingCode(text);
 
-    /** @type {ConfigUpdateEvent} */
+    
+    /** @type {ChangeReferenceTuning|TuningConfig|KeySig|null} */
     var maybeConfig;
 
     // First, check for reference tuning changes.
@@ -2394,16 +2410,17 @@ function parsePossibleConfigs(text, tick) {
         return { // ConfigUpdateEvent
             tick: tick,
             config: function (parms) {
-                if (!maybeConfig.preserveNominalsMode) {
+                if (!maybeConfig.preserveNominalsMode && !maybeConfig.changeRelativeNominalOnly) {
                     // Changes mode of the nominals.
                     // When the user declares "!C4: 440", the nominals will start
                     // from C4 instead of whatever it was.
 
                     parms.currTuning.tuningNominal = maybeConfig.tuningNominal;
+                    parms.currTuning.relativeTuningNominal = 0;
                     parms.currTuning.tuningNote = maybeConfig.tuningNote;
                     parms.currTuning.tuningFreq = maybeConfig.tuningFreq;
                     parms.currTuning.originalTuningFreq = maybeConfig.tuningFreq;
-                } else {
+                } else if (!maybeConfig.changeRelativeNominalOnly) {
                     // We need to preserve the tuning nominal & tuning note, but change
                     // the tuning frequency so that the declared reference note is
                     // effectively correct.
@@ -2420,15 +2437,18 @@ function parsePossibleConfigs(text, tick) {
                     */
 
                     var nominalsFromReference = maybeConfig.tuningNominal - parms.currTuning.tuningNominal;
+                    parms.currTuning.relativeTuningNominal = nominalsFromReference;
                     var xenNominal = mod(nominalsFromReference, parms.currTuning.numNominals);
                     var equaves = Math.floor(nominalsFromReference / parms.currTuning.numNominals);
                     var oldCentsFromReference = parms.currTuning.nominals[xenNominal] + equaves * parms.currTuning.equaveSize;
                     var oldHz = parms.currTuning.originalTuningFreq * Math.pow(2, oldCentsFromReference / 1200);
                     var newHz = maybeConfig.tuningFreq;
 
-                    console.log('oldHz: ' + oldHz, 'newHz: ' + newHz, 'oldCentsFromReference: ' + oldCentsFromReference);
+                    // console.log('oldHz: ' + oldHz, 'newHz: ' + newHz, 'oldCentsFromReference: ' + oldCentsFromReference);
 
                     parms.currTuning.tuningFreq = newHz / oldHz * parms.currTuning.originalTuningFreq;
+                } else {
+                    parms.currTuning.relativeTuningNominal = maybeConfig.tuningNominal - parms.currTuning.tuningNominal;
                 }
             }
         };
@@ -3031,6 +3051,9 @@ function calcCentsOffset(noteData, tuningConfig) {
                         // negative ratio is treated as a negative cents offset
                         fingeringJIOffset = -Math.log(-ratio) * 1200 / Math.log(2);
                     }
+                    var nomsOffset = mod(tuningConfig.relativeTuningNominal, tuningConfig.numNominals);
+                    var eqvOffset = Math.floor(tuningConfig.relativeTuningNominal / tuningConfig.numNominals);
+                    fingeringJIOffset *= Math.pow(2, (tuningConfig.nominals[nomsOffset] + eqvOffset * tuningConfig.equaveSize) / 1200);
                 }
                 fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
             }
