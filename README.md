@@ -208,7 +208,8 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
 - [Updating the plugin](#updating-the-plugin)
 - [Troubleshooting](#troubleshooting)
   - [The tuning is wrong/off](#the-tuning-is-wrongoff)
-  - [The plugin just doesn't respond for certain notes](#the-plugin-just-doesnt-respond-for-certain-notes)
+  - [I made my own tuning config, but it doesn't seem to be doing anything. (Treated as 12edo)](#i-made-my-own-tuning-config-but-it-doesnt-seem-to-be-doing-anything-treated-as-12edo)
+  - [The plugin just breaks when I use certain accidental symbols/text-entry combinations](#the-plugin-just-breaks-when-i-use-certain-accidental-symbolstext-entry-combinations)
   - [I changed the tuning config text, but the plugin isn't picking up the changes](#i-changed-the-tuning-config-text-but-the-plugin-isnt-picking-up-the-changes)
   - [If the plugin is lagging/tuning isn't correct](#if-the-plugin-is-laggingtuning-isnt-correct)
 - [Workarounds + advanced configs](#workarounds--advanced-configs)
@@ -670,7 +671,7 @@ SMuFL & text-based accidental symbols attached to a note are tokenized into an u
    E.g. if some ligature set contains `bb.bb` and `bb`, and `bb.bb.bb` is attached to the note, `bb.bb` will be 'eaten up' and matched by that ligature, leaving `bb` to be matched by the other declarations
 2. The plugin attempts to match main accidentals in [accidental chains](#accidental-chains--degrees), testing for matches in the order the chains were declared. Just like the ligatures, the accidental with the most symbol matches will be chosen.
 3. Finally, the plugin matches remaining leftover symbols as [secondary accidentals](#advanced-secondary-accidentals). It checks for secondary accidentals in the order they were declared, matching repeated secondary accidentals all at once.
-4. Any other left over symbols will be ignored. In some cases, if the tuning config is specified incorrectly and matches symbols in the wrong order, [the plugin will not work](#the-plugin-just-doesnt-respond-for-certain-notes).
+4. Any other left over symbols will be ignored. In some cases, if the tuning config is specified incorrectly and matches symbols in the wrong order, [the plugin will not work](#the-plugin-just-breaks-when-i-use-certain-accidental-symbolstext-entry-combinations).
 
 This symbol-parsing process is how the plugin understands the accidental symbols attached on to notes, and it will base its operations on this information.
 
@@ -1150,13 +1151,25 @@ Checklist:
 
 If all else fails, [report an issue](#reporting-an-issue). Include the tuning config text you were trying to use and provide a score example.
 
-### The plugin just doesn't respond for certain notes
+### I made my own tuning config, but it doesn't seem to be doing anything. (Treated as 12edo)
 
-This is most likely a tuning config issue &mdash; certain accidental combinations would be created by the tuning config, but because of the order of declarations, it can't be properly parsed back.
+This usually means that there's an error in the tuning config itself. On your laptop/PC, go to the [Xen Tuner Tuning Config compiler website](https://euwbah.github.io/musescore-xen-tuner/), paste your tuning config there, and click 'Debug config (js console)', which will print messages/syntax errors to the [browser's JavaScript console](https://balsamiq.com/support/faqs/browserconsole/) about any issues with your declaration of the tuning config.
+
+If you need help understanding the error messages, feel free to [open an issue to ask for help](#reporting-an-issue) using the "[help wanted](https://github.com/euwbah/musescore-xen-tuner/labels/help%20wanted)" tag.
+
+### The plugin just breaks when I use certain accidental symbols/text-entry combinations
+
+This is most likely a tuning config issue &mdash; and usually has something to do with things being declared in the wrong order:
+
+1. Within a single ligature set, the ligatures are not declared in [the right order](#understanding-how-the-plugin-parses--reads-accidentals)
+2. If there are multiple ligature sets, the sets aren't declared in [the right order](#understanding-how-the-plugin-parses--reads-accidentals)
+3. Secondary accidentals/text representations are not declared in [the right order](#secondary-accidental-declaration-order-matters)
 
 > 🟡 For example, in `heji/5 limit.txt`, if you shift the second ligature set declaration before the first, you will encounter this issue.
 
-See how to [report an issue](#reporting-an-issue), and take note of the debug logs & error messages you find in the Plugin Creator. If it is really this issue, the debug messages will contain detailed info on how the plugin tried to parse a note and failed, and you can use that info to fix the tuning config yourself, or ask for help.
+To make your tuning config debugging process easier, follow the instructions in "[Reporting an issue](#reporting-an-issue)" to find debug/error messages when running the plugin from the Plugin Creator. 
+
+If the issue is tuning config related, **the debug messages will contain the exact details of how the plugin tried to parse a note and failed**, and you can use that info to fix the tuning config yourself, or ask for help.
 
 ### I changed the tuning config text, but the plugin isn't picking up the changes
 
