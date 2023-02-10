@@ -534,7 +534,7 @@ We now have access to those 'sweeter' 5:4 major thirds like `C-E\` instead of `C
 
 If we want to notate in HEJI proper, those arrows aren't the right symbol for the syntonic comma.
 
-In HEJI, the first two accidental chains (syntonic commas & sharps/flats) are represented by a single ligatured accidental with the up/down arrows being attached to the sharp/flat symbol.
+In HEJI, the first two [accidental chains](#accidental-chains--degrees) (syntonic commas & sharps/flats) are represented by a single ligatured accidental with the up/down arrows being attached to the sharp/flat symbol.
 
 To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature set**. You can think of it as a list of "search-and-replace" conditions that **ligatures** (joins/connects/substitutes) different symbols into a different unique symbol. A ligatured accidental functions exactly like the original accidentals it substitutes, and only differs in visual appearance.
 
@@ -568,11 +568,11 @@ lig(1,2)?
 2 2 x^2
 ```
 
-We start declaring a ligature with `lig(1,2)?`. The numbers `1,2` represent the Nth accidental chains that this ligature applies to &mdash; meaning that it will only replace symbols that are part of the 1st and 2nd accidental chains, leaving other chain's symbols untouched. The `?` signifies that this is a [weak ligature](#weak--important-attributes-on-a-ligature-set) (don't worry too much about that for now).
+We start declaring a ligature with `lig(1,2)?`. The numbers `1,2` mean that this ligature applies to only the 1st and 2nd [accidental chains](#accidental-chains--degrees) &mdash; meaning that it will only replace symbols that are part of the 1st and 2nd accidental chains, leaving other chain's symbols untouched. The `?` signifies that this is a [weak ligature](#weak--important-attributes-on-a-ligature-set) (don't worry too much about that for now).
 
 After that, we declare each search-and-replace condition on a new line.
 
-`-2 -1 bbv` means that if the 1st accidental chain is on degree -2 (double flat), and the second accidental chain is on degree -1 (down arrow), then we replace it with the single symbol `bbv` (double flat with single down arrow).
+`-2 -1 bbv` means that if the 1st [accidental chain](#accidental-chains--degrees) is on [degree](#accidental-chains--degrees) -2 (double flat), and the second accidental chain is on degree -1 (down arrow), then we replace it with the single symbol `bbv` (double flat with single down arrow).
 
 > ⚠️ IMPORTANT: The degrees `-2 -1` **must be specified in the same order as the ligature's chain declaration**.
 >
