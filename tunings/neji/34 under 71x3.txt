@@ -52,7 +52,14 @@ lig(1,2)!
 1 0 #
 2 0 x
 
-// declare tuning overrides for each accidental vector
+// DO NOT MANUALLY SPECIFY THIS.
+// Use the generate-overrides.py script to generate this section
+// according to the number of degrees in each accidental chain,
+// EDO size, apotome & limma mappings of the EDO
+
+// There's a lot more than 34 unique spellings for the 34 notes
+// in the octave, but most of them are enharmonics, hence all the
+// repeated intervals.
 
 override()
 0 -2 -3 350/219/(2)
