@@ -52,7 +52,7 @@ lig(1,2)!
 1 0 #
 2 0 x
 
-// DO NOT MANUALLY SPECIFY THIS.
+// DO NOT MANUALLY TYPE THIS.
 // Use the generate-overrides.py script to generate this section
 // according to the number of degrees in each accidental chain,
 // EDO size, apotome & limma mappings of the EDO
