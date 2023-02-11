@@ -233,6 +233,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
     - [Smaller caveats](#smaller-caveats)
 - [Clarifications](#clarifications)
 - [Contributors](#contributors)
+- [Changelog](#changelog)
 - [Dev Notes](#dev-notes)
 
 
@@ -1379,8 +1380,8 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
 
 ## [Contributors](CONTRIBUTORS.md)
 
------
+## [Changelog](CHANGELOG.md)
 
 ## [Dev Notes](/DEVELOPMENT.md)
 
-See dev notes for technical implementation details.
+See dev notes for technical implementation details & how to contribute.
