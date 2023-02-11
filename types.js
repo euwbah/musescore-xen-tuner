@@ -155,7 +155,7 @@ should have the hash string: "0 6 1 10 1".
  */
 class XenNote {
     /** 
-     * Number of nominals with respect to tuning note of {@link TuningConfig}
+     * Number of nominals with respect to the {@link TuningConfig.tuningNote absolute tuning note} of {@link TuningConfig}
      * @type {number}
      */
     nominal;
@@ -501,6 +501,16 @@ class TuningConfig {
     notesTable;
     /** @type {TuningTable} */
     tuningTable;
+    /**
+     * Contains tuning overrides of specified nominals-accidental vector
+     * pairs, in absolute cents from the reference frequency.
+     * 
+     * Maps arrays of the form [nominal, avDeg1, avDeg2, ...] to cent
+     * tuning values.
+     * 
+     * @type {Object.<string, number>}
+     */
+    tuningOverrideTable;
     /** @type {AccidentalVectorTable}*/
     avTable;
     /** 
@@ -542,7 +552,7 @@ class TuningConfig {
      * @type {number} */
     equaveSize;
     /**
-     * MIDI note number of reference note.
+     * MIDI note number of absolute reference note.
      * 
      * The first note of the nominals will be this reference note.
      * 
@@ -550,7 +560,7 @@ class TuningConfig {
      */
     tuningNote;
     /**
-     * How many 12edo nominals from A4 is the reference note.
+     * How many 12edo nominals from A4 is the absolute reference note.
      * 
      * The first note of the nominals will be this reference note.
      * 
@@ -565,8 +575,11 @@ class TuningConfig {
      * 
      * Defaults to 0.
      * 
-     * This value affects JI ratio calculations of fingering-based JI annotations.
+     * This value ONLY affects JI ratio calculations of fingering-based JI annotations.
      * 1/1 will be the relative tuning nominal.
+     * 
+     * Changing this does not affect the {@link XenNote.nominal} property's relation to
+     * the absolute tuning nominal.
      * 
      * @type {number}
      */
@@ -586,6 +599,9 @@ class TuningConfig {
      * Stores the original Hz of the reference. This value is read from the tuning config
      * file and does not change unless a reference pitch change with mode change is called
      * for.
+     * 
+     * This value is used to calculate the updated {@link tuningFreq} when relative tuning
+     * changes occur, so that floating point errors don't accumulate.
      * 
      * @type {number}
      */
@@ -653,7 +669,13 @@ class TuningConfig {
     /**
      * Contains lookup for tunings of secondary accidentals.
      * 
-     * @type {Object.<AccidentalHash, number>}
+     * The value mapped to a secondary accidental can either be:
+     * 
+     * - A single number which denotes the cent offset of the accidental,
+     * - Or, an array of as many numbers as there are nominals, 
+     *   denoting the cent offset of the accidental for each nominal.
+     * 
+     * @type {Object.<AccidentalHash, number|number[]>}
      */
     secondaryTunings;
 

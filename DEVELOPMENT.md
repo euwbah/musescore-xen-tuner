@@ -16,6 +16,44 @@
 
 ----
 
+# Version 0.3
+
+As of the v0.2, NEJI and Johnston notation is not configurable, as these tunings require accidentals to have different pitch offsets depending on the nominal the accidenals are attached to.
+
+The main goal of this version is to include the `override()` definition in the tuning config, which specifies directly the ratio/cent tuning of a particular nominal + accidental vector combination relative to the absolute reference pitch.
+
+```
+A4: 440
+0c 200c 300c 500c 700c 800c 1000c 2/1
+b (100c) #
+v (10c) ^
+
+override()
+// <nominal> <deg 1> <deg 2> <cents/ratio from nominal 0>
+0 -1 0 -112c // Ab should be tuned to -112c instead of -100c
+3 1 1 23/16 // D#^ should be tuned to 23/16 instead of 610c
+```
+
+The `sec()` declaration will also be updated to support per-nominal declarations. If only one tuning is specified, that tuning will apply to all nominals, however if N tunings are specified, the nth tuning will apply to the nth nominal.
+
+```
+sec()
+// usual sec declaration
+'+' + 33/32
+
+// sec with different tunings depending on the nominal:
+// As many tunings as nominals must be defined otherwise 
+// the tuning config will be invalid.
+
+// This will set the secondary acc '-' as 32/33 for all
+// nominals except E, where '-' will be tuned to 63/64 instead.
+'-' - 32/33 32/33 32/33 32/33 63/64 32/33 32/33
+```
+
+Note that per-nominal tunings of secondary accidentals aren't as specific as you can get with `override()`. Secondary accidentals lack `XenNote` "Tonal Pitch Class" context, so you cannot permute different tunings depedening on particular combinations of secondary accidentals. You can play with secondary accidental declaration order to achieve similar effect, but it will be much harder to conceptualize than just sticking to primary accidentals via accidental chains, then entering the specific tunings of each XenNote (up to unique combinations of Nominal and Accidental Vector).
+
+----
+
 # Version 0.2
 
 One of the main issues of the v0.1 plugin is that every accidental vector in the tuning config must be permuted for all nominals to populate the tuning config. This is really only necessary if the user wishes to use the up/down transpose feature with these symbols.

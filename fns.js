@@ -917,9 +917,10 @@ function clearTuningConfigCaches() {
  * If failed to parse, logs error messages to the console.
  * 
  * @param {string} str Text that represents a symbol.
+ * @param {boolean?} suppressError If true, will not log error messages to the console.
  * @returns {SymbolCode[]?} Array of {@link SymbolCode}s, or `null` if the string is invalid.
  */
-function parseSymbolsDeclaration(str) {
+function parseSymbolsDeclaration(str, suppressError) {
     var symCodes = [];
     var isQuoted = false; // true if pending a closing quote.
     var isEscape = false; // true if pending an escape sequence.
@@ -935,7 +936,8 @@ function parseSymbolsDeclaration(str) {
         if (isEscape) {
             if (!VALID_ASCII_ACC_ESC_CHARS[c]) {
                 // invalid escape sequence.
-                console.error('TUNING CONFIG ERROR: Invalid escape sequence: \\' + c);
+                if (!suppressError)
+                    console.error('TUNING CONFIG ERROR: Invalid escape sequence: \\' + c);
                 return null;
             }
             isEscape = false;
@@ -962,7 +964,8 @@ function parseSymbolsDeclaration(str) {
                 var code = readSymbolCode(currStr);
 
                 if (code == null) {
-                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                    if (!suppressError)
+                        console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
                     return null;
                 }
 
@@ -978,7 +981,8 @@ function parseSymbolsDeclaration(str) {
     }
 
     if (isQuoted) {
-        console.error('TUNING CONFIG ERROR: symbol missing closing quote: ' + str);
+        if (!suppressError)
+            console.error('TUNING CONFIG ERROR: symbol missing closing quote: ' + str);
         return null;
     }
 
@@ -994,7 +998,8 @@ function parseSymbolsDeclaration(str) {
             var code = readSymbolCode(currStr);
 
             if (code == null) {
-                console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                if (!suppressError)
+                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
                 return null;
             }
 
@@ -1008,11 +1013,16 @@ function parseSymbolsDeclaration(str) {
 }
 
 /**
+ * Convert user-input string that denotes a cent/ratio interval value
+ * into the number of cents it represents.
+ * 
+ * If the string is invalid, it logs the error message and returns `null`.
  * 
  * @param {string} str Parses cents or ratio text into cents offset.
+ * @param {boolean?} suppressError If true, will not log error messages to the console.
  * @returns {number?} Cents offset, or null if invalid syntax.
  */
-function parseCentsOrRatio(str) {
+function parseCentsOrRatio(str, suppressError) {
     var str = str.trim();
     var offset = null;
     try {
@@ -1030,14 +1040,18 @@ function parseCentsOrRatio(str) {
             }
         }
     } catch (e) {
-        console.warn('TUNING CONFIG: Cannot parse as cents or ratio: ' + str
-            + '\nErr: ' + e);
+        if (!suppressError) {
+            console.error('TUNING CONFIG ERROR parsing cents/ratio: Cannot parse as cents or ratio: ' + str
+                + '\nErr: ' + e);
+        }
         return null;
     }
     if (!isNaN(offset)) {
         return offset;
     } else {
-        console.warn('TUNING CONFIG: Invalid accidental tuning offset specified: ' + str);
+        if (!suppressError) {
+            console.error('TUNING CONFIG ERROR parsing cents/ratio: Invalid accidental tuning offset specified: ' + str);
+        }
         return null;
     }
 }
@@ -1242,6 +1256,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     var tuningConfig = { // TuningConfig
         notesTable: {},
         tuningTable: {},
+        tuningOverrideTable: {},
         avTable: {},
         avToSymbols: {},
         stepsList: [],
@@ -1337,6 +1352,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     tuningConfig.nominals = nominals.slice(0, nominals.length - 1);
     tuningConfig.equaveSize = nominals[nominals.length - 1];
+    if (tuningConfig.equaveSize == 0) {
+        console.error('TUNING CONFIG ERROR: Equave size must be non-zero!');
+        return null;
+    }
     tuningConfig.numNominals = tuningConfig.nominals.length;
 
     // PARSE ACCIDENTAL CHAINS
@@ -1351,7 +1370,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux|sec|explicit|nobold)\([0-9,]*\)/);
+        var matches = line.match(/(lig|aux|sec|explicit|nobold|override)\([0-9,]*\)/);
         if (matches != null) {
             break;
         }
@@ -1454,7 +1473,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
      * 
      * If state is `'lig'`, the second value is a {@link Ligature} object.
      * 
-     * @type {[''|'lig'|'sec', Ligature?]}
+     * @type {[''|'lig'|'sec'|'override', Ligature?]}
      */
     var state = [];
 
@@ -1471,18 +1490,20 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         if (state[0] == 'lig') {
             // Push the ligature to the tuning config.
             tuningConfig.ligatures.push(state[1]);
-        } else if (state[0] == 'sec') {
-            // Nothing to update
         }
+
+        // The other parsing states commit info as they go,
+        // so there's nothing else to do here.
     }
 
     for (; i < lines.length; i++) {
         var line = lines[i].trim();
         var ligMa = line.match(/^lig\(([0-9,\s]+)\)([\?!]*)/);
         var auxMa = line.match(/^aux\(([0-9,\s]+)\)/);
-        var secMa = line.match(/^sec\(\)/);
-        var noBold = line.toLowerCase() == 'nobold()';
-        var explicit = line.toLowerCase() == 'explicit()';
+        var secMa = line == 'sec()';
+        var noBold = line == 'nobold()';
+        var explicit = line == 'explicit()';
+        var override = line == 'override()';
 
         // First we check for declaration lines lig, aux, or sec.
         // Is so, we process the declaration and possibly update the parser state.
@@ -1492,16 +1513,16 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var nomAndChainIndices = auxMa[1]
                 .split(',')
                 .map(function (x) {
-                    var i = parseInt(x);
+                    var auxIdx = parseInt(x);
                     // recall:
                     // 0: change nominal
                     // 1 to N: change accidental chain (1-based index)
-                    if (isNaN(i) || i < 0 || i > tuningConfig.accChains.length) {
-                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental chain index: ' + x
+                    if (isNaN(auxIdx) || auxIdx < 0 || auxIdx > tuningConfig.accChains.length) {
+                        console.error('TUNING CONFIG ERROR: ' + (auxIdx + 1) + ': Invalid accidental chain index: ' + x
                             + '\nin aux declaration: ' + line);
                         hasInvalid = true;
                     }
-                    return i;
+                    return auxIdx;
                 });
             if (hasInvalid)
                 return null;
@@ -1565,7 +1586,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 }
             ];
             continue;
-        } else if (secMa != null) {
+        } else if (secMa) {
             commitParsedSection();
             state = ['sec'];
             continue;
@@ -1578,6 +1599,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             commitParsedSection();
             tuningConfig.alwaysExplicitAccidental = true;
             state = [];
+            continue;
+        } else if (override) {
+            commitParsedSection();
+            state = ['override'];
             continue;
         }
 
@@ -1611,25 +1636,55 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             // directly modifies the tuning config.
 
             var words = line.split(' ').map(function (x) { return x.trim() });
+            var numNomsMin1 = tuningConfig.numNominals - 1;
+            var firstWordSymCodes = parseSymbolsDeclaration(words[0]);
 
-            if (words.length == 2) {
+            if (firstWordSymCodes == null) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                    + '\n"' + words[0] + '" is not a valid symbol code combination.');
+                return null;
+            }
+
+            var firstWordIsSingleElemTextAcc = firstWordSymCodes.length == 1 && typeof (firstWordSymCodes[0]) == 'string';
+            var maybeSecondWordSymbol = parseSymbolsDeclaration(words[1], true);
+            var maybeSecondWordCents = parseCentsOrRatio(words[1], true);
+
+            if (words.length == 2 || (words.length == 2 + numNomsMin1 &&
+                !(words.length == 3 && firstWordIsSingleElemTextAcc &&
+                    (maybeSecondWordSymbol == null && maybeSecondWordCents != null))
+            )
+                // if there's only 2 nominals, the sec acc decl has 3 words, and the first word is
+                // a single-element text accidental,
+                // the decl can only be treated as a per-nominal sec declaration with
+                // implicit text replacement IF the second word DEFINITELY IS NOT a symbol
+                // and COULD BE a cents/ratio.
+                // Otherwise it defaults to a nominal-agnostic secondary acc tuning
+                // with explicit text replacement with the second word treated as
+                // Symbol Codes.
+            ) {
                 // Declaring a secondary symbol without conversion
-                var symCodes = parseSymbolsDeclaration(words[0]);
-                var cents = parseCentsOrRatio(words[1]);
+                var cents = [];
 
-                if (symCodes == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (j + 1) + ': Invalid secondary symbol declaration: ' + line);
-                    return null;
+                for (var wordIdx = 1; wordIdx < words.length; wordIdx++) {
+                    var maybeCents = parseCentsOrRatio(words[wordIdx]);
+                    if (maybeCents == null) {
+                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                            + '\n"' + words[wordIdx] + '" is not a valid cents or ratio tuning.');
+                        if (words.length > 2)
+                            console.log('HELP: Did you specify the correct number of nominals for per-nominal tuning declaration?');
+                        return null;
+                    }
+                    cents.push(maybeCents);
                 }
 
-                var accHash = accidentalsHash(symCodes);
+                var accHash = accidentalsHash(firstWordSymCodes);
 
                 tuningConfig.secondaryAccList.push(accHash);
                 tuningConfig.secondaryAccIndexTable[accHash] = tuningConfig.secondaryAccList.length - 1;
-                tuningConfig.secondaryAccTable[accHash] = symCodes;
-                tuningConfig.secondaryTunings[accHash] = cents;
+                tuningConfig.secondaryAccTable[accHash] = firstWordSymCodes;
+                tuningConfig.secondaryTunings[accHash] = cents.length == 1 ? cents[0] : cents;
 
-                symCodes.forEach(function (c) {
+                firstWordSymCodes.forEach(function (c) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
 
@@ -1640,39 +1695,49 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 // ASCII of the accidental itself, the user will want that exact
                 // ASCII to be entered as a symbol.
 
-                if (symCodes.length == 1 && typeof (symCodes[0]) == 'string') {
-                    var asciiFrom = symCodes[0].slice(1);
-                    tuningConfig.asciiToSmuflConv[asciiFrom] = symCodes;
+                if (firstWordIsSingleElemTextAcc) {
+                    var asciiFrom = firstWordSymCodes[0].slice(1);
+                    tuningConfig.asciiToSmuflConv[asciiFrom] = firstWordSymCodes;
                     tuningConfig.asciiToSmuflConvList.push(asciiFrom);
                 }
-            } else if (words.length == 3) {
+            } else if (words.length == 3 || words.length == 3 + numNomsMin1) {
                 // Declaring a secondary symbol with conversion.
                 // Conversion always goes from ASCII
 
-                // The first word must be the ascii to be converted
-                var symCodesASCIIFrom = parseSymbolsDeclaration(words[0]);
-                var symCodesTo = parseSymbolsDeclaration(words[1]);
-                var cents = parseCentsOrRatio(words[2]);
-
-                if (symCodesASCIIFrom == null || symCodesTo == null || cents == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (j + 1) + ': Invalid secondary symbol declaration: ' + line);
-                    return null;
-                }
-
-                if (symCodesASCIIFrom.length != 1 || typeof (symCodesASCIIFrom[0]) != 'string') {
-                    console.error('TUNING CONFIG ERROR: ' + (j + 1) + ': Convert-from text must be a single-element text symbol.\n'
+                if (!firstWordIsSingleElemTextAcc) {
+                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Convert-from text must be a single-element text symbol.\n'
                         + 'Received a multi-symbol/hybrid accidental instead' + line);
                     return null;
                 }
 
+                // The first word must be the ascii to be converted
+                var symCodesTo = parseSymbolsDeclaration(words[1]);
+                var cents = [];
+
+                if (symCodesTo == null) {
+                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                        + '\n"' + words[1] + '" is not a valid symbol code combination.');
+                    return null;
+                }
+
+                for (var wordIdx = 2; wordIdx < words.length; wordIdx++) {
+                    var maybeCents = parseCentsOrRatio(words[wordIdx]);
+                    if (maybeCents == null) {
+                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                            + '\n"' + words[wordIdx] + '" is not a valid cents or ratio tuning.');
+                        return null;
+                    }
+                    cents.push(maybeCents);
+                }
+
                 // remove the preceding quote from the ascii SymbolCode
-                var asciiFrom = symCodesASCIIFrom[0].slice(1);
+                var asciiFrom = firstWordSymCodes[0].slice(1);
                 var accHashTo = accidentalsHash(symCodesTo);
 
                 tuningConfig.secondaryAccList.push(accHashTo);
                 tuningConfig.secondaryAccIndexTable[accHashTo] = tuningConfig.secondaryAccList.length - 1;
                 tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
-                tuningConfig.secondaryTunings[accHashTo] = cents;
+                tuningConfig.secondaryTunings[accHashTo] = cents.length == 1 ? cents[0] : cents;
                 tuningConfig.asciiToSmuflConv[asciiFrom] = symCodesTo;
                 tuningConfig.asciiToSmuflConvList.push(asciiFrom);
 
@@ -1680,10 +1745,67 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
             } else {
-                console.error('TUNING CONFIG ERROR: ' + (j + 1) +
-                    ': Secondary symbol declaration must have 2 or 3 space separated words. Got : ' + line);
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
+                    ': Secondary symbol declaration must have 2 or 3 (for nominal-agnostic tunings) or '
+                    + (2 + numNomsMin1) + ' or ' + (3 + numNomsMin1)
+                    + ' (for nominal-specific tunings) space-separated words. Got: ' + line);
                 return null;
             }
+        } else if (state[0] == 'override') {
+            // parse override() declarations.
+
+            var words = line.split(' ').map(function (x) { return x.trim() });
+
+            /*
+            format of each override decl:
+            <nominal:int[0, N]> <avdeg1: int> ... <avdegN: int> <ratio/cents from fundamental>
+            */
+
+            if (words.length != tuningConfig.accChains.length + 2) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1)
+                    + ': Override declaration has incorrect number of acc vector degrees in: ' + line
+                    + '\nExpected ' + tuningConfig.accChains.length + ' degrees, got ' + (words.length - 2)
+                    + ' instead.');
+                console.log('HELP: Make sure there are no spaces in the cents/ratio tuning');
+                return null;
+            }
+
+            var nominal = parseInt(words[0]);
+            var av = words.slice(1, words.length - 1).map(function (x) { return parseInt(x) });
+            var overrideCents = parseCentsOrRatio(words[words.length - 1]);
+
+            if (isNaN(nominal) || nominal < 0 || nominal >= tuningConfig.numNominals) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1)
+                    + ': Override declaration has invalid nominal ' + words[0] + ' in ' + line
+                    + '\nExpected a number from 0 to ' + (tuningConfig.numNominals - 1) + ' inclusive.');
+                return null;
+            }
+
+            var isValid = true;
+            for (var avIdx = 0; avIdx < av.length; avIdx++) {
+                var deg = av[avIdx];
+                var min = -tuningConfig.accChains[avIdx].centralIdx;
+                var max = min + tuningConfig.accChains[avIdx].length - 1;
+                if (isNaN(deg) || deg < min || deg > max) {
+                    console.error('TUNING CONFIG ERROR: ' + (i + 1)
+                        + ': Override declaration has invalid accidental vector degree ' + words[avIdx + 1] + ' in ' + line
+                        + '\nExpected a number from ' + min + ' to ' + max + ' inclusive.');
+                    isValid = false;
+                    break;
+                }
+            }
+
+            if (!isValid) {
+                return null;
+            }
+
+            if (overrideCents == null) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1)
+                    + ': Override declaration has invalid cents/ratio ' + words[words.length - 1] + ' in ' + line);
+                return null;
+            }
+
+            tuningConfig.tuningOverrideTable[[nominal].concat(av)] = overrideCents;
         }
     }
 
@@ -1779,6 +1901,36 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         if (tuningConfig.accChains.length == 0) {
             var hash = createXenHash(nomIdx, {});
+            var cents = nominalCents;
+            var equavesAdjusted = 0;
+
+            if (tuningConfig.tuningOverrideTable[[nomIdx]]) {
+                cents = tuningConfig.tuningOverrideTable[[nomIdx]];
+            }
+
+            if (tuningConfig.equaveSize > 0) { // prevent crashes
+                while (cents < 0) {
+                    cents += tuningConfig.equaveSize;
+                    equavesAdjusted++;
+                }
+                while (cents >= tuningConfig.equaveSize) {
+                    cents -= tuningConfig.equaveSize;
+                    equavesAdjusted--;
+                }
+            } else if (tuningConfig.equaveSize < 0) {
+                // negative equave - negative harmony
+                while (cents < 0) {
+                    cents -= tuningConfig.equaveSize;
+                    equavesAdjusted--;
+                }
+                while (cents >= -tuningConfig.equaveSize) {
+                    cents += tuningConfig.equaveSize;
+                    equavesAdjusted++;
+                }
+
+                // Because the reference note is on 'top', and it works downwards.
+                equavesAdjusted += 1;
+            }
             xenNotesEquaves[hash] = {
                 av: [],
                 xen: { // XenNote
@@ -1789,8 +1941,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     hasLigaturePriority: false, // these don't matter
                     hasImportantLigature: true,
                 },
-                cents: nominalCents,
-                equavesAdjusted: 0,
+                cents: cents,
+                equavesAdjusted: equavesAdjusted,
             };
             continue;
         }
@@ -1858,6 +2010,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
             var cents = nominalCents + centOffset;
             var equavesAdjusted = 0;
+
+            if (tuningConfig.tuningOverrideTable[[nomIdx].concat(accidentalVector)]) {
+                cents = tuningConfig.tuningOverrideTable[[nomIdx].concat(accidentalVector)];
+            }
 
             if (tuningConfig.equaveSize > 0) { // prevent crashes
                 while (cents < 0) {
@@ -2307,7 +2463,7 @@ function parseChangeReferenceTuning(text) {
     // if the nominal is within C to G.
     if (lettersNominal >= 2)
         nominalsFromA4 -= 7;
-    
+
     var changeRelativeNominalOnly = referenceTuning[1] == '';
     var changeReferenceNote = {
         preserveNominalsMode: preserveNominalsMode,
@@ -2395,7 +2551,7 @@ function parsePossibleConfigs(text, tick) {
 
     var text = removeFormattingCode(text);
 
-    
+
     /** @type {ChangeReferenceTuning|TuningConfig|KeySig|null} */
     var maybeConfig;
 
@@ -2998,9 +3154,13 @@ function calcCentsOffset(noteData, tuningConfig) {
     // apply secondary accidentals
     Object.keys(noteData.secondaryAccMatches).forEach(function (secAccIdx) {
         var accHash = tuningConfig.secondaryAccList[secAccIdx];
+        var secAccTuning = tuningConfig.secondaryTunings[accHash];
+        if (Array.isArray(secAccTuning)) {
+            secAccTuning = secAccTuning[noteData.xen.nominal];
+        }
         xenCentsFromA4 +=
             noteData.secondaryAccMatches[secAccIdx] // number of matched accidentals
-            * tuningConfig.secondaryTunings[accHash];
+            * secAccTuning;
     });
 
     /*
