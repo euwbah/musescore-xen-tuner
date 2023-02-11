@@ -60,7 +60,13 @@ acc_chain1_step_size = apotome # apotome size 4
 acc_chain2 = range(-3,4) # -3 to 3 inclusive
 acc_chain2_step_size = 1 # up/downs are 1 step
 
-nominals_steps = [0, tone, tone*2, tone*3, tone*3+limma, tone*4+limma, tone*5+limma]
+# MODIFY THIS
+# As per the tuning config, the reference note is A4.
+# If the reference note is changed, the 'mode' of the nominals
+# must also change accordingly.
+# tone = Diatonic "whole step"
+# limma = Diatonic "half step"
+nominals_steps = [0, tone, tone+limma, 2*tone+limma, 3*tone+limma, 3*tone+2*limma, 4*tone+2*limma]
 
 print('override()')
 for nom_idx, nom_steps in enumerate(nominals_steps):
