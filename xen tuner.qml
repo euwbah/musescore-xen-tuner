@@ -242,7 +242,9 @@ MuseScore {
             var el = elems[0];
             var name = el ? el.name : null;
             if (elems.length == 1 && 
-                (name == "SystemText" || name == "StaffText" || name == "TBox" || name == "Text")) {
+                (name == "SystemText" || name == "StaffText" || 
+                name == "TBox" || name == "Text" || name == "Fingering" ||
+                name == "Tempo" || name == "Expression")) {
                 // allow the user to use up/down arrow keys to navigate text
                 Fns.setUpDownFallthrough(false);
                 upShortcut.enabled = false;

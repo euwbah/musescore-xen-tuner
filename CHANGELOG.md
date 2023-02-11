@@ -4,6 +4,7 @@
 
 - Reference tuning changes no longer change the nominals mode my default. Added `!<midinote>: <freq>` syntax to change mode of the nominals.
 - Fixed nominals not showing up in enharmonic cycle when no important ligatures are in the enharmonic group.
+- Fix 'j' cannot be entered into tempo and expression and fingerings.
 
 ## 0.2.2
 
