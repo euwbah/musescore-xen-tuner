@@ -32,11 +32,9 @@ import FileIO 3.0
 
 MuseScore {
       version: "0.3.1"
-      description: "Debug Tune function.\n\n" +
-        "The docking Xen Tuner plugin is hard to debug as the shortcuts break everytime you re-run " +
-        "the plugin in the plugin creator. Use this instead to test functions without having to " +
-        "restart MuseScore."
-      menuPath: "Plugins.Xen Tuner.Debug Xen Tuner"
+      description: "Create fingerings to display edo/neji-steps of notes relative to the reference note.\n\n" +
+        "Applies to selection, or entire score if nothing is selected."
+      menuPath: "Plugins.Xen Tuner.Display Steps"
 
       FileIO {
         id: fileIO
@@ -51,14 +49,9 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Started Xen Tuner');
-        // When you want to find which import has a syntax error, uncomment this line
-        // console.log(JSON.stringify(Fns));
+        console.log('Xen Tuner - Display Steps');
         Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
-        console.log('present working dir: ' + Qt.resolvedUrl("."));
 
-        // Debug code here.
-        Fns.operationTune(); // test tune
-        // Fns.operationTranspose(-1, 0); // test diatonic transpose
+        Fns.operationTune(2);
       }
 }

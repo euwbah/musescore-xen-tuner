@@ -8,6 +8,8 @@ bb 156 b 157 (1200/31c) + # #+ x
 
 aux(0)
 
+displaysteps(31, below)
+
 sec()
 'bb' bb -1200/31*4c
 'db' 156 -1200/31*3c

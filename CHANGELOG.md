@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Added Display Cents and Display Steps plugins to create fingerings to display cent offsets and edo/neji steps of notes in the score.
+- Fix enharmonics incorrect due to floating point errors causing two enharmonically equivalent notes to wrap around the equave.
+
 ## 0.3.0
 
 - Implement `override()` declaration to support NEJIs, Johnston, etc...

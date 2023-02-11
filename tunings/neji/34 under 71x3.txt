@@ -19,6 +19,8 @@ A4: 440
 bb b (0) # x
 v3 v2 v (0) ^ ^2 ^3
 
+displaysteps(34, below)
+
 aux(0)
 aux(0,1)
 

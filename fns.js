@@ -360,12 +360,14 @@ function arraysEqual(a, b) {
  * Check if two notes are to be considered enharmonically equivalent
  * based on cents.
  * 
- * @param {number} cents1 
- * @param {number} cents2 
+ * @param {number} cents1
+ * @param {number} cents2
+ * @param {number} equaveSize Size of equave in cents.
  * @returns 
  */
-function isEnharmonicallyEquivalent(cents1, cents2) {
-    return Math.abs(cents1 - cents2) < ENHARMONIC_EQUIVALENT_THRESHOLD;
+function isEnharmonicallyEquivalent(cents1, cents2, equaveSize) {
+    return (Math.abs(cents1 - cents2) < ENHARMONIC_EQUIVALENT_THRESHOLD) ||
+        (equaveSize - Math.abs(cents1 - cents2) < ENHARMONIC_EQUIVALENT_THRESHOLD);
 }
 
 /**
@@ -1390,7 +1392,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux|sec|explicit|nobold|override|displaycents|displaysteps)\([0-9,a-zA-Z]*\)/);
+        var matches = line.match(/(lig|aux|sec|explicit|nobold|override|displaycents|displaysteps)\([0-9,a-zA-Z\s]*\)/);
         if (matches != null) {
             break;
         }
@@ -2294,7 +2296,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         Object.keys(xenNotesEquaves)
             .map(function (x) { return xenNotesEquaves[x]; })
             .sort(function (a, b) {
-                if (isEnharmonicallyEquivalent(a.cents, b.cents)) {
+                if (isEnharmonicallyEquivalent(a.cents, b.cents, tuningConfig.equaveSize)) {
                     return (a.av < b.av) ? -1 : 1;
                 }
                 return a.cents - b.cents;
@@ -2307,6 +2309,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     // Contains cents of previous note.
     // If current note is enharmonically equivalent, don't update this value.
     var prevEnhEquivCents = null;
+    var firstNoteCents = null;
 
     sortedXNEs.forEach(function (x) {
         var av = x.av;
@@ -2315,19 +2318,27 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var equavesAdjusted = x.equavesAdjusted;
         var hash = xenNote.hash;
 
+        if (firstNoteCents == null)
+            firstNoteCents = cents;
+
         // Add to NotesTable
         tuningConfig.notesTable[hash] = xenNote;
         tuningConfig.avTable[hash] = av;
         tuningConfig.tuningTable[hash] = [cents, equavesAdjusted];
 
-        if (prevEnhEquivCents != null && isEnharmonicallyEquivalent(cents, prevEnhEquivCents)) {
-            // Curr note should belong to the s ame group as prev note.
+        if (prevEnhEquivCents != null && isEnharmonicallyEquivalent(cents, prevEnhEquivCents, tuningConfig.equaveSize)) {
+            // Curr note should belong to the same group as prev note.
             // Safe to assume tuningConfig.stepsList is not empty.
 
             // Contains list of enharmonically equivalent XenNote hashes.
             var enharmGroup = tuningConfig.stepsList[tuningConfig.stepsList.length - 1];
             enharmGroup.push(hash);
             tuningConfig.stepsLookup[hash] = tuningConfig.stepsList.length - 1;
+        } else if (prevEnhEquivCents != null && isEnharmonicallyEquivalent(cents, firstNoteCents, tuningConfig.equaveSize)) {
+            // we looped back to the first note from the other end.
+            // Add to the first step.
+            tuningConfig.stepsList[0].push(hash);
+            tuningConfig.stepsLookup[hash] = 0;
         } else {
             // Curr note is not enharmonically equivalent.
 
@@ -3193,7 +3204,7 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
             note, note.line, noteData.ms.tick, tickOfThisBar, tickOfNextBar,
             tuningConfig, keySig, cursor, newElement
         );
-        
+
         // update new symbols if fingering-based accidental entry is performed.
         setAccidental(note, noteData.updatedSymbols, newElement, tuningConfig);
     }
@@ -3273,9 +3284,9 @@ function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
     var fingeringJIOffset = null; // this is in cents
 
     noteData.ms.fingerings.forEach(function (fingering) {
-        if (fingering.z >= 1000 && fingering.z <= 2000) {
-            // don't read ASCII accidentals as fingering
-            // annotations.
+        if (fingering.z != DEFAULT_FINGERING_Z_INDEX && fingering.z != PROCESSED_FINGERING_ANNOTATION_Z) {
+            // Only accept processed & unprocessed fingering annotations.
+            // Other fingering types should be ignored.
             return;
         }
 
@@ -4575,9 +4586,9 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) 
  * @param {newElement} newElement 
  */
 function forceExplicitAccidentalsAfterNote(
-    note, newLine, noteTick, tickOfThisBar, tickOfNextBar, 
+    note, newLine, noteTick, tickOfThisBar, tickOfNextBar,
     tuningConfig, keySig, cursor, newElement
-    ) {
+) {
 
     var ogCursorPos = saveCursorPosition(cursor);
 
@@ -5620,12 +5631,12 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
  * @param {number} tickOfThisBar 
  * @param {number} tickOfNextBar 
  * @param {Cursor} cursor 
- * @param {newElement} newElement 
  * @param {BarState?} reusedBarState 
+ * @param {newElement} newElement 
  */
 function addStepsCentsFingering(
     isSteps, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar,
-    cursor, newElement, reusedBarState) {
+    cursor, reusedBarState, newElement) {
 
     var noteData = parseNote(note, tuningConfig, keySig,
         tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState);
@@ -5719,7 +5730,7 @@ function addStepsCentsFingering(
                 centsText = '+';
             }
         }
-        
+
         centsText += cents
             .toFixed(tuningConfig.displayCentsPrecision);
 
@@ -5739,7 +5750,7 @@ function addStepsCentsFingering(
 
         var elem = newElement(Element.FINGERING);
         note.add(elem);
-        elem.text = escapeHTML(steps.toString());
+        elem.text = escapeHTML(centsText);
         /*  Autoplace is required for this accidental to push back prior
             segments. */
         elem.autoplace = true;
@@ -5984,7 +5995,8 @@ function operationTune(display) {
                                 tuneNote(notes[j], parms.currKeySig, parms.currTuning,
                                     tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
                                 if (display) {
-                                    addStepsCentsFingering(display == 2, notes[j], parms.currKeySig, parms.currTuning,
+                                    addStepsCentsFingering(
+                                        display == 2, notes[j], parms.currKeySig, parms.currTuning,
                                         tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
                                 }
                             }
@@ -5993,7 +6005,11 @@ function operationTune(display) {
                         for (var i = 0; i < notes.length; i++) {
                             tuneNote(notes[i], parms.currKeySig, parms.currTuning,
                                 tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
-
+                            if (display) {
+                                addStepsCentsFingering(
+                                    display == 2, notes[i], parms.currKeySig, parms.currTuning,
+                                    tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
+                            }
                         }
 
                         tickOfLastModified = cursor.tick;
