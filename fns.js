@@ -1686,6 +1686,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             tuningConfig.displayCentsReference = centType;
             tuningConfig.displayCentsPrecision = precision;
             tuningConfig.displayCentsPosition = position;
+            continue;
         }
 
         // If we are here, then there are no section/setting declarations
