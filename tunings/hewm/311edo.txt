@@ -14,6 +14,7 @@ bbb bb b (115.75562700964474c) # x #x
 '<'.'<' '<' (27.009646302250076c) '>' '>'.'>'
 
 displaysteps(311, below)
+displaycents(absolute, 3, above)
 
 aux(0)
 aux(1)

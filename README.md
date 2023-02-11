@@ -30,11 +30,13 @@ A **MuseScore 3.6** plugin to give first-class support for microtonal/alternativ
 
 Download the project as .zip (the green "Code" button on top right of the project page).
 
-Extract files to plugins folder and activate all the following plugins (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
+Extract files to plugins folder and **activate all the following plugins** (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
 
-- _clear tuning cache_
-- _xen tuner_
-- _export midi csv_
+- _xen tuner_ - This is the main plugin that runs in the background.
+- _clear tuning cache_ - For [refreshing tuning configurations](#4-clear-the-tuning-cache)
+- _export midi csv_ - For [midi/mpe export](#how-to-export-midimpe)
+- _display cents_
+- _display steps_
 
 ### 2. Remap/Remove MuseScore default shortcuts
 
@@ -62,11 +64,11 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 
 ![specify tuning config](imgs/specify%20tuning%20config.png)
 
-You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the configuration text itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
+You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the [configuration text](#tuning-configuration-syntax-overview) itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
 
 > 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
 >
-> You can check out other files in the `tunings/` folder to learn how you can write your own tuning configurations.
+> You can find tunings in the `tunings/` folder to find notations that are already supported. These are also great working examples which can be used to learn how to [write your own tuning configurations](#how-to-tuning-configuration)
 
 A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on. A configuration is only applied to notes from its bar onwards. Only place configuration texts/key signatures at the start of a bar.
 
@@ -129,17 +131,19 @@ Read [how the plugin conceptualizes tunings & accidentals](#introduction) (and t
 
 If you're facing a bug or need help, [file an issue](#reporting-an-issue).
 
+### 8. Display Steps & Display Cents
+
+You can automatically generate text to display the cent offsets and edo/neji-steps of notes in the score. Use the **Display Steps** and **Display Cents** plugins to do this.
+
+To get **Display Steps** to work, the tuning configuration being used **must have it enabled** with the [`displaysteps()` declaration](#configuring-display-steps). The pre-made EDOs & NEJIs tuning config files already have this configured.
+
+You can also configure how cent offsets are calculated and displayed using the [`displaycents()` config declaration](#configuring-display-cents).
+
+-----
+
 ### [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
 This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
-
-#### Keeping accidentals up to date
-
-While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-the-plugin).
-
-Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `scripts/tabulate_accidentals.py` python script yourself with Python 3. This will sync the plugin's accidental Symbol Codes to the "CSV Export" sheet on the spreadsheet.
-
-If you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes numbers still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code index may change and is unstable.
 
 -----
 
@@ -155,8 +159,8 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
   - [6. Change reference pitch](#6-change-reference-pitch)
   - [7. Implement your own tunings/notation systems!](#7-implement-your-own-tuningsnotation-systems)
+  - [8. Display Steps \& Display Cents](#8-display-steps--display-cents)
   - [List of Supported Symbols](#list-of-supported-symbols)
-    - [Keeping accidentals up to date](#keeping-accidentals-up-to-date)
 - [Introduction](#introduction)
   - [Nominals \& Equave](#nominals--equave)
   - [Symbol codes, text codes, text-based accidental symbols](#symbol-codes-text-codes-text-based-accidental-symbols)
@@ -164,6 +168,7 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [Constructing an accidental](#constructing-an-accidental)
   - [Accidental chains \& degrees](#accidental-chains--degrees)
   - [Accidental vectors](#accidental-vectors)
+  - [Main tuning space](#main-tuning-space)
 - [How to: tuning configuration](#how-to-tuning-configuration)
   - [Tuning configuration overview](#tuning-configuration-overview)
   - [Tuning configuration syntax overview](#tuning-configuration-syntax-overview)
@@ -175,6 +180,8 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [More accidental chains: 5-limit JI](#more-accidental-chains-5-limit-ji)
   - [Accidental ligatures: "Real" HEJI](#accidental-ligatures-real-heji)
   - [Auxiliary operations](#auxiliary-operations)
+  - [Configuring display steps](#configuring-display-steps)
+  - [Configuring display cents](#configuring-display-cents)
   - [Advanced: Irregularly sized accidental chains](#advanced-irregularly-sized-accidental-chains)
   - [Advanced: advanced ligature use, weak \& important ligatures](#advanced-advanced-ligature-use-weak--important-ligatures)
     - [Understanding how the plugin parses \& reads accidentals](#understanding-how-the-plugin-parses--reads-accidentals)
@@ -301,6 +308,14 @@ You can combine different accidental degrees from different accidental chains. T
 > Next, the chain of syntonic commas, where each step up is equal to the syntonic comma (81/80). These accidentals give access to 5-limit just intonation.
 > 
 > Now, we can notate the classic major third (5/4) of `D` as `F#v` (F-sharp-down). `F#v` is 1 step up in the 'sharp' direction, and 1 step down in the 'syntonic comma' direction. Thus, we can represent this note as having the accidental vector of `1, -1`.
+
+### Main tuning space
+
+In this plugin, there are two ways accidentals can be declared. The primary accidentals are declared using [Accidental Chains](#accidental-chains--degrees), but there are also [secondary accidentals](#advanced-secondary-accidentals) which allow you to declare how non-primary symbols are interpreted.
+
+Notes with accidentals declared via accidental chains form the **main tuning space**, which is the 'fully supported' set of notes that the plugin recognizes. You can think of these fully supported notes as '[Tonal Pitch Classes](https://en.wikipedia.org/wiki/Pitch_class_space)', but for **XenNotes** instead of normal 12edo notes.
+
+In large tunings like high-limit JIs and very large edos, it's common to use notes that are not in the main tuning space, as it wouldn't be feasible to declare as many accidental chains as there are [ranks](https://en.xen.wiki/w/Rank_and_codimension) in the tuning. However, these notes will not be accessible via the up/down arrow keys, and also not supported by the [Display Steps](#8-display-steps--display-cents) feature.
 
 -----
 
@@ -621,6 +636,49 @@ Finally, `aux(0,1)` means both the nominal and the first accidental chain's degr
 You can specify whichever combinations of numbers from 0 to N (number of accidental chains) that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
 
 If you require more than 4 auxiliary operations, you can [set up more keyboard shortcuts](#more-auxiliary-operations) to invoke more auxiliary operations.
+
+### Configuring display steps
+
+🟠 **In order for the [Display Steps](#8-display-steps--display-cents) plugin to work, the tuning configuration needs to configure the steps display using the `displaysteps()` declaration**.
+
+```txt
+// Syntax: displaysteps(<steps per equave>, <placement>)
+
+displaysteps(31, below) // E.g. 31 step tuning, place text below note
+```
+
+**`<steps per equave>`** denotes the total number of distinctly tuned steps this tuning uses within an equave
+
+> 🟡 This generally corresponds to edos - arbitrarily large edos are supported.
+>
+> You also can get this working for NEJIs/temperaments and other step-based tunings as long as you ensure that all the notes in the score are in the [main tuning space](#main-tuning-space).
+
+**`<placement>`**:
+
+- `above` - text displayed above the note
+- `below` - text displayed below the note
+
+### Configuring display cents
+
+You can configure how cents offsets are being displayed, and how cent offsets are calculated.
+
+```
+// Syntax: displaycents(<calculation mode>, <precision>, <placement>)
+displaycents(nominal, 0, above)
+```
+
+**`<calculation mode>`**:
+
+- **`nominal`** (Default) - cent offsets are calculated relative to the nominal of the note
+- `absolute` - cent offsets are calculated relative to the specified tuning note modulo the equave. (E.g. if `A4: 440` is used in a 7-nominal tuning, then it will display number of cents above the nearest A)
+- `semitone` - Same as `absolute`, but modulo 100 cents instead, to give the cent offset from the nearest 12-edo semitone. (A bit janky at this point, not recommended)
+
+**`<precision>`**: The number of decimal places in the cents display.
+
+**`<placement>`**:
+
+- `above` - text displayed above the note
+- `below` - text displayed below the note
 
 ### Advanced: Irregularly sized accidental chains
 
