@@ -13,6 +13,8 @@ aux(1)
 aux(2)
 aux(1,2,3,4)
 
+displaysteps(72, below)
+
 sec()
 'bbb' bbb -300c
 'bb' bb -200c

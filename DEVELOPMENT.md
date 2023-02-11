@@ -52,6 +52,44 @@ sec()
 
 Note that per-nominal tunings of secondary accidentals aren't as specific as you can get with `override()`. Secondary accidentals lack `XenNote` "Tonal Pitch Class" context, so you cannot permute different tunings depedening on particular combinations of secondary accidentals. You can play with secondary accidental declaration order to achieve similar effect, but it will be much harder to conceptualize than just sticking to primary accidentals via accidental chains, then entering the specific tunings of each XenNote (up to unique combinations of Nominal and Accidental Vector).
 
+## v0.3.1: Cents/edostep/nejistep display configs
+
+The main goal of v0.3.1 is to support auto-creation of fingerings that are attached to noteheads that contain info about its cent offset/edostep.
+
+This is done using two new plugins: `display cents.qml` and `display steps.qml`.
+
+These fingerings are auto-positioned and can be configured to be displayed above/below the notehead, using default musescore auto-positioning of fingerings.
+
+### edostep/nejistep display
+
+Running `display steps.qml` will generate a fingering text on selected notes/entire score that displays the edostep/nejistep of the note relative to the current relative reference pitch.
+
+The edostep display feature must be enabled by explicitly stating the edo using the `displayedo()` declaration. There are two parameters in the config: the number of steps in the tuning and where to position the created
+
+```
+//    <num steps> <pos>
+displaysteps(311, below)
+```
+
+**Implementation**: if the number of steps specified exactly matches the number of `XenNote`s in the `notesList`, AND no secondary accidentals are found on the note, then the plugin will use the `stepsLookup` to figure out which edostep this note is. Otherwise, it will use the tuning of the note and the specified number to determine the edostep, which assumes equal division of all edosteps.
+
+This means that for this to work with NEJIs, no secondary accidentals should be used, and all steps of the NEJI should be represented in the main tuning space of the accidental chains.
+
+### Cent offset display
+
+```
+//         <mode> <decimals> <pos>
+displaycents(nominal, 0, above)
+```
+
+Cents offset display doesn't need to be configured for it to work, however, the default behavior can be modified using the `displaycents()` declaration.
+
+The possible cents display modes are:
+
+- `nominal`: The number of cents above/below the nominal
+- `absolute`: The number of cents above the reference pitch (mod equave)
+- `semitone`: The number of cents above the reference pitch (mod 100)
+
 ----
 
 # Version 0.2

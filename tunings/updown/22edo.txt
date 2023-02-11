@@ -3,6 +3,8 @@ A4: 440
 bb b (1200*3/22c) # x
 v2 \\ (1200*1/22c) / ^2
 
+displaysteps(22, below)
+
 lig(1,2)!
 -2 -2 bbv2
 -2 -1 bbv

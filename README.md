@@ -38,7 +38,7 @@ Extract files to plugins folder and activate all the following plugins (see [thi
 
 ### 2. Remap/Remove MuseScore default shortcuts
 
-This plugin is designed to replace MuseScore's default shortcuts. You will need to **remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts):
+🔴 **You must remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts). (This plugin is designed to replace MuseScore's default shortcuts.)
 
 - Pitch up/down or move text/articulation up/down (`Up/Down` arrow keys)
 - Change enharmonic spelling (`J`)
@@ -1293,6 +1293,7 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
   - Formatting may look weird as this plugin has to reconstruct how accidentals are to be positioned.
 - Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
 - Does not fully support cross-staff notation. Accidentals don't carry over between two different staves if cross-staff notation is used. However, you can specify all accidentals explicitly.
+- You cannot adjust the Z index ("Stacking order") of accidental symbols, and certain Z indices are reserved for special fingerings (3903-3905, 1000-2000).
 
 #### Smaller caveats
 
