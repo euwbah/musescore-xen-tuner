@@ -157,6 +157,17 @@ var ACC_NOTESPACE = 0.2;
 var ASCII_ACC_FONT_SIZE = 11;
 
 /**
+ * Font size of the fingering text containing the step number of 
+ * the note.
+ */
+var STEPS_DISPLAY_FONT_SIZE = 10;
+
+/**
+ * Font size of the fingering text containing cents offset of the note.
+ */
+var CENTS_DISPLAY_FONT_SIZE = 10;
+
+/**
  * By default, whenever an accidental is entered via ascii
  * input, it will clear all prior accidentals attached to the note.
  * 
@@ -246,6 +257,9 @@ bb b (100) # x                  \n\
  * accidental entry, which is computationally intensive.
  */
 var PROCESSED_FINGERING_ANNOTATION_Z = 3903;
+
+var STEPS_DISPLAY_FINGERING_Z = 3904;
+var CENTS_DISPLAY_FINGERING_Z = 3905;
 
 /**
  * This is the default Z index for fingerings as of MuseScore 3.6.2.
@@ -1272,6 +1286,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningNominal: null,
         relativeTuningNominal: 0,
         tuningFreq: null,
+        originalTuningFreq: null,
         // lookup of symbols used in tuning config.
         // anything not included should be ignored.
         usedSymbols: {
@@ -1287,6 +1302,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         asciiToSmuflConvList: [],
         alwaysExplicitAccidental: false,
         nonBoldTextAccidental: false,
+        displayCentsPosition: 'above',
+        displayCentsReference: 'nominal',
+        displayCentsPrecision: 0,
+        displaySteps: null,
+        displayStepsPosition: 'below',
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -1370,7 +1390,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // terminate when 'lig(x,y,...)' is found (move on to ligature declarations)
         // terminate when 'aux(x,y,...)' is found (move on to aux stepwise declarations)
 
-        var matches = line.match(/(lig|aux|sec|explicit|nobold|override)\([0-9,]*\)/);
+        var matches = line.match(/(lig|aux|sec|explicit|nobold|override|displaycents|displaysteps)\([0-9,a-zA-Z]*\)/);
         if (matches != null) {
             break;
         }
@@ -1504,6 +1524,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         var noBold = line == 'nobold()';
         var explicit = line == 'explicit()';
         var override = line == 'override()';
+        var displayCentsMa = line.match(/^displaycents\(([0-9,\sa-zA-Z]+)\)/);
+        var displayStepsMa = line.match(/^displaysteps\(([0-9,\sa-zA-Z]+)\)/);
 
         // First we check for declaration lines lig, aux, or sec.
         // Is so, we process the declaration and possibly update the parser state.
@@ -1604,6 +1626,64 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             commitParsedSection();
             state = ['override'];
             continue;
+        } else if (displayStepsMa != null) {
+            commitParsedSection();
+            state = [];
+            var csv = displayStepsMa[1].split(',').map(function (x) { return x.trim() });
+            if (csv.length != 2) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid displaysteps declaration. Expected 2 arguments: ' + line);
+                return null;
+            }
+
+            var steps = parseInt(csv[0]);
+            var position = csv[1];
+
+            if (isNaN(steps) || steps < 2) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
+                    ': Invalid displaysteps declaration, invalid edo/neji steps: ' + line);
+                return null;
+            }
+            if (position != 'above' && position != 'below') {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
+                    ': Invalid displaysteps declaration, display must be above or below: ' + line);
+                return null;
+            }
+
+            tuningConfig.displaySteps = steps;
+            tuningConfig.displayStepsPosition = position;
+            continue;
+        } else if (displayCentsMa != null) {
+            commitParsedSection();
+            state = [];
+            var csv = displayCentsMa[1].split(',').map(function (x) { return x.trim() });
+            if (csv.length != 3) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid displaycents declaration. Expected 3 arguments: ' + line);
+                return null;
+            }
+
+            var centType = csv[0];
+            var precision = parseInt(csv[1]);
+            var position = csv[2];
+
+            if (centType != 'nominal' && centType != 'absolute' && centType != 'semitone') {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
+                    ': Invalid displaycents declaration. Cent type must be nominal/absolute/semitone: ' + line);
+                return null;
+            }
+            if (isNaN(precision) || precision < 0 || precision > 20) {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
+                    ': Invalid displaycents declaration, invalid precision specified: ' + line);
+                return null;
+            }
+            if (position != 'above' && position != 'below') {
+                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
+                    ': Invalid displaycents declaration, display must be above or below: ' + line);
+                return null;
+            }
+
+            tuningConfig.displayCentsReference = centType;
+            tuningConfig.displayCentsPrecision = precision;
+            tuningConfig.displayCentsPosition = position;
         }
 
         // If we are here, then there are no section/setting declarations
@@ -3134,9 +3214,14 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
  * 
  * @param {NoteData} noteData The note to be tuned
  * @param {TuningConfig} tuningConfig The tuning configuration
- * @returns {number} cents offset to apply to `Note.tuning` property
+ * @param {boolean?} absoluteFromA4
+ * If `true`, returns the cents interval between the note and 440hz.
+ * @returns {number} 
+ * Returns the cents offset to apply to `Note.tuning` property,
+ * 
+ * or if `absoluteFromA4`, returns the absolute cents offset from 440hz.
  */
-function calcCentsOffset(noteData, tuningConfig) {
+function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
     // lookup tuning table [cents, equavesAdjusted]
     var cents_equaves = tuningConfig.tuningTable[noteData.xen.hash];
 
@@ -3240,6 +3325,9 @@ function calcCentsOffset(noteData, tuningConfig) {
     // 2. Apply cents offset.
 
     xenCentsFromA4 += fingeringCentsOffset;
+
+    if (absoluteFromA4)
+        return xenCentsFromA4;
 
     // calculate 12 edo interval from A4
 
@@ -5500,6 +5588,146 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
 }
 
 /**
+ * 
+ * @param {boolean} isSteps `true` to display steps info, `false` to display cents data
+ * @param {PluginAPINote} note 
+ * @param {KeySig} keySig 
+ * @param {TuningConfig} tuningConfig 
+ * @param {number} tickOfThisBar 
+ * @param {number} tickOfNextBar 
+ * @param {Cursor} cursor 
+ * @param {newElement} newElement 
+ * @param {BarState?} reusedBarState 
+ */
+function addStepsCentsFingering(
+    isSteps, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar,
+    cursor, newElement, reusedBarState) {
+
+    var noteData = parseNote(note, tuningConfig, keySig,
+        tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState);
+
+    // Nominal index of the relative reference note.
+    var relRefNominal = mod(tuningConfig.relativeTuningNominal, tuningConfig.numNominals);
+    var relRefOctOffset = Math.floor(tuningConfig.relativeTuningNominal / tuningConfig.numNominals);
+    var relRefCentsFromAbsRef = tuningConfig.nominals[relRefNominal] + relRefOctOffset * tuningConfig.equaveSize;
+    var absRefCentsFromA440 = 1200 * Math.log(tuningConfig.tuningFreq / 440) / Math.log(2);
+    var relRefCentsFromA440 = relRefCentsFromAbsRef + absRefCentsFromA440;
+
+    if (isSteps && tuningConfig.displaySteps != null) {
+        // Create steps info fingering.
+        var steps = 0;
+
+        if (tuningConfig.stepsList.length == tuningConfig.displaySteps
+            && noteData.secondaryAccSyms.length == 0) {
+            // Use steps lookup table to get the edo/neji step
+
+            // Reference nominal doubles as XenNote hash.
+            var referenceSteps = tuningConfig.stepsLookup[relRefNominal];
+            var currNoteSteps = tuningConfig.stepsLookup[noteData.xen.hash];
+            steps = mod(currNoteSteps - referenceSteps, tuningConfig.displaySteps);
+        } else {
+            // Use cents offset to calculate edosteps.
+            var centsFromA440 = calcCentsOffset(noteData, tuningConfig, true);
+            var centsFromRef = centsFromA440 - relRefCentsFromA440;
+            steps = mod(
+                Math.round(centsFromRef / tuningConfig.equaveSize * tuningConfig.displaySteps),
+                tuningConfig.displaySteps);
+        }
+
+        // Remove prior steps display fingerings.
+
+        var elemsToRemove = [];
+        for (var i = 0; i < note.elements.length; i++) {
+            var elem = note.elements[i];
+            if (elem.name == 'Fingering' && elem.z == STEPS_DISPLAY_FINGERING_Z) {
+                // This fingering is an accidental symbol, remove it.
+                elemsToRemove.push(elem);
+            }
+        }
+        elemsToRemove.forEach(function (elem) {
+            note.remove(elem);
+        });
+
+        var elem = newElement(Element.FINGERING);
+        note.add(elem);
+        elem.text = escapeHTML(steps.toString());
+        /*  Autoplace is required for this accidental to push back prior
+            segments. */
+        elem.autoplace = true;
+        elem.fontSize = STEPS_DISPLAY_FONT_SIZE;
+        elem.placement = tuningConfig.displayStepsPosition == 'above' ?
+            Placement.ABOVE : Placement.BELOW;
+        elem.z = STEPS_DISPLAY_FINGERING_Z;
+        return;
+    }
+
+    if (!isSteps) {
+        // Create cents info fingering.
+        var cents = 0;
+        var centsText = '';
+
+        var centsFromA440 = calcCentsOffset(noteData, tuningConfig, true);
+
+        var precisionMult = Math.pow(10, tuningConfig.displayCentsPrecision);
+
+        if (tuningConfig.displayCentsReference == 'absolute') {
+            var centsFromRef = centsFromA440 - relRefCentsFromA440;
+            var centsFromEquave = mod(centsFromRef, tuningConfig.equaveSize);
+            cents = Math.round(centsFromEquave * precisionMult)
+                / precisionMult;
+        } else if (tuningConfig.displayCentsReference == 'nominal') {
+            var nomCentsFromA440 =
+                absRefCentsFromA440
+                + tuningConfig.nominals[noteData.xen.nominal]
+                + noteData.equaves * tuningConfig.equaveSize;
+            var centsFromNom = centsFromA440 - nomCentsFromA440;
+            cents = Math.round(centsFromNom * precisionMult)
+                / precisionMult;
+            if (cents >= 0) {
+                centsText = '+';
+            }
+        } else if (tuningConfig.displayCentsReference == 'semitone') {
+            var centsFromRef = centsFromA440 - relRefCentsFromA440;
+            var centsModSemitone = mod(centsFromRef + 49.99999999, 100) - 49.99999999;
+            cents = Math.round(centsModSemitone * precisionMult)
+                / precisionMult;
+            if (cents >= 0) {
+                centsText = '+';
+            }
+        }
+        
+        centsText += cents
+            .toFixed(tuningConfig.displayCentsPrecision);
+
+        // Remove prior steps display fingerings.
+
+        var elemsToRemove = [];
+        for (var i = 0; i < note.elements.length; i++) {
+            var elem = note.elements[i];
+            if (elem.name == 'Fingering' && elem.z == CENTS_DISPLAY_FINGERING_Z) {
+                // This fingering is an accidental symbol, remove it.
+                elemsToRemove.push(elem);
+            }
+        }
+        elemsToRemove.forEach(function (elem) {
+            note.remove(elem);
+        });
+
+        var elem = newElement(Element.FINGERING);
+        note.add(elem);
+        elem.text = escapeHTML(steps.toString());
+        /*  Autoplace is required for this accidental to push back prior
+            segments. */
+        elem.autoplace = true;
+        elem.fontSize = CENTS_DISPLAY_FONT_SIZE;
+        elem.placement = tuningConfig.displayCentsPosition == 'above' ?
+            Placement.ABOVE : Placement.BELOW;
+        elem.z = CENTS_DISPLAY_FINGERING_Z;
+        return;
+    }
+}
+
+/**
  * Set whether or not to allow up/down fallthrough.
  * 
  * If Element.STAFF_TEXT or Element.SYSTEM_TEXT is selected
@@ -5532,7 +5760,20 @@ settings in xen tuner.qml.
 ================================================================================================
 */
 
-function operationTune() {
+/**
+ * Tunes selected notes or entire score. 
+ * 
+ * Optionally, will create fingerings that display the current cents or steps offset
+ * of tuned notes.
+ * 
+ * @param {1|2|null} display
+ * If `1`, create fingerings to display the cent offsets of notes according
+ * to the `displaycents()` settings specified in the tuning config.
+ * If `2`, create fingerings to display step indices of notes according
+ * to `displaysteps()` settings specified in the tuning config.
+ * @returns 
+ */
+function operationTune(display) {
     console.log('Running Xen Tune');
     if (typeof _curScore === 'undefined')
         return;
@@ -5718,6 +5959,10 @@ function operationTune() {
                             for (var j = 0; j < notes.length; j++) {
                                 tuneNote(notes[j], parms.currKeySig, parms.currTuning,
                                     tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
+                                if (display) {
+                                    addStepsCentsFingering(display == 2, notes[j], parms.currKeySig, parms.currTuning,
+                                        tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
+                                }
                             }
                         }
                         var notes = cursor.element.notes;
@@ -5725,12 +5970,6 @@ function operationTune() {
                             tuneNote(notes[i], parms.currKeySig, parms.currTuning,
                                 tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
 
-                            // REMOVE AFTER TESTING
-                            // this is how find other symbols (aux accidentals) attached to the note
-                            // for (var j = 0; j < note.elements.length; j++) {
-                            //   if (note.elements[j].symbol)
-                            //     console.log(note.elements[j].symbol);
-                            // }
                         }
 
                         tickOfLastModified = cursor.tick;

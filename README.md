@@ -1295,6 +1295,7 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
   - Formatting may look weird as this plugin has to reconstruct how accidentals are to be positioned.
 - Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
 - Does not fully support cross-staff notation. Accidentals don't carry over between two different staves if cross-staff notation is used. However, you can specify all accidentals explicitly.
+- You cannot adjust the Z index ("Stacking order") of accidental symbols, and certain Z indices are reserved for special fingerings (3903-3905, 1000-2000).
 
 #### Smaller caveats
 

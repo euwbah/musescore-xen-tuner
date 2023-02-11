@@ -597,7 +597,7 @@ class TuningConfig {
     tuningFreq;
     /**
      * Stores the original Hz of the reference. This value is read from the tuning config
-     * file and does not change unless a reference pitch change with mode change is called
+     * file and does not change unless a reference pitch change with mode change (!) is called
      * for.
      * 
      * This value is used to calculate the updated {@link tuningFreq} when relative tuning
@@ -724,6 +724,53 @@ class TuningConfig {
      * @type {boolean}
      */
     nonBoldTextAccidental;
+
+    /**
+     * If this value is not `null`, it denotes that this tuning config supports
+     * displaying the step index of the note. The number of this value is the
+     * number of edosteps/neji steps to display.
+     * 
+     * @type {number?}
+     */
+    displaySteps;
+    
+    /**
+     * Where to position the fingering containing edosteps info of the note.
+     * 
+     * Defaults to 'below'.
+     * 
+     * @type {'above'|'below'}
+     */
+    displayStepsPosition;
+
+    /**
+     * How the displayed cents offset should be calculated.
+     * 
+     * - 'nominal': (Default) The cents offset from the nominal of the note.
+     * - 'absolute': The absolute number of cents from the relative reference note.
+     * - 'semitone': Same as above, modulo the 100 cents semitone ranging from +/-50c
+     * 
+     * @type {'nominal'|'absolute'|'semitone'}
+     */
+    displayCentsReference;
+
+    /**
+     * Number of decimal places precision of the cent offset display.
+     * 
+     * Defaults to 0
+     * 
+     * @type {number}
+     */
+    displayCentsPrecision;
+
+    /**
+     * Where to position the fingering containing cents tuning info of the note.
+     * 
+     * Defaults to 'above'.
+     * 
+     * @type {'above'|'below'}
+     */
+    displayCentsPosition;
 }
 
 /**
@@ -1154,6 +1201,11 @@ class PluginAPISymbolID {
     }
 }
 
+const Placement = {
+    ABOVE: 0,
+    BELOW: 1
+}
+
 /**
  * An enumeration label of the {@link ELEMENT} enumeration.
  * 
@@ -1315,10 +1367,16 @@ class PluginAPIElement {
      * @type {number}
      */
     z;
+
+    /**
+     * @type {Placement.ABOVE|Placement.BELOW|null}
+     */
+    placement;
+
     /**
      * Enables/disables Automatic placement
      * 
-     * @type {boolean}
+     * @type {boolean?}
      */
     autoplace;
 
