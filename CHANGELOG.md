@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- Implement `override()` declaration to support NEJIs, Johnston, etc...
+- Fix: accidentals added via fingerings affecting subsequent notes.
+
 ## 0.2.3
 
 - Reference tuning changes no longer change the nominals mode my default. Added `!<midinote>: <freq>` syntax to change mode of the nominals.
