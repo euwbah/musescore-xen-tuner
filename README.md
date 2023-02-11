@@ -906,13 +906,11 @@ sec()
 
 #### `nobold()`
 
-Declare `nobold()` anywher after declaring accidental chains to make the font style of fingering text based accidentals non-bold.
+Declare `nobold()` anywhere after declaring accidental chains to make the font style of fingering text based accidentals non-bold.
 
 Otherwise, fingering text accidentals will be bold by default.
 
 #### `explicit()`
-
-> ⚠️ **Experimental!** May have bugs with tied notes etc...
 
 Declare `explicit()` anywhere after declaring accidental chains to explicitly display all accidentals (even naturals).
 
