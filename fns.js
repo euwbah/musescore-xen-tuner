@@ -3109,6 +3109,11 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
     var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
 
     if (noteData && noteData.updatedSymbols) {
+        forceExplicitAccidentalsAfterNote(
+            note, note.line, noteData.ms.tick, tickOfThisBar, tickOfNextBar,
+            tuningConfig, keySig, cursor, newElement
+        );
+        
         // update new symbols if fingering-based accidental entry is performed.
         setAccidental(note, noteData.updatedSymbols, newElement, tuningConfig);
     }
@@ -4462,6 +4467,81 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) 
 }
 
 /**
+ * Aggressively applies explicit accidental to ALL notes with the same Note.line 
+ * as the current (old) note and the new Note.line of the modified note,
+ * whose .tick values match, or come after the current note's .tick value,
+ * 
+ * This will include grace notes that come before the actual note.
+ * 
+ * The idea is to brute-force as many explicit accidentals as possible first,
+ * then remove unnecessary accidentals later.
+ * 
+ * @param {PluginAPINote} note Current note being adjusted
+ * @param {number} newLine New {@link PluginAPINote.line} of note after adjustment
+ * @param {number} noteTick tick of note
+ * @param {number} tickOfThisBar 
+ * @param {number} tickOfNextBar 
+ * @param {TuningConfig} tuningConfig 
+ * @param {KeySig} keySig 
+ * @param {Cursor} cursor 
+ * @param {newElement} newElement 
+ */
+function forceExplicitAccidentalsAfterNote(
+    note, newLine, noteTick, tickOfThisBar, tickOfNextBar, 
+    tuningConfig, keySig, cursor, newElement
+    ) {
+
+    var ogCursorPos = saveCursorPosition(cursor);
+
+    for (var voice = 0; voice < 4; voice++) {
+
+        setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
+
+        while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
+            // console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
+
+            if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
+                cursor.next();
+                continue;
+            }
+
+            /** @type {PluginAPIChord} */
+            var chord = cursor.element;
+
+            var notes = chord.notes;
+            var graceChords = chord.graceNotes;
+
+            for (var i = 0; i < graceChords.length; i++) {
+                var graceNotes = graceChords[i].notes;
+                for (var j = 0; j < graceNotes.length; j++) {
+                    var gnote = graceNotes[j];
+                    // We need to ensure that we're not mistakenly setting
+                    // an accidental of a note that ties back to the current note.
+                    if (!gnote.is(note) && !gnote.firstTiedNote.is(note) &&
+                        (gnote.line == note.line || gnote.line == newLine)) {
+                        makeAccidentalsExplicit(gnote, tuningConfig, keySig,
+                            tickOfThisBar, tickOfNextBar, newElement, cursor);
+                    }
+                }
+            }
+
+            for (var i = 0; i < notes.length; i++) {
+                var n = notes[i];
+                if (!n.is(note) && !n.firstTiedNote.is(note) &&
+                    (n.line == note.line || n.line == newLine)) {
+                    makeAccidentalsExplicit(n, tuningConfig, keySig,
+                        tickOfThisBar, tickOfNextBar, newElement, cursor);
+                }
+            }
+
+            cursor.next();
+        }
+    }
+
+    restoreCursorPosition(ogCursorPos);
+}
+
+/**
  * Executes up/down/enharmonic on a note.
  * 
  * **IMPORTANT:**
@@ -4541,66 +4621,10 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     // STEP 2: Apply explicit accidentals on notes that may be affected
     //         by the modification process.
 
-    var ogCursorPos = saveCursorPosition(cursor);
-
-    /*
-    Aggressively applies explicit accidental to ALL notes with the same Note.line 
-    as the current (old) note or the new Note.line of the modified note,
-    whose .tick values match, or come after the current note's .tick value.
-    
-    This will include grace notes that come before the actual note,
-    or other notes within the same chord & line.
-
-    The idea is to brute-force as many explicit accidentals as possible first,
-    then remove unnecessary accidentals later.
-    */
-
-    for (var voice = 0; voice < 4; voice++) {
-
-        setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
-
-        while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
-            // console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
-
-            if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
-                cursor.next();
-                continue;
-            }
-
-            /** @type {PluginAPIChord} */
-            var chord = cursor.element;
-
-            var notes = chord.notes;
-            var graceChords = chord.graceNotes;
-
-            for (var i = 0; i < graceChords.length; i++) {
-                var graceNotes = graceChords[i].notes;
-                for (var j = 0; j < graceNotes.length; j++) {
-                    var gnote = graceNotes[j];
-                    // We need to ensure that we're not mistakenly setting
-                    // an accidental of a note that ties back to the current note.
-                    if (!gnote.is(note) && !gnote.firstTiedNote.is(note) &&
-                        (gnote.line == note.line || gnote.line == newLine)) {
-                        makeAccidentalsExplicit(gnote, tuningConfig, keySig,
-                            tickOfThisBar, tickOfNextBar, newElement, cursor);
-                    }
-                }
-            }
-
-            for (var i = 0; i < notes.length; i++) {
-                var n = notes[i];
-                if (!n.is(note) && !n.firstTiedNote.is(note) &&
-                    (n.line == note.line || n.line == newLine)) {
-                    makeAccidentalsExplicit(n, tuningConfig, keySig,
-                        tickOfThisBar, tickOfNextBar, newElement, cursor);
-                }
-            }
-
-            cursor.next();
-        }
-    }
-
-    restoreCursorPosition(ogCursorPos);
+    forceExplicitAccidentalsAfterNote(
+        note, newLine, noteTick, tickOfThisBar, tickOfNextBar,
+        tuningConfig, keySig, cursor, newElement
+    );
 
     //
     // STEP 3
