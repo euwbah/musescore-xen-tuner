@@ -35,8 +35,8 @@ Extract files to plugins folder and **activate all the following plugins** (see 
 - _xen tuner_ - This is the main plugin that runs in the background.
 - _clear tuning cache_ - For [refreshing tuning configurations](#4-clear-the-tuning-cache)
 - _export midi csv_ - For [midi/mpe export](#how-to-export-midimpe)
-- _display cents_
-- _display steps_
+- _display cents_ - To auto-generate [cent offset text](#8-display-steps--display-cents)
+- _display steps_ To display [edosteps of notes](#8-display-steps--display-cents)
 
 ### 2. Remap/Remove MuseScore default shortcuts
 
@@ -138,6 +138,8 @@ You can automatically generate text to display the cent offsets and edo/neji-ste
 To get **Display Steps** to work, the tuning configuration being used **must have it enabled** with the [`displaysteps()` declaration](#configuring-display-steps). The pre-made EDOs & NEJIs tuning config files already have this configured.
 
 You can also configure how cent offsets are calculated and displayed using the [`displaycents()` config declaration](#configuring-display-cents).
+
+> 🟡 You don't need to delete old generated text before running the display cents/steps plugins again to update the cents/steps information. Simply run the plugin again, and it will update the old text values.
 
 -----
 
