@@ -468,20 +468,21 @@ sec() // signifies start of secondary accidental declaration.
 'abc' 0.01c // this is also a single-symbol text-based accidental
 'a'.'b'.'c' 0 // this isn't single-symbol.
 
-// 4d. nobold()
+// 4d. nobold
 nobold() // declaring this will make text-based accidentals not bold by default
 
-// 4e. explicit()
+// 4e. explicit
 explicit() // declaring this will make every note use explicit accidentals
+
+// 4f. configure display cents/steps
+displaycents(absolute, 2, above)
+displaysteps(1337, below)
 
 ```
 
-The declarations are to be done in the above specified order. Apart from the reference note and nominals, all the other declarations are optional:
+Reference tuning frequency, nominals and accidental chains must be specified in fixed order. After those are the secondary declarations (`aux`, `lig`, `sec`, etc..) and they can be specified in any order. 
 
-1. Reference note
-2. Nominals
-3. Accidental chains
-4. Ligatures, Auxiliary operations, secondary accidentals
+Apart from the reference note and nominals, all the other declarations are optional.
 
 ### Full example
 
