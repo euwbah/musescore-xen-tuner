@@ -68,7 +68,7 @@ You can specify which [tuning/notation system](#how-to-tuning-configuration) and
 
 > 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
 >
-> You can find tunings in the `tunings/` folder to find notations that are already supported. These are also great working examples which can be used to learn how to [write your own tuning configurations](#how-to-tuning-configuration)
+> You can find tunings in the [tunings/](./tunings/) folder to find notations that are already supported.
 
 A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on. A configuration is only applied to notes from its bar onwards. Only place configuration texts/key signatures at the start of a bar.
 
@@ -76,26 +76,28 @@ These Staff/System Texts don't have to be visible (you can press `V` to toggle v
 
 ### 5. Entering notes & accidentals
 
-Enter notes as per normal. Press `Alt+R` after entering new notes to retune them to the correct tuning.
+Enter notes as per normal. Press `Alt+R` after entering new notes to update the tuning.
 
-There are four different ways to input accidentals. The most primitive method being dragging symbols in from the Master Palette, then hitting `Alt+R`.
+There are many ways to input accidentals &mdash; the most primitive method being dragging symbols in from the Master Palette, then hitting `Alt+R`.
 
-However, the recommended way to enter accidentals would be to use up/down operations. These are available as keyboard shortcuts ([which you can change](#how-to-change-shortcuts)):
+> 🔴 **IMPORTANT:** the plugin **does not recognize standard accidentals** from the 'Accidentals' palette. You must use SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut: `Z`).
+
+However, the recommended way to enter accidentals would be to use **up/down/enharmonic cycle operations**. These are available as keyboard shortcuts ([which can be modified](#how-to-change-shortcuts)):
 
 - `Up/Down`: Move note up/down to the next nearest step
 - `J`: Cycle through enharmonics of the note
-- `Alt+Up/Down`: up/down auxiliary operation 1 (usually for moving up/down diatonically)
-- `Ctrl+Alt+Up/Down`: up/down auxiliary operation 2 (usually for sharps/flats, or first accidental chain)
-- `Alt+Shift+Up/Down`: up/down auxiliary operation 3 (usually 5-limit accidentals, or second accidental chain)
-- `Ctrl+Alt+Shift+Up/Down`: up/down auxiliary operation 4 (usually 7-limit accidentals, or third accidental chain)
+- `Alt+Up/Down`: up/down **auxiliary operation 1** (usually for moving up/down diatonically)
+- `Ctrl+Alt+Up/Down`: up/down **auxiliary operation 2** (usually for sharps/flats - first accidental chain)
+- `Alt+Shift+Up/Down`: up/down **auxiliary operation 3** (usually 5-limit accidentals - or second accidental chain)
+- `Ctrl+Alt+Shift+Up/Down`: up/down **auxiliary operation 4** (usually 7-limit accidentals - or third accidental chain)
 
-What the auxiliary operations do can be changed by [modifying auxiliary operations defined in the tuning configuration](#auxiliary-operations)
+**Auxiliary operations** are very useful when dealing with JIs where there are many distinct notes in the [main tuning space](#main-tuning-space), so using only the up/down arrow keys will take too much time. You can change what the auxiliary operations do by [modifying auxiliary operations declarations in the tuning configuration](#auxiliary-operations).
 
 #### Entering accidentals directly using fingerings
 
 The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. This feature can be used when [text representations of accidentals](#advanced-declaring-text-representations-of-accidentals) are declared in the tuning config. The plugin matches strings of text and converts them into accidental symbols (which can either be SMuFL or text-based). Refer to the tuning config .txt files to lookup which characters represent which accidental symbols.
 
-When using this feature, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
+🟢 When using this feature, it is recommended to **map the default `Ctrl+F` shortcut to "Add fingering"** instead of "Find / Go to".
 
 Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
 
@@ -129,17 +131,27 @@ You can use math/javascript expressions to calculate the frequency:
 
 Read [how the plugin conceptualizes tunings & accidentals](#introduction) (and the rest of the guide) to start making your own tuning configurations.
 
+See the [`tunings/`](./tunings/) folder for example tuning configurations.
+
+#### [Tuning config web tool](#tuning-config-web-tool)
+
+You can use the [tuning configuration compiler/debugger](https://euwbah.github.io/musescore-xen-tuner) web tool to [check for syntax errors](#i-made-my-own-tuning-config-but-it-doesnt-seem-to-be-doing-anything-treated-as-12edo). You can also use it 'compile' your tuning config into a `.json` file so that [large tuning files can be pre-computed](#1-pre-compute-the-tuning-config) for faster loading.
+
 If you're facing a bug or need help, [file an issue](#reporting-an-issue).
 
 ### 8. Display Steps & Display Cents
 
-You can automatically generate text to display the cent offsets and edo/neji-steps of notes in the score. Use the **Display Steps** and **Display Cents** plugins to do this.
+![](imgs/display-steps-cents.png)
 
-To get **Display Steps** to work, the tuning configuration being used **must have it enabled** with the [`displaysteps()` declaration](#configuring-display-steps). The pre-made EDOs & NEJIs tuning config files already have this configured.
+You can automatically generate text to display the cent offsets and edo/neji-steps of notes in the score/selection. Use the **Display Steps** and **Display Cents** plugins to do this.
 
-You can also configure how cent offsets are calculated and displayed using the [`displaycents()` config declaration](#configuring-display-cents).
+**Display Steps** will attach fingerings to notes to display how many steps the note is away from the [reference tuning note](#6-change-reference-pitch).
 
-> 🟡 You don't need to delete old generated text before running the display cents/steps plugins again to update the cents/steps information. Simply run the plugin again, and it will update the old text values.
+🟠 To get **Display Steps** to work, the tuning configuration being used **must have it enabled** with the [`displaysteps()` declaration](#configuring-display-steps). The tuning config files of EDOs & NEJIs that come with the plugin already have it declared.
+
+**Display Cents** will attach fingerings to notes to display the cent offset of the note relative to its nominal tuning (`nominal` mode). However, you can also configure the **Display Cents** to use `absolute` or `semitone` mode, and adjust how many decimal places are displayed in the [`displaycents()` declaration](#configuring-display-cents).
+
+> 🟡 You don't need to delete previously generated text before running **Display Cents/Steps** again to update the cents/steps information. Simply run **Display Cents/Steps** again, and it will override the old text values.
 
 -----
 
@@ -161,6 +173,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
   - [6. Change reference pitch](#6-change-reference-pitch)
   - [7. Implement your own tunings/notation systems!](#7-implement-your-own-tuningsnotation-systems)
+    - [Tuning config web tool](#tuning-config-web-tool)
   - [8. Display Steps \& Display Cents](#8-display-steps--display-cents)
   - [List of Supported Symbols](#list-of-supported-symbols)
 - [Introduction](#introduction)
@@ -349,11 +362,15 @@ A tuning/notation system consists of the following parts:
 1. [Reference note](#simple-example) e.g. `A4: 440`
 2. [Nominals](#simple-example) & equave size
 3. [Accidental chains](#adding-accidentals) (optional)
-4. Other optional declarations
+4. Optional declarations:
    - [Ligatures](#accidental-ligatures-real-heji) allow you to declare how different symbols combine into other symbols. [Advanced ligatures](#advanced-advanced-ligature-use-weak--important-ligatures) can control which enharmonic spellings/accidentals are present in a tuning.
    - [Auxiliary operations](#auxiliary-operations) define what the other keyboard shortcuts (e.g. `Alt+Up/Down`) do. You can control which accidental chains will be affected, and whether or not the nominal is allowed to change when using those auxiliary up/down operations.
    - [Secondary accidentals](#advanced-secondary-accidentals) define additional symbols that are not part of the main set of notes accessible by up/down operations, but will still act like accidentals. You can access these by declaring [text representations](#advanced-declaring-text-representations-of-accidentals) of the accidentals and [entering the accidentals as fingerings](#entering-accidentals-directly-using-fingerings).
-   - Other preference settings like [nobold()](#nobold) and [explicit()](#explicit).
+5. Preference settings:
+   - [nobold()](#nobold) - text accidentals will not be bolded by default
+   - [explicit()](#explicit) - display accidentals on every note, even if not necessary
+   - [displaysteps()](#configuring-display-steps) - enables & configures the [steps display](#8-display-steps--display-cents) plugin
+   - [displaycents()](#configuring-display-cents) - configures the [cents display](#8-display-steps--display-cents) plugin.
 
 ### Tuning configuration syntax overview
 
@@ -554,7 +571,7 @@ If we want to notate in HEJI proper, those arrows aren't the right symbol for th
 
 In HEJI, the first two [accidental chains](#accidental-chains--degrees) (syntonic commas & sharps/flats) are represented by a single ligatured accidental with the up/down arrows being attached to the sharp/flat symbol.
 
-To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature set**. You can think of it as a list of "search-and-replace" conditions that **ligatures** (joins/connects/substitutes) different symbols into a different unique symbol. A ligatured accidental functions exactly like the original accidentals it substitutes, and only differs in visual appearance.
+To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature set**. You can think of it as a list of "search-and-replace" conditions that **ligatures** (joins/connects/substitutes) different symbols into a different unique symbol. A ligatured accidental is part of the [main tuning space](#main-tuning-space), and functions just as the original accidentals it represents, differing only in visual appearance.
 
 Think of them like [font ligatures](https://en.wikipedia.org/wiki/Ligature_(writing)) where multiple characters conjoin into a unique shape.
 
@@ -609,40 +626,51 @@ You can also declare more than one ligature set, regarding different chains. Tho
 
 ### Auxiliary operations
 
-You may realize that it is rather inefficient to just use the up/down arrows to get the note/accidental you need. We already have 245 unique notes within an equave!
-
-We can make use of auxiliary up/down actions to have more control over how the note moves when being transposed.
+Auxiliary up/down operations give more control when transposing a note. You can define whether the [nominal](#nominals--equave) can move, and exactly which [accidental chains](#accidental-chains--degrees) can change degree.
 
 ```txt
 C4: 440 * 16/27
 0 9/8 81/64 4/3 3/2 27/16 243/128 2
+
+// chain 1: sharps-flats
 bbb bb b (2187/2048) # x #x
+
+// chain 2: up/down arrow
 \ (81/80) /
-lig(1,2)
-...blah blah
+
+// Auxiliary operation declarations:
 aux(0)
 aux(1)
 aux(2)
 aux(0,1)
 ```
 
-Each auxiliary operation is declared on a new line. The first declaration correspond to the 'aux 1 up/down' commands, second declaration for aux 2, and so on.
+Each auxiliary operation is declared on a new line. The first declaration corresponds to the first aux operation, the second declaration to the second aux operation etc...
 
-`aux(0)` means that only the [nominal](#nominals--equave) is allowed to change when transposing notes. Any accidentals attached must remain the same. This corresponds to MuseScore's 'Diatonic pitch up/down (keep degree alterations)' function. This behaviour will be assigned to the action of the 'aux 1 up/down' commands (default shortcut: `Alt+Up/Down`)
+The numbers in the parenthesis denote what can change during the operation:
 
-`aux(1)` means that only the first accidental chain's degree is allowed to change when transposing notes. The note's nominal and other accidental chains must remain the same. In other words, you can use this to adjust the number of flats and sharps on the note. This behaviour will be assigned to the action of the 'aux 2 up/down' commands (default: `Ctrl+Alt+Up/Down`)
+- `0` allows the [nominal](#nominals--equave) of the note to change
+- `1` allows the first [accidental chain](#accidental-chains--degrees) to change
+- `2` allows the second accidental chain to change
+- etc...
 
-Similarly, `aux(2)` means only the second chain's degree can change. This adjusts the number of syntonic up/down accidentals on the note. This behaviour will be assigned to the 'aux 3 up/down' commands (default: `Shift+Alt+Up/Down`)
+**The above example specifies that:**
 
-Finally, `aux(0,1)` means both the nominal and the first accidental chain's degree can change. This behaviour will be assigned to the 'aux 4 up/down' commands (default: `Ctrl+Shift+Alt+Up/Down`)
+1. The first auxiliary operation (`Alt+Up/Down`) changes only the note's nominal, similar to MuseScore's diatonic pitch up/down function.
+
+2. The second auxiliary operation (`Ctrl+Alt+Up/Down`) changes the first accidental chain's degree, allowing you to adjust the number of flats and sharps on the note directly.
+
+3. The third auxiliary operation (`Shift+Alt+Up/Down`) changes the second accidental chain's degree, allowing you to adjust the number of up/down arrows on the note directly.
+
+4. The fourth auxiliary operation (`Ctrl+Shift+Alt+Up/Down`) changes both the nominal and the sharps-flats chain, which allows you to navigate the 'chromatic scale'.
 
 You can specify whichever combinations of numbers from 0 to N (number of accidental chains) that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
 
-If you require more than 4 auxiliary operations, you can [set up more keyboard shortcuts](#more-auxiliary-operations) to invoke more auxiliary operations.
+If you require more than 4 auxiliary operations, you can [set up more keyboard shortcuts](#more-auxiliary-operations). You can also [change the default keyboard shortcuts](#how-to-change-shortcuts) for these operations.
 
 ### Configuring display steps
 
-🟠 **In order for the [Display Steps](#8-display-steps--display-cents) plugin to work, the tuning configuration needs to configure the steps display using the `displaysteps()` declaration**.
+🟠 **In order to use the [Display Steps](#8-display-steps--display-cents) plugin, the tuning configuration needs to configure the steps display using the `displaysteps()` declaration**.
 
 ```txt
 // Syntax: displaysteps(<steps per equave>, <placement>)
