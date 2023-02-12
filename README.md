@@ -52,7 +52,7 @@ Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-
 
 ### 3. Start Xen Tuner
 
-![start tuner](imgs/start%20xen%20tuner.png)
+![start tuner](imgs/start-xen-tuner.png)  
 
 Once you have activated the plugins & replaced the shortcuts, you can start the plugin in **Plugins > Xen Tuner > Start Xen Tuner**.
 
