@@ -141,7 +141,7 @@ If you're facing a bug or need help, [file an issue](#reporting-an-issue).
 
 ### 8. Display Steps & Display Cents
 
-![](imgs/display-steps-cents.png)
+![Display steps/cents](imgs/display-steps-cents.png)
 
 You can automatically generate text to display the cent offsets and edo/neji-steps of notes in the score/selection. Use the **Display Steps** and **Display Cents** plugins to do this.
 
@@ -271,14 +271,14 @@ A **symbol code** represents a single visually/semantically unique symbol which 
 
 This plugin only uses SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). Do not use accidentals from the 'Accidentals' palette.
 
-![](imgs/symbols%20palette.png)
+![symbols palette](imgs/symbols%20palette.png)
 
 To refer to a SMuFL symbol when setting up a tuning/key signature, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation of the symbol (_Text Code_ column of the spreadsheet).
 
-![](imgs/spreadsheet%20lookup.png)
+![Spreadsheet lookup](imgs/spreadsheet%20lookup.png)
 
 > 🟡 **E.g.** both `#` and `5` can be used to refer to the sharp symbol.
-> 
+>
 > Code `100` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `100`.
 
 You can also use text-based accidentals by referring to them in single quotes, as long as the text does not contain a space.
@@ -293,7 +293,7 @@ When referring to Text Codes or Text-based accidentals in the tuning configurati
 - Write `\` as `\\` unless you intend to start an escape sequence.
 - Write `//` as `\/\/` unless you intend to write a comment.
 
-This applies to **both text codes and quoted text accidentals**. 
+This applies to **both text codes and quoted text accidentals**.
 
 For example, the down arrow symbol (SymbolCode 43) must be referred to as `\\` even though the text code for it is `\`.
 
@@ -317,12 +317,12 @@ To combine and permute different accidentals, declare multiple accidental chains
 
 You can combine different accidental degrees from different accidental chains. The degrees of each accidental chain forms a list of numbers called the **accidental vector**. This is a unique representation of all the accidentals attached to one notehead.
 
-> 🟡 **E.g.** in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**. 
-> 
+> 🟡 **E.g.** in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**.
+>
 > First, the chain of sharps and flats, where each step in the 'sharp' direction corresponds to the apotome interval (2187/2048). These accidentals allow us to access 3-limit just intonation.
-> 
+>
 > Next, the chain of syntonic commas, where each step up is equal to the syntonic comma (81/80). These accidentals give access to 5-limit just intonation.
-> 
+>
 > Now, we can notate the classic major third (5/4) of `D` as `F#v` (F-sharp-down). `F#v` is 1 step up in the 'sharp' direction, and 1 step down in the 'syntonic comma' direction. Thus, we can represent this note as having the accidental vector of `1, -1`.
 
 ### Main tuning space
@@ -345,13 +345,11 @@ You do not need to write the entire tuning configuration within a staff text. E.
 
 > 🟡 **E.g.** to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
 
-
 > 🟢 **Recommended:** have a look at the provided tuning configs in the `tunings/` folder to see how notation/tuning systems are configured.
-
 
 > 🔴 **Beware:** if you find two files with the same name where one is a `.txt` and the other a `.json` file, this means that the tuning configuration is [pre-computed. Read more about it in this section](#1-pre-compute-the-tuning-config).
 >
-> The plugin will opt to look for pre-computed `.json` tuning configurations first, so **changing the `.txt` file will not affect the tuning config**. Instead, you will need to use this web tool: https://euwbah.github.io/musescore-xen-tuner/ to generate a new `.json` file to replace the old one.
+> The plugin will opt to look for pre-computed `.json` tuning configurations first, so **changing the `.txt` file will not affect the tuning config**. Instead, you will need to use this [web tool](#tuning-config-web-tool): https://euwbah.github.io/musescore-xen-tuner/ to generate a new `.json` file to replace the old one.
 
 Now lets dive into how we can create our own tuning/notation systems.
 
@@ -376,7 +374,7 @@ A tuning/notation system consists of the following parts:
 
 You can try to make sense of this yourself to fast-forward the learning process, otherwise, the rest of the guide will explain this is greater detail.
 
-```
+```txt
 // This is a comment. Comments are ignored by the plugin.
 
 // 1. Reference note
@@ -619,7 +617,7 @@ The ligatured accidentals can be constructed with multiple symbols. As per usual
 
 > 🟢 A ligature definition can be made **weak** (`?`), **important** (`!`), or **weak and important** (`!?`).
 > If no modifiers are specified, it is by default a **strong** ligature (opposite of weak).
-> 
+>
 > [Read more about advanced ligature usage here](#advanced-advanced-ligature-use-weak--important-ligatures).
 
 You can also declare more than one ligature set, regarding different chains. Though special care must be taken when [deciding the order of declaration of the ligatures](#understanding-how-the-plugin-parses--reads-accidentals).
@@ -693,7 +691,7 @@ displaysteps(31, below) // E.g. 31 step tuning, place text below note
 
 You can configure how cents offsets are being displayed, and how cent offsets are calculated.
 
-```
+```txt
 // Syntax: displaycents(<calculation mode>, <precision>, <placement>)
 displaycents(nominal, 0, above)
 ```
@@ -946,7 +944,6 @@ d7 64/63
 
 Any repetitions of these symbols found on a note will stack.
 
-
 The up/down arrows are declared in a specific order such that if there are double up/down arrows adjacent to each other, they will contribute +/- 30c instead of +/-(10 + 10)c.
 
 #### Secondary accidental declaration order matters
@@ -1030,7 +1027,6 @@ keysig 0 0 # 0 0 # 0
 ...specifies that the nominals C and F should have the `#` symbol applied to them by default. `0` is used to mean natural/no symbol.
 
 As per normal, if you require multiple symbols on a nominal, you can join them with periods, e.g.:
-
 
 ```txt
 keysig #.+ 0 bbb.bbb.bb 0 17.bv2 0 x.#x.#x
@@ -1254,7 +1250,7 @@ This is most likely a tuning config issue &mdash; and usually has something to d
 
 > 🟡 For example, in `heji/5 limit.txt`, if you shift the second ligature set declaration before the first, you will encounter this issue.
 
-To make your tuning config debugging process easier, follow the instructions in "[Reporting an issue](#reporting-an-issue)" to find debug/error messages when running the plugin from the Plugin Creator. 
+To make your tuning config debugging process easier, follow the instructions in "[Reporting an issue](#reporting-an-issue)" to find debug/error messages when running the plugin from the Plugin Creator.
 
 If the issue is tuning config related, **the debug messages will contain the exact details of how the plugin tried to parse a note and failed**, and you can use that info to fix the tuning config yourself, or ask for help.
 
@@ -1371,7 +1367,6 @@ The other type of accidental symbols are the ones in the "Symbols" category, ide
 <br>
 
 The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalType`s) are represented in the document, and that all `SymId`s/`AccidentalType`s that point to a similar-looking accidental are grouped together on the same row.
-
 
 ## Caveats
 
