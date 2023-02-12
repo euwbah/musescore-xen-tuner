@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+- Huge performance improvements for tuning & up/down/enharmonic cycle for large scores
+  - Use `Cursor.rewindToTick()` introduced in MS3.5 instead of old method which was very slow.
+  - Improve `getBarBoundaries()` from O(n) to O(log n).
+  - Reduce unnecessary repeated calls to `getBarBoundaries()`, and `removeUnnecessaryAccidentals`
+
 ## 0.3.1
 
 - Added Display Cents and Display Steps plugins to create fingerings to display cent offsets and edo/neji steps of notes in the score.

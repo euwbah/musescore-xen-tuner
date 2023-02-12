@@ -1555,6 +1555,12 @@ class Cursor {
      * @param {number} rewindMode 
      */
     rewind(rewindMode) { }
+    /**
+     * Moves cursor to specified tick.
+     * 
+     * @param {number} tick Tick to move to
+     */
+    rewindToTick(tick) { }
 }
 
 class PluginAPIScore {
