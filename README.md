@@ -355,7 +355,7 @@ Now lets dive into how we can create our own tuning/notation systems.
 
 ### Tuning configuration overview
 
-A tuning/notation system consists of the following parts:
+A tuning/notation system configuration is specified in plaintext, and consists of the following parts:
 
 1. [Reference note](#simple-example) e.g. `A4: 440`
 2. [Nominals](#simple-example) & equave size
