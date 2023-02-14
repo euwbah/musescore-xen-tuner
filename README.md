@@ -116,7 +116,10 @@ You can use math/javascript expressions to calculate the frequency:
 - `C4: 16/27 * 440` will set the written note C4 to sound at a 3-limit major 6th below A4=440
 - `C4: 440 * Math.pow(2, -17/22)` will set the written note C4 to sound at 17 steps of 22edo below A4=440.
 
-🟠 **Advanced feature:** when you change the MIDI reference pitch, the plugin will preserve the mode of the [nominals](#nominals--equave), but you can override the starting note of the nominals by prefixing a `!`, e.g. `!C4: 263`.
+<details>
+<summary>
+🟠 <b>Advanced feature:</b> when you change the MIDI reference pitch, the plugin will preserve the mode of the [nominals](#nominals--equave), but you can override the starting note of the nominals by prefixing a `!`, e.g. `!C4: 263`.<br>
+</summary>
 
 > 🟡 **E.g.** Let's say [the tuning config declares](#simple-example) `A4: 440` and nominals according the "white keys" (A aeolian mode ABCDEFG).
 > If we change the reference pitch to `C4: 256`, it will still preserve the nominal's mode such that ABCDEFG will be LsLLsLL (W-H-W-W-H-W-W), preserving the 'white keys'
@@ -126,6 +129,8 @@ You can use math/javascript expressions to calculate the frequency:
 > This is rarely ever useful though, and only provided as an advanced feature for esoteric notation systems/notating changing alternate clefs.
 >
 > 🔴 **If you intended to use a custom key signature, declare a [key signature](#how-to-key-signatures) instead.**
+
+</details>
 
 ### 7. Implement your own tunings/notation systems!
 
