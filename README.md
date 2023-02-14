@@ -2,6 +2,8 @@
 
 A **MuseScore 3.6** plugin to give first-class support for microtonal/alternative notation systems.
 
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/euwbah?style=for-the-badge)](https://github.com/sponsors/euwbah)
+
 ## Features/Goals
 
 - [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#help-needed)! Currently at 77%)
@@ -255,6 +257,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 - [Contributors](#contributors)
 - [Changelog](#changelog)
 - [Dev Notes](#dev-notes)
+- [Support me](#support-me)
 
 
 
@@ -1416,3 +1419,9 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
 ## [Dev Notes](/DEVELOPMENT.md)
 
 See dev notes for technical implementation details & how to contribute.
+
+## Support me
+
+[![YouTube](https://img.shields.io/youtube/channel/subscribers/UC5KoRLrbkARhAUQC1tBngaA?label=YouTube%3A%20euwbah&style=social)](https://www.youtube.com/channel/UC5KoRLrbkARhAUQC1tBngaA)
+
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/euwbah?style=for-the-badge)](https://github.com/sponsors/euwbah)
