@@ -569,13 +569,15 @@ class TuningConfig {
     tuningNominal;
     /**
      * If the user specifies a mode-preserving reference tuning change,
-     * the refreence note the user specified is stored in this variable as an offset
+     * the reference note the user specified is stored in this variable as an offset
      * of the number of nominals away from the original reference note specified in
      * the tuning config/most recent mode-changing reference tuning change.
      * 
      * Defaults to 0.
      * 
-     * This value ONLY affects JI ratio calculations of fingering-based JI annotations.
+     * This value ONLY affects JI ratio calculations of fingering-based JI annotations,
+     * and the Display Cents/Steps calculation.
+     * 
      * 1/1 will be the relative tuning nominal.
      * 
      * Changing this does not affect the {@link XenNote.nominal} property's relation to
@@ -585,7 +587,7 @@ class TuningConfig {
      */
     relativeTuningNominal;
     /**
-     * Effective hz of the reference note ({@link tuningNote} & {@link tuningNominal}).
+     * Effective hz of the absolute reference note ({@link tuningNote} & {@link tuningNominal}).
      * 
      * This value is initially set to {@link originalTuningFreq}, but after a reference
      * pitch change (that doesn't change the mode), this value will be updated to match

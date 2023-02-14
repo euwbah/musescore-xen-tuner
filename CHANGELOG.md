@@ -6,6 +6,7 @@
   - Use `Cursor.rewindToTick()` introduced in MS3.5 instead of old method which was very slow.
   - Improve `getBarBoundaries()` from O(n) to O(log n).
   - Reduce unnecessary repeated calls to `getBarBoundaries()`, and `removeUnnecessaryAccidentals`
+- Added reference tuning change to change reference nominal without changing the tuning (e.g. `D4:`).
 
 ## 0.3.1
 

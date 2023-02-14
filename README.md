@@ -116,15 +116,17 @@ You can use math/javascript expressions to calculate the frequency:
 - `C4: 16/27 * 440` will set the written note C4 to sound at a 3-limit major 6th below A4=440
 - `C4: 440 * Math.pow(2, -17/22)` will set the written note C4 to sound at 17 steps of 22edo below A4=440.
 
+🟢 You can also not specify a frequency (e.g. `C4:`). This will only change the tuning note without changing the tuning, which is useful if you're making use of [just intonation ratios on notes](#2-fingerings-to-denote-ji-intervals) or want the [Display Cents/Steps](#8-display-steps--display-cents) plugins to use a different reference note as the root note (`1/1`, step 0).
+
 <details>
 <summary>
-🟠 <b>Advanced feature:</b> when you change the MIDI reference pitch, the plugin will preserve the mode of the [nominals](#nominals--equave), but you can override the starting note of the nominals by prefixing a `!`, e.g. `!C4: 263`.<br>
+🟠 <b>Advanced feature:</b> when you change the MIDI reference pitch, the plugin will preserve the mode of the <a href="#nominals--equave">nominals</a>, but you can override the starting note of the nominals by prefixing a `!`, e.g. `!C4: 263`.<br>
 </summary>
 
 > 🟡 **E.g.** Let's say [the tuning config declares](#simple-example) `A4: 440` and nominals according the "white keys" (A aeolian mode ABCDEFG).
 > If we change the reference pitch to `C4: 256`, it will still preserve the nominal's mode such that ABCDEFG will be LsLLsLL (W-H-W-W-H-W-W), preserving the 'white keys'
 >
-> However if we use `!C4: 256`, it will override the starting note of the nominals to C, and the nominals will be CDEFGABC (W-H-W-W-H-W-W), which means the written 'white keys' now sound like C minor.
+> However, if we use `!C4: 256`, it will override the starting note of the nominals to C, and the nominals will be CDEFGABC (W-H-W-W-H-W-W), which means the written 'white keys' now sound like C minor.
 >
 > This is rarely ever useful though, and only provided as an advanced feature for esoteric notation systems/notating changing alternate clefs.
 >
@@ -1064,13 +1066,13 @@ You can tune any note to a just intonation interval relative to the reference no
 
 The note's tuning will be automatically octave-reduced/expanded to match the octave that it is written in (in accordance to the Tuning Config), so you can use JI fingering annotations to supplement your existing tuning.
 
-E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of the reference pitch. You can also use JavaScript expressions like `Math.sqrt(19).` to cut that exactly into half. The 19th harmonic will automatically be octave-reduced be as close as possible to the original tuning of the written note.
+🟡 E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of the [current reference note](#6-change-reference-pitch). You can also use JavaScript expressions like `Math.sqrt(19).`.
 
 > 🟠 If you regularly use this feature and do not require normal fingerings on your scores, you can set `var REQUIRE_PERIOD_AFTER_FINGERING_RATIO = false;` at around line 100 of `fns.js`. This will make all fingering text function as a JI ratio/harmonic by default, without the need for a period at the end &mdash; making your scores slightly neater.
 >
 > Of course, this will also make normal fingering numbers act as otonal harmonics, so you should be careful.
 
-> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#advanced-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
+> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#advanced-secondary-accidentals) if you want a way to sporadically apply certain higher-limit accidentals that behave like accidentals.
 
 ### 3. Fingerings to denote cent offsets
 
