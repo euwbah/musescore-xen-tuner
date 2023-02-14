@@ -3320,7 +3320,7 @@ function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
                     }
                     var nomsOffset = mod(tuningConfig.relativeTuningNominal, tuningConfig.numNominals);
                     var eqvOffset = Math.floor(tuningConfig.relativeTuningNominal / tuningConfig.numNominals);
-                    fingeringJIOffset *= Math.pow(2, (tuningConfig.nominals[nomsOffset] + eqvOffset * tuningConfig.equaveSize) / 1200);
+                    fingeringJIOffset += tuningConfig.nominals[nomsOffset] + eqvOffset * tuningConfig.equaveSize;
                 }
                 fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
             }
