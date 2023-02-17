@@ -33,6 +33,16 @@ MuseScore {
         "it is highly recommended to clear the Tuning Config cache."
       menuPath: "Plugins.Xen Tuner.Clear Tuning Cache"
 
+      id: pluginId
+
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
+
       FileIO {
         id: fileIO
         source: "./"
@@ -49,10 +59,8 @@ MuseScore {
         console.log(Qt.resolvedUrl("."));
 
         if (typeof curScore === 'undefined')
-              Qt.quit();
+              return;
 
         Fns.clearTuningConfigCaches();
-
-        Qt.quit();
       }
 }

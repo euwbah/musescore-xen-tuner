@@ -43,6 +43,14 @@ MuseScore {
       id: pluginId
       readonly property var window: Window.window
 
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
+
       FileIO {
         id: fileIO
         source: "./"
@@ -71,7 +79,11 @@ MuseScore {
             font.pointSize: 8
             onClicked: {
                 infoText.text = "Quitting...";
-                Qt.quit();
+                if (mscoreMajorVersion >= 4) {
+                  pluginId.parent.Window.window.close();
+                } else {
+                  Qt.quit();
+                }
             }
         }
       }

@@ -35,6 +35,16 @@ MuseScore {
       description: "Create fingerings to display cent offsets of notes.\n\n" +
         "Applies to selection, or entire score if nothing is selected."
       menuPath: "Plugins.Xen Tuner.Display Cents"
+      
+      id: pluginId
+
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
 
       FileIO {
         id: fileIO

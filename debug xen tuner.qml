@@ -37,6 +37,16 @@ MuseScore {
         "the plugin in the plugin creator. Use this instead to test functions without having to " +
         "restart MuseScore."
       menuPath: "Plugins.Xen Tuner.Debug Xen Tuner"
+      
+      id: pluginId
+
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
 
       FileIO {
         id: fileIO

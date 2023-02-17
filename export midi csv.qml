@@ -32,6 +32,16 @@ MuseScore {
       description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
           + "script to generate one MPE midi file per staff."
       menuPath: "Plugins.Xen Tuner.Export MIDI CSV"
+      
+      id: pluginId
+
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
 
       FileIO {
         id: fileIO
@@ -46,7 +56,7 @@ MuseScore {
         title: ""
         text: ""
         onAccepted: {
-          Qt.quit()
+          return;
         }
       }
 
@@ -59,7 +69,7 @@ MuseScore {
 
 
         if (typeof curScore === 'undefined')
-              Qt.quit();
+              return;
 
         // Stores midi text to be written to file.
         var midiText = division + '\n';
@@ -301,7 +311,5 @@ MuseScore {
         }
 
         messageDialog.open();
-
-        Qt.quit();
       }
 }
