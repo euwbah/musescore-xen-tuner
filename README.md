@@ -1,12 +1,12 @@
 # Xen Tuner: Microtonal MuseScore Plugin Suite
 
-A **MuseScore 3.6** plugin to give first-class support for microtonal/alternative notation systems.
+A **MuseScore 3.6** plugin to give first-class support for microtonal/alternative notation systems. [MuseScore 4 support needs testing](#1-testing-on-ms-4).
 
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/euwbah?style=for-the-badge)](https://github.com/sponsors/euwbah)
 
 ## Features/Goals
 
-- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#help-needed)! Currently at 77%)
+- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#2-data-entry-of-accidentals)! Currently at 77%)
 
 - [x] Automated tuning & placement of multiple accidentals.
 
@@ -166,7 +166,7 @@ You can automatically generate text to display the cent offsets and edo/neji-ste
 
 ### [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
-This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
+This is still a work in progress. Free for all to edit, and [in need of community contribution](#2-data-entry-of-accidentals)!
 
 -----
 
@@ -251,6 +251,8 @@ This is still a work in progress. Free for all to edit, and [in need of communit
   - [Keyboard shortcuts stop working](#keyboard-shortcuts-stop-working)
 - [Reporting an issue](#reporting-an-issue)
 - [HELP NEEDED!](#help-needed)
+  - [1. Testing on MS 4](#1-testing-on-ms-4)
+  - [2. Data entry of accidentals](#2-data-entry-of-accidentals)
 - [Caveats](#caveats)
     - [Smaller caveats](#smaller-caveats)
 - [Clarifications](#clarifications)
@@ -1350,34 +1352,18 @@ If none of the above remedies work, you will need to [file an issue here](https:
 
 ## HELP NEEDED!
 
-This project is still a **work in progress.**
+### 1. Testing on MS 4
 
-One of the main features of this project is to allow the user to define their own
-accidentals by combining any number of accidentals and symbols to represent one logical accidental.
+I've followed the current [temporary guidelines for plugins in MS 4.x](https://musescore.org/en/node/337468), but I can't get MS 4 to open on my computer. I would appreciate if someone can help me test & debug the plugin on MS 4.
 
-However, in MuseScore, most accidental symbols have multiple internal IDs of accidentals that represent the same, or a similar-looking symbol.
+🔴 **WARNING**: Even if the plugin currently works on MS 4, the plugin API is said to be unstable and this plugin may break in a future update.
+
+### 2. Data entry of accidentals
 
 I need help with tabulating the [list of all accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing) available in MuseScore, such that Symbol IDs (`SymId`) & Accidental IDs (`AccidentalType`) that point to the same/similar-looking symbol are grouped together.
 
-<br>
-
-There are two categories of accidentals & IDs I will need help to tabulate together.
-
-First, accidentals symbols marked as "Accidentals" in MuseScore's palette. These are the `AccidentalType`s identified internally using the `UPPER_SNAKE_CASE` naming convention.
-
-**These are of low priority**, as the plugin does not intend to use these, at least for the foreseeable future. However, it would be good to get a full tabulation done as this would serve as a useful dataset for the community to do other projects in the future.
-
-Unfortunately, there's no way of extracting their IDs from MuseScore UI, but _msfp_ has kindly provided [this tool for looking up symbols and their IDs](https://musescore.org/en/node/341701#comment-1164436). Download the .zip from the link and open the .html file to access the lookup/symbol search tool.
-
-<br>
-
-The other type of accidental symbols are the ones in the "Symbols" category, identified internally under `SymId` using the `lowerCamelCase` naming convention. These are accidentals used when you need more than one accidental per note (or when MuseScore only supports this accidental 'symbolically').
-
-**High priority: all SymId/SMuFL IDs must be accounted for.**
-
-<br>
-
-The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalType`s) are represented in the document, and that all `SymId`s/`AccidentalType`s that point to a similar-looking accidental are grouped together on the same row.
+1. Use [this tool for looking up symbols and their IDs](https://musescore.org/en/node/341701#comment-1164436), kindly provided by _msfp_ on the MuseScore forums. Download the .zip from the link and open the .html file to access the lookup/symbol search tool.
+2. Gather all `SymID`s and `AccidentalType`s that point to the same/similar-looking accidental symbol and tabulate them in the spreadsheet.
 
 ## Caveats
 
