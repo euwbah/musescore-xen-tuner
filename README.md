@@ -250,6 +250,8 @@ This is still a work in progress. Free for all to edit, and [in need of communit
   - [Enharmonic equivalents aren't showing up / are incorrect](#enharmonic-equivalents-arent-showing-up--are-incorrect)
   - [Keyboard shortcuts stop working](#keyboard-shortcuts-stop-working)
 - [Reporting an issue](#reporting-an-issue)
+  - [Accessing plugin debug logs in MuseScore 3](#accessing-plugin-debug-logs-in-musescore-3)
+  - [Accessing plugin debug logs for MuseScore 4](#accessing-plugin-debug-logs-for-musescore-4)
 - [HELP NEEDED!](#help-needed)
   - [1. Testing on MS 4](#1-testing-on-ms-4)
   - [2. Data entry of accidentals](#2-data-entry-of-accidentals)
@@ -1340,15 +1342,29 @@ If none of the above remedies work, you will need to [file an issue here](https:
 - Operating system
 - Example score
 - Tuning config you were using
-- Debug logs
-  - Stop running Xen Tuner (close plugin window/quit button).
-  - Open the **Plugin Creator** (Plugins > Plugin Creator).
-  - Open the `xen tuner.qml` file
-  - Run `xen tuner.qml` from the Plugin Creator.
-  - Repeat the action you did that caused the issue.
-  - Usually if an error occurs, you should be able to see the error message at the bottom of the log.
-  - Copy and paste as much of the debug log as you can, **including the error message** at the bottom.
-  - If you stopped the plugin/modified source code in the Plugin Creator, you will need to restart MuseScore to get the plugin working again.
+- **Debug logs**
+
+### Accessing plugin debug logs in MuseScore 3
+
+- Stop running Xen Tuner (close plugin window/quit button).
+- Open the **Plugin Creator** (Plugins > Plugin Creator).
+- Open the `xen tuner.qml` file
+- Run `xen tuner.qml` from the Plugin Creator.
+- Repeat the action you did that caused the issue.
+- Usually if an error occurs, you should be able to see the error message at the bottom of the log.
+- Copy and paste as much of the debug log as you can, **including the error message** at the bottom.
+
+### Accessing plugin debug logs for MuseScore 4
+
+Logs created directly by the plugin aren't accessible anywhere in MuseScore 4 yet.
+
+The best option would be to attach the `.log` files located at:
+
+- **Windows**: `C:\Users\<name>\AppData\Local\MuseScore\MuseScore4\logs\`
+- **MacOS**: `~/Library/Application Support/MuseScore/MuseScore4/logs/`
+- **Linux**: `~/.local/share/data/MuseScore/MuseScore4/logs/`
+
+if you're not on Windows, you can try running MuseScore from the command line/terminal to see if there's any output.
 
 ## HELP NEEDED!
 

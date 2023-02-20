@@ -31,12 +31,10 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.2"
-      description: "Debug Tune function.\n\n" +
-        "The docking Xen Tuner plugin is hard to debug as the shortcuts break everytime you re-run " +
-        "the plugin in the plugin creator. Use this instead to test functions without having to " +
-        "restart MuseScore."
-      menuPath: "Plugins.Xen Tuner.Debug Xen Tuner"
+      version: "0.4.0"
+      description: "Create fingerings to display cent offsets of notes.\n\n" +
+        "Applies to selection, or entire score if nothing is selected."
+      menuPath: "Plugins.Xen Tuner.Display Cents"
       
       id: pluginId
 
@@ -61,14 +59,11 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Started Xen Tuner');
-        // When you want to find which import has a syntax error, uncomment this line
-        // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
-        console.log('present working dir: ' + Qt.resolvedUrl("."));
+        console.log('Xen Tuner - Display Cents');
+        var isMS4 = mscoreMajorVersion >= 4;
+        Fns.init(isMS4 ? AccidentalType : Accidental, NoteType, SymId, Element,
+          fileIO, Qt.resolvedUrl("."), curScore, isMS4);
 
-        // Debug code here.
-        Fns.operationTune(); // test tune
-        // Fns.operationTranspose(-1, 0); // test diatonic transpose
+        Fns.operationTune(1);
       }
 }

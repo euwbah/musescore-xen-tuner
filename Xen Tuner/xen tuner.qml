@@ -31,17 +31,28 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.2"
-      pluginType: "dock"
-      dockArea: "left"
+      version: "0.4.0"
+      pluginType: "dialog" // changed from "dock" to "dialog" to support both MS3 and 4
+      // dockArea: "left"
       description: "Starts the XenTuner plugin.\n\n" +
         "This will open a small docked panel to the side.\n\nIMPORTANT: Do not close the window.\n"+
         "Make sure you only have 1 instance of this plugin running at a time."
       menuPath: "Plugins.Xen Tuner.Start Xen Tuner"
       implicitHeight: 80
-      implicitWidth: 200
+      implicitWidth: 300
       id: pluginId
       readonly property var window: Window.window
+      
+      onRun: {
+        console.log('Started Xen Tuner');
+        // When you want to find which import has a syntax error, uncomment this line
+        // console.log(JSON.stringify(Fns));
+
+        var isMS4 = mscoreMajorVersion >= 4;
+        Fns.init(isMS4 ? AccidentalType : Accidental, NoteType, SymId, Element,
+          fileIO, Qt.resolvedUrl("."), curScore, isMS4);
+        console.log('present working dir: ' + Qt.resolvedUrl("."));
+      }
 
       Component.onCompleted : {
         if (mscoreMajorVersion >= 4) {
@@ -79,11 +90,18 @@ MuseScore {
             font.pointSize: 8
             onClicked: {
                 infoText.text = "Quitting...";
-                if (mscoreMajorVersion >= 4) {
-                  pluginId.parent.Window.window.close();
-                } else {
-                  Qt.quit();
+                console.log('Quitting');
+                var shortcuts = [
+                  tuneShortcut, enharmonicShortcut, upShortcut, up1Shortcut,
+                  up2Shortcut, up3Shortcut, up4Shortcut, up5Shortcut, up6Shortcut,
+                  downShortcut, down1Shortcut, down2Shortcut, down3Shortcut,
+                  down4Shortcut, down5Shortcut, down6Shortcut
+                ];
+                for (var i = 0; i < shortcuts.length; i++) {
+                  shortcuts[i].context = Qt.WindowShortcut; // make the shortcut disappear with the window.
+                  console.log('disable shortcut: ' + shortcuts[i].sequence);
                 }
+                pluginId.parent.Window.window.close();
             }
         }
       }
@@ -91,6 +109,7 @@ MuseScore {
       Shortcut {
         sequence: "Alt+R"
         context: Qt.ApplicationShortcut
+        id: tuneShortcut
         onActivated: {
             infoText.text = "Tuning score/selection...";
             Fns.operationTune();
@@ -120,6 +139,7 @@ MuseScore {
       Shortcut {
         sequence: "Alt+Up"
         context: Qt.ApplicationShortcut
+        id: up1Shortcut
         onActivated: {
             infoText.text = "Moving note(s) up aux 1";
             Fns.operationTranspose(1, 1);
@@ -129,6 +149,7 @@ MuseScore {
       Shortcut {
         sequence: "Ctrl+Alt+Up"
         context: Qt.ApplicationShortcut
+        id: up2Shortcut
         onActivated: {
             infoText.text = "Moving note(s) up aux 2";
             Fns.operationTranspose(1, 2);
@@ -138,6 +159,7 @@ MuseScore {
       Shortcut {
         sequence: "Alt+Shift+Up"
         context: Qt.ApplicationShortcut
+        id: up3Shortcut
         onActivated: {
             infoText.text = "Moving note(s) up aux 3";
             Fns.operationTranspose(1, 3);
@@ -147,6 +169,7 @@ MuseScore {
       Shortcut {
         sequence: "Ctrl+Alt+Shift+Up"
         context: Qt.ApplicationShortcut
+        id: up4Shortcut
         onActivated: {
             infoText.text = "Moving note(s) up aux 4";
             Fns.operationTranspose(1, 4);
@@ -157,6 +180,7 @@ MuseScore {
         sequence: "End"
         enabled: false // set to true to enable
         context: Qt.ApplicationShortcut
+        id: up5Shortcut
         onActivated: {
             infoText.text = "Moving note(s) up aux 5";
             Fns.operationTranspose(1, 5);
@@ -167,6 +191,7 @@ MuseScore {
         sequence: "End"
         enabled: false
         context: Qt.ApplicationShortcut
+        id: up6Shortcut
         onActivated: {
             infoText.text = "Moving note(s) up aux 6";
             Fns.operationTranspose(1, 6);
@@ -186,6 +211,7 @@ MuseScore {
       Shortcut {
         sequence: "Alt+Down"
         context: Qt.ApplicationShortcut
+        id: down1Shortcut
         onActivated: {
             infoText.text = "Moving note(s) down aux 1";
             Fns.operationTranspose(-1, 1);
@@ -195,6 +221,7 @@ MuseScore {
       Shortcut {
         sequence: "Ctrl+Alt+Down"
         context: Qt.ApplicationShortcut
+        id: down2Shortcut
         onActivated: {
             infoText.text = "Moving note(s) down aux 2";
             Fns.operationTranspose(-1, 2);
@@ -204,6 +231,7 @@ MuseScore {
       Shortcut {
         sequence: "Alt+Shift+Down"
         context: Qt.ApplicationShortcut
+        id: down3Shortcut
         onActivated: {
             infoText.text = "Moving note(s) down aux 3";
             Fns.operationTranspose(-1, 3);
@@ -213,6 +241,7 @@ MuseScore {
       Shortcut {
         sequence: "Ctrl+Alt+Shift+Down"
         context: Qt.ApplicationShortcut
+        id: down4Shortcut
         onActivated: {
             infoText.text = "Moving note(s) down aux 4";
             Fns.operationTranspose(-1, 4);
@@ -223,6 +252,7 @@ MuseScore {
         sequence: "Home"
         enabled: false
         context: Qt.ApplicationShortcut
+        id: down5Shortcut
         onActivated: {
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
@@ -233,19 +263,12 @@ MuseScore {
         sequence: "Home"
         enabled: false
         context: Qt.ApplicationShortcut
+        id: down6Shortcut
         onActivated: {
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
             afterOperation();
         }
-      }
-
-      onRun: {
-        console.log('Started Xen Tuner');
-        // When you want to find which import has a syntax error, uncomment this line
-        // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
-        console.log('present working dir: ' + Qt.resolvedUrl("."));
       }
 
       onScoreStateChanged: {

@@ -1288,7 +1288,7 @@ class PluginAPIElement {
     /** @type {QRectF} */
     bbox;
     /**
-     * @type {'Fingering' | 'StaffText' | 'SystemText'}
+     * @type {'Fingering' | 'StaffText' | 'SystemText' | 'Chord'}
      */
     name;
     /**

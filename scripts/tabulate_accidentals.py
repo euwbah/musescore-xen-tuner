@@ -10,7 +10,7 @@ import urllib.request
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/gviz/tq?tqx=out:csv&sheet=CSV+export"
 
 with urllib.request.urlopen(SHEET_URL) as csv_download:
-    with open('generated-tables.js', 'w') as f:
+    with open('Xen Tuner/generated-tables.js', 'w') as f:
         csv_data = csv_download.read().decode('utf-8')
         
         # Remove the first 5 lines of the csv

@@ -19,13 +19,15 @@
 
 var Lookup = ImportLookup();
 
+var isMS4; // init sets this to true if MuseScore 4 is detected.
+
 /**
- * During init, this will be assigned to the MuseScore plugin API `Accidental` enum.
+ * If {@link isMS4}, this will be assigned to `mu::plugins::api::enums::AccidentalType`,
+ * otherwise, it will be `MS::PluginAPI::Accidental` for MuseScore 3.
  */
 var Accidental = null;
 var NoteType = null;
 var Element = null;
-var Ms = null;
 var SymId = null; // WARNING: SymId has a long loading time.
 /** @type {FileIO} */
 var fileIO;
@@ -323,17 +325,17 @@ function generateDefaultTuningConfig() {
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
  */
-function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs, MSFileIO, homePath, MSCurScore) {
+function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSFileIO, homePath, MSCurScore, _isMS4) {
     Lookup = ImportLookup();
     // console.log(JSON.stringify(Lookup));
     Accidental = MSAccidental;
     SymId = MSSymId;
     NoteType = MSNoteType;
-    Ms = MSMs;
     Element = MSElement;
     fileIO = MSFileIO;
     pluginHomePath = homePath;
     _curScore = MSCurScore;
+    isMS4 = _isMS4;
     console.log("Initialized! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
 }
 
@@ -3625,7 +3627,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
         setCursorToPosition(cursor, tickOfThisBar, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && cursor.tick < tickOfNextBar) {
-            if (cursor.element && cursor.element.type == Ms.CHORD) {
+            if (cursor.element && cursor.element.name == "Chord") {
                 var notes = cursor.element.notes;
                 var graceChords = cursor.element.graceNotes;
                 var currTick = cursor.tick;
@@ -4598,7 +4600,7 @@ function forceExplicitAccidentalsAfterNote(
         while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
             // console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
-            if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
+            if (!(cursor.element && cursor.element.name == "Chord")) {
                 cursor.next();
                 continue;
             }
@@ -5059,7 +5061,7 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
         setCursorToPosition(cursor, tickOfThisBar, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && cursor.tick < tickOfNextBar) {
-            if (cursor.element && cursor.element.type == Ms.CHORD) {
+            if (cursor.element && cursor.element.name == "Chord") {
                 var notes = cursor.element.notes;
                 var graceChords = cursor.element.graceNotes;
                 var currTick = cursor.tick;
@@ -5523,7 +5525,9 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
         //     '\nTicks found: ' + ticks.join(', '));
 
         ticks.forEach(function (tick) {
-            // the Chords object
+            /**
+             * @type {Chords}
+             */
             var chords = chordsByTick[tick];
 
             // One vert stack = all chords at a tick that should be
@@ -5574,7 +5578,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
                         continue;
                     }
 
-                    if (chdElement.parent.type != Ms.CHORD) {
+                    if (chdElement.parent.name != "Chord") {
                         console.error("ERROR: parent of note object isn't a chord??");
                         continue;
                     }
@@ -5966,7 +5970,7 @@ function operationTune(display) {
                 // Tune the note!
 
                 if (cursor.element) {
-                    if (cursor.element.type == Ms.CHORD) {
+                    if (cursor.element.name == "Chord") {
                         var graceChords = cursor.element.graceNotes;
                         for (var i = 0; i < graceChords.length; i++) {
                             // iterate through all grace chords
@@ -6293,7 +6297,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                     }
 
                     if (cursor.element) {
-                        if (cursor.element.type == Ms.CHORD) {
+                        if (cursor.element.name == "Chord") {
                             var graceChords = cursor.element.graceNotes;
                             for (var i = 0; i < graceChords.length; i++) {
                                 // iterate through all grace chords

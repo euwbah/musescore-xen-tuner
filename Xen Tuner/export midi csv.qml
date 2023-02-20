@@ -28,7 +28,7 @@ import QtQuick.Dialogs 1.1
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.2"
+      version: "0.4.0"
       description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
           + "script to generate one MPE midi file per staff."
       menuPath: "Plugins.Xen Tuner.Export MIDI CSV"
@@ -64,7 +64,9 @@ MuseScore {
         console.log('Xenharmonic Export MIDI CSV');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
+        var isMS4 = mscoreMajorVersion >= 4;
+        Fns.init(isMS4 ? AccidentalType : Accidental, NoteType, SymId, Element,
+          fileIO, Qt.resolvedUrl("."), curScore, isMS4);
         console.log(Qt.resolvedUrl("."));
 
 
@@ -271,7 +273,7 @@ MuseScore {
               // Tune the note!
 
               if (cursor.element) {
-                if (cursor.element.type == Ms.CHORD) {
+                if (cursor.element.name == "Chord") {
                   var graceChords = cursor.element.graceNotes;
                   for (var i = 0; i < graceChords.length; i++) {
                     // iterate through all grace chords
