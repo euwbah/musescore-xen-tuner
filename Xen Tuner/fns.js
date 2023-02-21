@@ -4553,15 +4553,10 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) 
 
     note.line = newLine;
 
-    var acc = newElement(Element.ACCIDENTAL);
-    note.add(acc);
     note.accidentalType = Accidental.NATURAL;
-
-    acc = newElement(Element.ACCIDENTAL);
-    note.add(acc);
     note.accidentalType = Accidental.NONE;
 
-    note.line = newLine; // Finally...
+    note.line = newLine;
 
     setAccidental(note, orderedSymbols, newElement, tuningConfig);
 }

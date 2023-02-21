@@ -49,7 +49,7 @@ MuseScore {
         // console.log(JSON.stringify(Fns));
 
         var isMS4 = mscoreMajorVersion >= 4;
-        Fns.init(isMS4 ? AccidentalType : Accidental, NoteType, SymId, Element,
+        Fns.init(Accidental, NoteType, SymId, Element,
           fileIO, Qt.resolvedUrl("."), curScore, isMS4);
         console.log('present working dir: ' + Qt.resolvedUrl("."));
       }
@@ -90,17 +90,7 @@ MuseScore {
             font.pointSize: 8
             onClicked: {
                 infoText.text = "Quitting...";
-                console.log('Quitting');
-                var shortcuts = [
-                  tuneShortcut, enharmonicShortcut, upShortcut, up1Shortcut,
-                  up2Shortcut, up3Shortcut, up4Shortcut, up5Shortcut, up6Shortcut,
-                  downShortcut, down1Shortcut, down2Shortcut, down3Shortcut,
-                  down4Shortcut, down5Shortcut, down6Shortcut
-                ];
-                for (var i = 0; i < shortcuts.length; i++) {
-                  shortcuts[i].context = Qt.WindowShortcut; // make the shortcut disappear with the window.
-                  console.log('disable shortcut: ' + shortcuts[i].sequence);
-                }
+                handleClose();
                 pluginId.parent.Window.window.close();
             }
         }
@@ -298,5 +288,19 @@ MuseScore {
       function afterOperation() {
         // Don't do this, it will steal focus from the score
         // pluginId.window.requestActivate();
+      }
+
+      function handleClose() {
+        console.log('Quitting');
+        var shortcuts = [
+          tuneShortcut, enharmonicShortcut, upShortcut, up1Shortcut,
+          up2Shortcut, up3Shortcut, up4Shortcut, up5Shortcut, up6Shortcut,
+          downShortcut, down1Shortcut, down2Shortcut, down3Shortcut,
+          down4Shortcut, down5Shortcut, down6Shortcut
+        ];
+        for (var i = 0; i < shortcuts.length; i++) {
+          shortcuts[i].context = Qt.WindowShortcut; // make the shortcut disappear with the window.
+          console.log('disable shortcut: ' + shortcuts[i].sequence);
+        }
       }
 }

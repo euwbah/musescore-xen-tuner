@@ -65,7 +65,7 @@ MuseScore {
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
         var isMS4 = mscoreMajorVersion >= 4;
-        Fns.init(isMS4 ? AccidentalType : Accidental, NoteType, SymId, Element,
+        Fns.init(Accidental, NoteType, SymId, Element,
           fileIO, Qt.resolvedUrl("."), curScore, isMS4);
 
         // Debug code here.

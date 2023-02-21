@@ -61,7 +61,7 @@ MuseScore {
       onRun: {
         console.log('Xen Tuner - Display Cents');
         var isMS4 = mscoreMajorVersion >= 4;
-        Fns.init(isMS4 ? AccidentalType : Accidental, NoteType, SymId, Element,
+        Fns.init(Accidental, NoteType, SymId, Element,
           fileIO, Qt.resolvedUrl("."), curScore, isMS4);
 
         Fns.operationTune(1);

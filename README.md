@@ -61,6 +61,8 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 > :warning: You only need to run this once! Starting the plugin will open a small docked panel on the bottom left. If you close this panel, you will need to restart Xen Tuner.
 >
 > The first time you start Xen Tuner after opening MuseScore, MuseScore will freeze for about 5 seconds while it loads. This is normal.
+>
+> 🔴 If you wish to close the plugin, use the "Quit" button. **Do not close the plugin window directly using the window's 'X' button.**
 
 ### 4. Select tuning configuration & key signatures
 
@@ -1353,6 +1355,7 @@ If none of the above remedies work, you will need to [file an issue here](https:
 - Repeat the action you did that caused the issue.
 - Usually if an error occurs, you should be able to see the error message at the bottom of the log.
 - Copy and paste as much of the debug log as you can, **including the error message** at the bottom.
+- 🔴 If you wish to close the plugin, use the "Quit" button. **Do not use the plugin window's 'X' button or the Plugin Creator's 'Stop' button**, otherwise the shortcuts will stop working when you reopen the plugin.
 
 ### Accessing plugin debug logs for MuseScore 4
 
