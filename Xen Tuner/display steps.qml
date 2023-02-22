@@ -31,10 +31,20 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.1"
-      description: "Create fingerings to display cent offsets of notes.\n\n" +
+      version: "0.4.0"
+      description: "Create fingerings to display edo/neji-steps of notes relative to the reference note.\n\n" +
         "Applies to selection, or entire score if nothing is selected."
-      menuPath: "Plugins.Xen Tuner.Display Cents"
+      menuPath: "Plugins.Xen Tuner.Display Steps"
+      
+      id: pluginId
+
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
 
       FileIO {
         id: fileIO
@@ -49,9 +59,11 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Xen Tuner - Display Cents');
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
+        console.log('Xen Tuner - Display Steps');
+        var isMS4 = mscoreMajorVersion >= 4;
+        Fns.init(Accidental, NoteType, SymId, Element,
+          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
 
-        Fns.operationTune(1);
+        Fns.operationTune(2);
       }
 }

@@ -1,10 +1,12 @@
 # Xen Tuner: Microtonal MuseScore Plugin Suite
 
-A **MuseScore 3.6** plugin to give first-class support for microtonal/alternative notation systems.
+A **MuseScore 3.6** plugin to give first-class support for microtonal/alternative notation systems. [MuseScore 4 support needs testing](#1-testing-on-ms-4).
+
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/euwbah?style=for-the-badge)](https://github.com/sponsors/euwbah)
 
 ## Features/Goals
 
-- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#help-needed)! Currently at 77%)
+- [x] Infinitely many tuning systems with customizable SMuFL/text-based accidentals. [HEJI](https://en.xen.wiki/w/Helmholtz-Ellis_notation), [HEWM](http://tonalsoft.com/enc/h/hewm.aspx), [Sagittal](https://en.xen.wiki/w/Sagittal_notation), [Johnston JI](https://www.kylegann.com/BJNotation.html), [Rank 2/3/+ tunings](https://en.xen.wiki/w/Ups_and_Downs_Notation_for_Rank-3_JI), [very large edos](https://en.xen.wiki/w/Syntonic-rastmic_subchroma_notation), ... (SMuFL symbols data entry [help needed](#2-data-entry-of-accidentals)! Currently at 77%)
 
 - [x] Automated tuning & placement of multiple accidentals.
 
@@ -30,11 +32,13 @@ A **MuseScore 3.6** plugin to give first-class support for microtonal/alternativ
 
 Download the project as .zip (the green "Code" button on top right of the project page).
 
-Extract files to plugins folder and activate all the following plugins (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
+Extract files to plugins folder and **activate all the following plugins** (see [this guide](https://musescore.org/en/handbook/3/plugins) if you don't know how):
 
-- _clear tuning cache_
-- _xen tuner_
-- _export midi csv_
+- _xen tuner_ - This is the main plugin that runs in the background.
+- _clear tuning cache_ - For [refreshing tuning configurations](#4-clear-the-tuning-cache)
+- _export midi csv_ - For [midi/mpe export](#how-to-export-midimpe)
+- _display cents_ - To auto-generate [cent offset text](#8-display-steps--display-cents)
+- _display steps_ To display [edosteps of notes](#8-display-steps--display-cents)
 
 ### 2. Remap/Remove MuseScore default shortcuts
 
@@ -50,23 +54,25 @@ Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-
 
 ### 3. Start Xen Tuner
 
-![start tuner](imgs/start%20xen%20tuner.png)
+![start tuner](imgs/start-xen-tuner.png)  
 
 Once you have activated the plugins & replaced the shortcuts, you can start the plugin in **Plugins > Xen Tuner > Start Xen Tuner**.
 
 > :warning: You only need to run this once! Starting the plugin will open a small docked panel on the bottom left. If you close this panel, you will need to restart Xen Tuner.
 >
 > The first time you start Xen Tuner after opening MuseScore, MuseScore will freeze for about 5 seconds while it loads. This is normal.
+>
+> 🔴 If you wish to close the plugin, use the "Quit" button. **Do not close the plugin window directly using the window's 'X' button.**
 
 ### 4. Select tuning configuration & key signatures
 
 ![specify tuning config](imgs/specify%20tuning%20config.png)
 
-You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the configuration text itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
+You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the [configuration text](#tuning-configuration-syntax-overview) itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
 
 > 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
 >
-> You can check out other files in the `tunings/` folder to learn how you can write your own tuning configurations.
+> You can find tunings in the [tunings/](./tunings/) folder to find notations that are already supported.
 
 A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on. A configuration is only applied to notes from its bar onwards. Only place configuration texts/key signatures at the start of a bar.
 
@@ -74,26 +80,28 @@ These Staff/System Texts don't have to be visible (you can press `V` to toggle v
 
 ### 5. Entering notes & accidentals
 
-Enter notes as per normal. Press `Alt+R` after entering new notes to retune them to the correct tuning.
+Enter notes as per normal. Press `Alt+R` after entering new notes to update the tuning.
 
-There are four different ways to input accidentals. The most primitive method being dragging symbols in from the Master Palette, then hitting `Alt+R`.
+There are many ways to input accidentals &mdash; the most primitive method being dragging symbols in from the Master Palette, then hitting `Alt+R`.
 
-However, the recommended way to enter accidentals would be to use up/down operations. These are available as keyboard shortcuts ([which you can change](#how-to-change-shortcuts)):
+> 🔴 **IMPORTANT:** the plugin **does not recognize standard accidentals** from the 'Accidentals' palette. You must use SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut: `Z`).
+
+However, the recommended way to enter accidentals would be to use **up/down/enharmonic cycle operations**. These are available as keyboard shortcuts ([which can be modified](#how-to-change-shortcuts)):
 
 - `Up/Down`: Move note up/down to the next nearest step
 - `J`: Cycle through enharmonics of the note
-- `Alt+Up/Down`: up/down auxiliary operation 1 (usually for moving up/down diatonically)
-- `Ctrl+Alt+Up/Down`: up/down auxiliary operation 2 (usually for sharps/flats, or first accidental chain)
-- `Alt+Shift+Up/Down`: up/down auxiliary operation 3 (usually 5-limit accidentals, or second accidental chain)
-- `Ctrl+Alt+Shift+Up/Down`: up/down auxiliary operation 4 (usually 7-limit accidentals, or third accidental chain)
+- `Alt+Up/Down`: up/down **auxiliary operation 1** (usually for moving up/down diatonically)
+- `Ctrl+Alt+Up/Down`: up/down **auxiliary operation 2** (usually for sharps/flats - first accidental chain)
+- `Alt+Shift+Up/Down`: up/down **auxiliary operation 3** (usually 5-limit accidentals - or second accidental chain)
+- `Ctrl+Alt+Shift+Up/Down`: up/down **auxiliary operation 4** (usually 7-limit accidentals - or third accidental chain)
 
-What the auxiliary operations do can be changed by [modifying auxiliary operations defined in the tuning configuration](#auxiliary-operations)
+**Auxiliary operations** are very useful when dealing with JIs where there are many distinct notes in the [main tuning space](#main-tuning-space), so using only the up/down arrow keys will take too much time. You can change what the auxiliary operations do by [modifying auxiliary operations declarations in the tuning configuration](#auxiliary-operations).
 
 #### Entering accidentals directly using fingerings
 
 The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. This feature can be used when [text representations of accidentals](#advanced-declaring-text-representations-of-accidentals) are declared in the tuning config. The plugin matches strings of text and converts them into accidental symbols (which can either be SMuFL or text-based). Refer to the tuning config .txt files to lookup which characters represent which accidental symbols.
 
-When using this feature, it is recommended to map the default `Ctrl+F` shortcut to "Add fingering" instead of "Find / Go to".
+🟢 When using this feature, it is recommended to **map the default `Ctrl+F` shortcut to "Add fingering"** instead of "Find / Go to".
 
 Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
 
@@ -112,34 +120,55 @@ You can use math/javascript expressions to calculate the frequency:
 - `C4: 16/27 * 440` will set the written note C4 to sound at a 3-limit major 6th below A4=440
 - `C4: 440 * Math.pow(2, -17/22)` will set the written note C4 to sound at 17 steps of 22edo below A4=440.
 
-🟠 **Advanced feature:** when you change the MIDI reference pitch, the plugin will preserve the mode of the [nominals](#nominals--equave), but you can override the starting note of the nominals by prefixing a `!`, e.g. `!C4: 263`.
+🟢 You can also not specify a frequency (e.g. `C4:`). This will only change the tuning note without changing the tuning, which is useful if you're making use of [just intonation ratios on notes](#2-fingerings-to-denote-ji-intervals) or want the [Display Cents/Steps](#8-display-steps--display-cents) plugins to use a different reference note as the root note (`1/1`, step 0).
+
+<details>
+<summary>
+🟠 <b>Advanced feature:</b> when you change the MIDI reference pitch, the plugin will preserve the mode of the <a href="#nominals--equave">nominals</a>, but you can override the starting note of the nominals by prefixing a `!`, e.g. `!C4: 263`.<br>
+</summary>
 
 > 🟡 **E.g.** Let's say [the tuning config declares](#simple-example) `A4: 440` and nominals according the "white keys" (A aeolian mode ABCDEFG).
 > If we change the reference pitch to `C4: 256`, it will still preserve the nominal's mode such that ABCDEFG will be LsLLsLL (W-H-W-W-H-W-W), preserving the 'white keys'
 >
-> However if we use `!C4: 256`, it will override the starting note of the nominals to C, and the nominals will be CDEFGABC (W-H-W-W-H-W-W), which means the written 'white keys' now sound like C minor.
+> However, if we use `!C4: 256`, it will override the starting note of the nominals to C, and the nominals will be CDEFGABC (W-H-W-W-H-W-W), which means the written 'white keys' now sound like C minor.
 >
 > This is rarely ever useful though, and only provided as an advanced feature for esoteric notation systems/notating changing alternate clefs.
 >
 > 🔴 **If you intended to use a custom key signature, declare a [key signature](#how-to-key-signatures) instead.**
 
+</details>
+
 ### 7. Implement your own tunings/notation systems!
 
 Read [how the plugin conceptualizes tunings & accidentals](#introduction) (and the rest of the guide) to start making your own tuning configurations.
 
+See the [`tunings/`](./tunings/) folder for example tuning configurations.
+
+#### [Tuning config web tool](#tuning-config-web-tool)
+
+You can use the [tuning configuration compiler/debugger](https://euwbah.github.io/musescore-xen-tuner) web tool to [check for syntax errors](#i-made-my-own-tuning-config-but-it-doesnt-seem-to-be-doing-anything-treated-as-12edo). You can also use it 'compile' your tuning config into a `.json` file so that [large tuning files can be pre-computed](#1-pre-compute-the-tuning-config) for faster loading.
+
 If you're facing a bug or need help, [file an issue](#reporting-an-issue).
+
+### 8. Display Steps & Display Cents
+
+![Display steps/cents](imgs/display-steps-cents.png)
+
+You can automatically generate text to display the cent offsets and edo/neji-steps of notes in the score/selection. Use the **Display Steps** and **Display Cents** plugins to do this.
+
+**Display Steps** will attach fingerings to notes to display how many steps the note is away from the [reference tuning note](#6-change-reference-pitch).
+
+🟠 To get **Display Steps** to work, the tuning configuration being used **must have it enabled** with the [`displaysteps()` declaration](#configuring-display-steps). The tuning config files of EDOs & NEJIs that come with the plugin already have it declared.
+
+**Display Cents** will attach fingerings to notes to display the cent offset of the note relative to its nominal tuning (`nominal` mode). However, you can also configure the **Display Cents** to use `absolute` or `semitone` mode, and adjust how many decimal places are displayed in the [`displaycents()` declaration](#configuring-display-cents).
+
+> 🟡 You don't need to delete previously generated text before running **Display Cents/Steps** again to update the cents/steps information. Simply run **Display Cents/Steps** again, and it will override the old text values.
+
+-----
 
 ### [List of Supported Symbols](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)
 
-This is still a work in progress. Free for all to edit, and [in need of community contribution](#help-needed)!
-
-#### Keeping accidentals up to date
-
-While the accidental data entry project is in progress, the new accidentals will be supported. Thus, it is recommended to keep your copy of the plugin [updated](#updating-the-plugin).
-
-Though, if you don't want to repeatedly download the plugin files to update the list of supported accidentals, you can run the included `scripts/tabulate_accidentals.py` python script yourself with Python 3. This will sync the plugin's accidental Symbol Codes to the "CSV Export" sheet on the spreadsheet.
-
-If you have been using Symbol Code numbers to refer to your accidentals, you will need to ensure that the Symbol Codes numbers still refer to the same accidentals after updating the list of supported accidentals. While the data entry is ongoing, the Symbol Code index may change and is unstable.
+This is still a work in progress. Free for all to edit, and [in need of community contribution](#2-data-entry-of-accidentals)!
 
 -----
 
@@ -155,8 +184,9 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
   - [6. Change reference pitch](#6-change-reference-pitch)
   - [7. Implement your own tunings/notation systems!](#7-implement-your-own-tuningsnotation-systems)
+    - [Tuning config web tool](#tuning-config-web-tool)
+  - [8. Display Steps \& Display Cents](#8-display-steps--display-cents)
   - [List of Supported Symbols](#list-of-supported-symbols)
-    - [Keeping accidentals up to date](#keeping-accidentals-up-to-date)
 - [Introduction](#introduction)
   - [Nominals \& Equave](#nominals--equave)
   - [Symbol codes, text codes, text-based accidental symbols](#symbol-codes-text-codes-text-based-accidental-symbols)
@@ -164,6 +194,7 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [Constructing an accidental](#constructing-an-accidental)
   - [Accidental chains \& degrees](#accidental-chains--degrees)
   - [Accidental vectors](#accidental-vectors)
+  - [Main tuning space](#main-tuning-space)
 - [How to: tuning configuration](#how-to-tuning-configuration)
   - [Tuning configuration overview](#tuning-configuration-overview)
   - [Tuning configuration syntax overview](#tuning-configuration-syntax-overview)
@@ -175,6 +206,8 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [More accidental chains: 5-limit JI](#more-accidental-chains-5-limit-ji)
   - [Accidental ligatures: "Real" HEJI](#accidental-ligatures-real-heji)
   - [Auxiliary operations](#auxiliary-operations)
+  - [Configuring display steps](#configuring-display-steps)
+  - [Configuring display cents](#configuring-display-cents)
   - [Advanced: Irregularly sized accidental chains](#advanced-irregularly-sized-accidental-chains)
   - [Advanced: advanced ligature use, weak \& important ligatures](#advanced-advanced-ligature-use-weak--important-ligatures)
     - [Understanding how the plugin parses \& reads accidentals](#understanding-how-the-plugin-parses--reads-accidentals)
@@ -219,12 +252,18 @@ If you have been using Symbol Code numbers to refer to your accidentals, you wil
   - [Enharmonic equivalents aren't showing up / are incorrect](#enharmonic-equivalents-arent-showing-up--are-incorrect)
   - [Keyboard shortcuts stop working](#keyboard-shortcuts-stop-working)
 - [Reporting an issue](#reporting-an-issue)
+  - [Accessing plugin debug logs in MuseScore 3](#accessing-plugin-debug-logs-in-musescore-3)
+  - [Accessing plugin debug logs for MuseScore 4](#accessing-plugin-debug-logs-for-musescore-4)
 - [HELP NEEDED!](#help-needed)
+  - [1. Testing on MS 4](#1-testing-on-ms-4)
+  - [2. Data entry of accidentals](#2-data-entry-of-accidentals)
 - [Caveats](#caveats)
     - [Smaller caveats](#smaller-caveats)
 - [Clarifications](#clarifications)
 - [Contributors](#contributors)
+- [Changelog](#changelog)
 - [Dev Notes](#dev-notes)
+- [Support me](#support-me)
 
 
 
@@ -248,14 +287,14 @@ A **symbol code** represents a single visually/semantically unique symbol which 
 
 This plugin only uses SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut 'Z'). Do not use accidentals from the 'Accidentals' palette.
 
-![](imgs/symbols%20palette.png)
+![symbols palette](imgs/symbols%20palette.png)
 
 To refer to a SMuFL symbol when setting up a tuning/key signature, you can either use the Symbol Code number (the _Symbol Code_ column of the [spreadsheet](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing)), or by the Text Code representation of the symbol (_Text Code_ column of the spreadsheet).
 
-![](imgs/spreadsheet%20lookup.png)
+![Spreadsheet lookup](imgs/spreadsheet%20lookup.png)
 
 > 🟡 **E.g.** both `#` and `5` can be used to refer to the sharp symbol.
-> 
+>
 > Code `100` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `100`.
 
 You can also use text-based accidentals by referring to them in single quotes, as long as the text does not contain a space.
@@ -270,7 +309,7 @@ When referring to Text Codes or Text-based accidentals in the tuning configurati
 - Write `\` as `\\` unless you intend to start an escape sequence.
 - Write `//` as `\/\/` unless you intend to write a comment.
 
-This applies to **both text codes and quoted text accidentals**. 
+This applies to **both text codes and quoted text accidentals**.
 
 For example, the down arrow symbol (SymbolCode 43) must be referred to as `\\` even though the text code for it is `\`.
 
@@ -294,13 +333,21 @@ To combine and permute different accidentals, declare multiple accidental chains
 
 You can combine different accidental degrees from different accidental chains. The degrees of each accidental chain forms a list of numbers called the **accidental vector**. This is a unique representation of all the accidentals attached to one notehead.
 
-> 🟡 **E.g.** in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**. 
-> 
+> 🟡 **E.g.** in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**.
+>
 > First, the chain of sharps and flats, where each step in the 'sharp' direction corresponds to the apotome interval (2187/2048). These accidentals allow us to access 3-limit just intonation.
-> 
+>
 > Next, the chain of syntonic commas, where each step up is equal to the syntonic comma (81/80). These accidentals give access to 5-limit just intonation.
-> 
+>
 > Now, we can notate the classic major third (5/4) of `D` as `F#v` (F-sharp-down). `F#v` is 1 step up in the 'sharp' direction, and 1 step down in the 'syntonic comma' direction. Thus, we can represent this note as having the accidental vector of `1, -1`.
+
+### Main tuning space
+
+In this plugin, there are two ways accidentals can be declared. The primary accidentals are declared using [Accidental Chains](#accidental-chains--degrees), but there are also [secondary accidentals](#advanced-secondary-accidentals) which allow you to declare how non-primary symbols are interpreted.
+
+Notes with accidentals declared via accidental chains form the **main tuning space**, which is the 'fully supported' set of notes that the plugin recognizes. You can think of these fully supported notes as '[Tonal Pitch Classes](https://en.wikipedia.org/wiki/Pitch_class_space)', but for **XenNotes** instead of normal 12edo notes.
+
+In large tunings like high-limit JIs and very large edos, it's common to use notes that are not in the main tuning space, as it wouldn't be feasible to declare as many accidental chains as there are [ranks](https://en.xen.wiki/w/Rank_and_codimension) in the tuning. However, these notes will not be accessible via the up/down arrow keys, and also not supported by the [Display Steps](#8-display-steps--display-cents) feature.
 
 -----
 
@@ -314,34 +361,36 @@ You do not need to write the entire tuning configuration within a staff text. E.
 
 > 🟡 **E.g.** to refer to the 5-limit HEJI tuning config in `tunings/heji/5 limit.txt`, simply write `heji/5 limit` in the Staff/System Text.
 
-
 > 🟢 **Recommended:** have a look at the provided tuning configs in the `tunings/` folder to see how notation/tuning systems are configured.
-
 
 > 🔴 **Beware:** if you find two files with the same name where one is a `.txt` and the other a `.json` file, this means that the tuning configuration is [pre-computed. Read more about it in this section](#1-pre-compute-the-tuning-config).
 >
-> The plugin will opt to look for pre-computed `.json` tuning configurations first, so **changing the `.txt` file will not affect the tuning config**. Instead, you will need to use this web tool: https://euwbah.github.io/musescore-xen-tuner/ to generate a new `.json` file to replace the old one.
+> The plugin will opt to look for pre-computed `.json` tuning configurations first, so **changing the `.txt` file will not affect the tuning config**. Instead, you will need to use this [web tool](#tuning-config-web-tool): https://euwbah.github.io/musescore-xen-tuner/ to generate a new `.json` file to replace the old one.
 
 Now lets dive into how we can create our own tuning/notation systems.
 
 ### Tuning configuration overview
 
-A tuning/notation system consists of the following parts:
+A tuning/notation system configuration is specified in plaintext, and consists of the following parts:
 
 1. [Reference note](#simple-example) e.g. `A4: 440`
 2. [Nominals](#simple-example) & equave size
 3. [Accidental chains](#adding-accidentals) (optional)
-4. Other optional declarations
+4. Optional declarations:
    - [Ligatures](#accidental-ligatures-real-heji) allow you to declare how different symbols combine into other symbols. [Advanced ligatures](#advanced-advanced-ligature-use-weak--important-ligatures) can control which enharmonic spellings/accidentals are present in a tuning.
    - [Auxiliary operations](#auxiliary-operations) define what the other keyboard shortcuts (e.g. `Alt+Up/Down`) do. You can control which accidental chains will be affected, and whether or not the nominal is allowed to change when using those auxiliary up/down operations.
    - [Secondary accidentals](#advanced-secondary-accidentals) define additional symbols that are not part of the main set of notes accessible by up/down operations, but will still act like accidentals. You can access these by declaring [text representations](#advanced-declaring-text-representations-of-accidentals) of the accidentals and [entering the accidentals as fingerings](#entering-accidentals-directly-using-fingerings).
-   - Other preference settings like [nobold()](#nobold) and [explicit()](#explicit).
+5. Preference settings:
+   - [nobold()](#nobold) - text accidentals will not be bolded by default
+   - [explicit()](#explicit) - display accidentals on every note, even if not necessary
+   - [displaysteps()](#configuring-display-steps) - enables & configures the [steps display](#8-display-steps--display-cents) plugin
+   - [displaycents()](#configuring-display-cents) - configures the [cents display](#8-display-steps--display-cents) plugin.
 
 ### Tuning configuration syntax overview
 
 You can try to make sense of this yourself to fast-forward the learning process, otherwise, the rest of the guide will explain this is greater detail.
 
-```
+```txt
 // This is a comment. Comments are ignored by the plugin.
 
 // 1. Reference note
@@ -435,20 +484,21 @@ sec() // signifies start of secondary accidental declaration.
 'abc' 0.01c // this is also a single-symbol text-based accidental
 'a'.'b'.'c' 0 // this isn't single-symbol.
 
-// 4d. nobold()
+// 4d. nobold
 nobold() // declaring this will make text-based accidentals not bold by default
 
-// 4e. explicit()
+// 4e. explicit
 explicit() // declaring this will make every note use explicit accidentals
+
+// 4f. configure display cents/steps
+displaycents(absolute, 2, above)
+displaysteps(1337, below)
 
 ```
 
-The declarations are to be done in the above specified order. Apart from the reference note and nominals, all the other declarations are optional:
+Reference tuning frequency, nominals and accidental chains must be specified in fixed order. After those are the secondary declarations (`aux`, `lig`, `sec`, etc..) and they can be specified in any order. 
 
-1. Reference note
-2. Nominals
-3. Accidental chains
-4. Ligatures, Auxiliary operations, secondary accidentals
+Apart from the reference note and nominals, all the other declarations are optional.
 
 ### Full example
 
@@ -536,7 +586,7 @@ If we want to notate in HEJI proper, those arrows aren't the right symbol for th
 
 In HEJI, the first two [accidental chains](#accidental-chains--degrees) (syntonic commas & sharps/flats) are represented by a single ligatured accidental with the up/down arrows being attached to the sharp/flat symbol.
 
-To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature set**. You can think of it as a list of "search-and-replace" conditions that **ligatures** (joins/connects/substitutes) different symbols into a different unique symbol. A ligatured accidental functions exactly like the original accidentals it substitutes, and only differs in visual appearance.
+To add support for notation systems where a particular accidental can represent multiple accidental chains at once, we can declare a **ligature set**. You can think of it as a list of "search-and-replace" conditions that **ligatures** (joins/connects/substitutes) different symbols into a different unique symbol. A ligatured accidental is part of the [main tuning space](#main-tuning-space), and functions just as the original accidentals it represents, differing only in visual appearance.
 
 Think of them like [font ligatures](https://en.wikipedia.org/wiki/Ligature_(writing)) where multiple characters conjoin into a unique shape.
 
@@ -584,43 +634,97 @@ The ligatured accidentals can be constructed with multiple symbols. As per usual
 
 > 🟢 A ligature definition can be made **weak** (`?`), **important** (`!`), or **weak and important** (`!?`).
 > If no modifiers are specified, it is by default a **strong** ligature (opposite of weak).
-> 
+>
 > [Read more about advanced ligature usage here](#advanced-advanced-ligature-use-weak--important-ligatures).
 
 You can also declare more than one ligature set, regarding different chains. Though special care must be taken when [deciding the order of declaration of the ligatures](#understanding-how-the-plugin-parses--reads-accidentals).
 
 ### Auxiliary operations
 
-You may realize that it is rather inefficient to just use the up/down arrows to get the note/accidental you need. We already have 245 unique notes within an equave!
-
-We can make use of auxiliary up/down actions to have more control over how the note moves when being transposed.
+Auxiliary up/down operations give more control when transposing a note. You can define whether the [nominal](#nominals--equave) can move, and exactly which [accidental chains](#accidental-chains--degrees) can change degree.
 
 ```txt
 C4: 440 * 16/27
 0 9/8 81/64 4/3 3/2 27/16 243/128 2
+
+// chain 1: sharps-flats
 bbb bb b (2187/2048) # x #x
+
+// chain 2: up/down arrow
 \ (81/80) /
-lig(1,2)
-...blah blah
+
+// Auxiliary operation declarations:
 aux(0)
 aux(1)
 aux(2)
 aux(0,1)
 ```
 
-Each auxiliary operation is declared on a new line. The first declaration correspond to the 'aux 1 up/down' commands, second declaration for aux 2, and so on.
+Each auxiliary operation is declared on a new line. The first declaration corresponds to the first aux operation, the second declaration to the second aux operation etc...
 
-`aux(0)` means that only the [nominal](#nominals--equave) is allowed to change when transposing notes. Any accidentals attached must remain the same. This corresponds to MuseScore's 'Diatonic pitch up/down (keep degree alterations)' function. This behaviour will be assigned to the action of the 'aux 1 up/down' commands (default shortcut: `Alt+Up/Down`)
+The numbers in the parenthesis denote what can change during the operation:
 
-`aux(1)` means that only the first accidental chain's degree is allowed to change when transposing notes. The note's nominal and other accidental chains must remain the same. In other words, you can use this to adjust the number of flats and sharps on the note. This behaviour will be assigned to the action of the 'aux 2 up/down' commands (default: `Ctrl+Alt+Up/Down`)
+- `0` allows the [nominal](#nominals--equave) of the note to change
+- `1` allows the first [accidental chain](#accidental-chains--degrees) to change
+- `2` allows the second accidental chain to change
+- etc...
 
-Similarly, `aux(2)` means only the second chain's degree can change. This adjusts the number of syntonic up/down accidentals on the note. This behaviour will be assigned to the 'aux 3 up/down' commands (default: `Shift+Alt+Up/Down`)
+**The above example specifies that:**
 
-Finally, `aux(0,1)` means both the nominal and the first accidental chain's degree can change. This behaviour will be assigned to the 'aux 4 up/down' commands (default: `Ctrl+Shift+Alt+Up/Down`)
+1. The first auxiliary operation (`Alt+Up/Down`) changes only the note's nominal, similar to MuseScore's diatonic pitch up/down function.
+
+2. The second auxiliary operation (`Ctrl+Alt+Up/Down`) changes the first accidental chain's degree, allowing you to adjust the number of flats and sharps on the note directly.
+
+3. The third auxiliary operation (`Shift+Alt+Up/Down`) changes the second accidental chain's degree, allowing you to adjust the number of up/down arrows on the note directly.
+
+4. The fourth auxiliary operation (`Ctrl+Shift+Alt+Up/Down`) changes both the nominal and the sharps-flats chain, which allows you to navigate the 'chromatic scale'.
 
 You can specify whichever combinations of numbers from 0 to N (number of accidental chains) that you may find useful for your tuning/notation system. The order of the numbers in the parentheses do not matter.
 
-If you require more than 4 auxiliary operations, you can [set up more keyboard shortcuts](#more-auxiliary-operations) to invoke more auxiliary operations.
+If you require more than 4 auxiliary operations, you can [set up more keyboard shortcuts](#more-auxiliary-operations). You can also [change the default keyboard shortcuts](#how-to-change-shortcuts) for these operations.
+
+### Configuring display steps
+
+🟠 **In order to use the [Display Steps](#8-display-steps--display-cents) plugin, the tuning configuration needs to configure the steps display using the `displaysteps()` declaration**.
+
+```txt
+// Syntax: displaysteps(<steps per equave>, <placement>)
+
+displaysteps(31, below) // E.g. 31 step tuning, place text below note
+```
+
+**`<steps per equave>`** denotes the total number of distinctly tuned steps this tuning uses within an equave
+
+> 🟡 This generally corresponds to edos - arbitrarily large edos are supported.
+>
+> You also can get this working for NEJIs/temperaments and other step-based tunings as long as you ensure that all the notes in the score are in the [main tuning space](#main-tuning-space).
+
+**`<placement>`**:
+
+- `above` - text displayed above the note
+- `below` - text displayed below the note
+
+### Configuring display cents
+
+You can configure how cents offsets are being displayed, and how cent offsets are calculated.
+
+```txt
+// Syntax: displaycents(<calculation mode>, <precision>, <placement>)
+displaycents(nominal, 0, above)
+```
+
+**`<calculation mode>`**:
+
+- **`nominal`** (Default) - cent offsets are calculated relative to the nominal of the note
+- `absolute` - cent offsets are calculated relative to the specified tuning note modulo the equave. (E.g. if `A4: 440` is used in a 7-nominal tuning, then it will display number of cents above the nearest A)
+- `semitone` - Same as `absolute`, but modulo 100 cents instead, to give the cent offset from the nearest 12-edo semitone. (A bit janky at this point, not recommended)
+
+**`<precision>`**: The number of decimal places in the cents display.
+
+**`<placement>`**:
+
+- `above` - text displayed above the note
+- `below` - text displayed below the note
 
 ### Advanced: Irregularly sized accidental chains
 
@@ -857,7 +961,6 @@ d7 64/63
 
 Any repetitions of these symbols found on a note will stack.
 
-
 The up/down arrows are declared in a specific order such that if there are double up/down arrows adjacent to each other, they will contribute +/- 30c instead of +/-(10 + 10)c.
 
 #### Secondary accidental declaration order matters
@@ -942,7 +1045,6 @@ keysig 0 0 # 0 0 # 0
 
 As per normal, if you require multiple symbols on a nominal, you can join them with periods, e.g.:
 
-
 ```txt
 keysig #.+ 0 bbb.bbb.bb 0 17.bv2 0 x.#x.#x
 ```
@@ -973,13 +1075,13 @@ You can tune any note to a just intonation interval relative to the reference no
 
 The note's tuning will be automatically octave-reduced/expanded to match the octave that it is written in (in accordance to the Tuning Config), so you can use JI fingering annotations to supplement your existing tuning.
 
-E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of the reference pitch. You can also use JavaScript expressions like `Math.sqrt(19).` to cut that exactly into half. The 19th harmonic will automatically be octave-reduced be as close as possible to the original tuning of the written note.
+🟡 E.g. the fingering `19.` will cause a note to be tuned to the 19th harmonic of the [current reference note](#6-change-reference-pitch). You can also use JavaScript expressions like `Math.sqrt(19).`.
 
 > 🟠 If you regularly use this feature and do not require normal fingerings on your scores, you can set `var REQUIRE_PERIOD_AFTER_FINGERING_RATIO = false;` at around line 100 of `fns.js`. This will make all fingering text function as a JI ratio/harmonic by default, without the need for a period at the end &mdash; making your scores slightly neater.
 >
 > Of course, this will also make normal fingering numbers act as otonal harmonics, so you should be careful.
 
-> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#advanced-secondary-accidentals) if you want a way to sporadically apply certain higher-order accidentals that need not be part of the declared accidental chains.
+> ⚠️ This is not a replacement for accidentals. Fingering annotations do not carry over noteheads unlike accidentals. See [secondary accidentals](#advanced-secondary-accidentals) if you want a way to sporadically apply certain higher-limit accidentals that behave like accidentals.
 
 ### 3. Fingerings to denote cent offsets
 
@@ -1165,7 +1267,7 @@ This is most likely a tuning config issue &mdash; and usually has something to d
 
 > 🟡 For example, in `heji/5 limit.txt`, if you shift the second ligature set declaration before the first, you will encounter this issue.
 
-To make your tuning config debugging process easier, follow the instructions in "[Reporting an issue](#reporting-an-issue)" to find debug/error messages when running the plugin from the Plugin Creator. 
+To make your tuning config debugging process easier, follow the instructions in "[Reporting an issue](#reporting-an-issue)" to find debug/error messages when running the plugin from the Plugin Creator.
 
 If the issue is tuning config related, **the debug messages will contain the exact details of how the plugin tried to parse a note and failed**, and you can use that info to fix the tuning config yourself, or ask for help.
 
@@ -1242,47 +1344,45 @@ If none of the above remedies work, you will need to [file an issue here](https:
 - Operating system
 - Example score
 - Tuning config you were using
-- Debug logs
-  - Stop running Xen Tuner (close plugin window/quit button).
-  - Open the **Plugin Creator** (Plugins > Plugin Creator).
-  - Open the `xen tuner.qml` file
-  - Run `xen tuner.qml` from the Plugin Creator.
-  - Repeat the action you did that caused the issue.
-  - Usually if an error occurs, you should be able to see the error message at the bottom of the log.
-  - Copy and paste as much of the debug log as you can, **including the error message** at the bottom.
-  - If you stopped the plugin/modified source code in the Plugin Creator, you will need to restart MuseScore to get the plugin working again.
+- **Debug logs**
+
+### Accessing plugin debug logs in MuseScore 3
+
+- Stop running Xen Tuner (close plugin window/quit button).
+- Open the **Plugin Creator** (Plugins > Plugin Creator).
+- Open the `xen tuner.qml` file
+- Run `xen tuner.qml` from the Plugin Creator.
+- Repeat the action you did that caused the issue.
+- Usually if an error occurs, you should be able to see the error message at the bottom of the log.
+- Copy and paste as much of the debug log as you can, **including the error message** at the bottom.
+- 🔴 If you wish to close the plugin, use the "Quit" button. **Do not use the plugin window's 'X' button or the Plugin Creator's 'Stop' button**, otherwise the shortcuts will stop working when you reopen the plugin.
+
+### Accessing plugin debug logs for MuseScore 4
+
+Logs created directly by the plugin aren't accessible anywhere in MuseScore 4 yet.
+
+The best option would be to attach the `.log` files located at:
+
+- **Windows**: `C:\Users\<name>\AppData\Local\MuseScore\MuseScore4\logs\`
+- **MacOS**: `~/Library/Application Support/MuseScore/MuseScore4/logs/`
+- **Linux**: `~/.local/share/data/MuseScore/MuseScore4/logs/`
+
+if you're not on Windows, you can try running MuseScore from the command line/terminal to see if there's any output.
 
 ## HELP NEEDED!
 
-This project is still a **work in progress.**
+### 1. Testing on MS 4
 
-One of the main features of this project is to allow the user to define their own
-accidentals by combining any number of accidentals and symbols to represent one logical accidental.
+I've followed the current [temporary guidelines for plugins in MS 4.x](https://musescore.org/en/node/337468), but I can't get MS 4 to open on my computer. I would appreciate if someone can help me test & debug the plugin on MS 4.
 
-However, in MuseScore, most accidental symbols have multiple internal IDs of accidentals that represent the same, or a similar-looking symbol.
+🔴 **WARNING**: Even if the plugin currently works on MS 4, the plugin API is said to be unstable and this plugin may break in a future update.
+
+### 2. Data entry of accidentals
 
 I need help with tabulating the [list of all accidentals](https://docs.google.com/spreadsheets/d/1kRBJNl-jdvD9BBgOMJQPcVOHjdXurx5UFWqsPf46Ffw/edit?usp=sharing) available in MuseScore, such that Symbol IDs (`SymId`) & Accidental IDs (`AccidentalType`) that point to the same/similar-looking symbol are grouped together.
 
-<br>
-
-There are two categories of accidentals & IDs I will need help to tabulate together.
-
-First, accidentals symbols marked as "Accidentals" in MuseScore's palette. These are the `AccidentalType`s identified internally using the `UPPER_SNAKE_CASE` naming convention.
-
-**These are of low priority**, as the plugin does not intend to use these, at least for the foreseeable future. However, it would be good to get a full tabulation done as this would serve as a useful dataset for the community to do other projects in the future.
-
-Unfortunately, there's no way of extracting their IDs from MuseScore UI, but _msfp_ has kindly provided [this tool for looking up symbols and their IDs](https://musescore.org/en/node/341701#comment-1164436). Download the .zip from the link and open the .html file to access the lookup/symbol search tool.
-
-<br>
-
-The other type of accidental symbols are the ones in the "Symbols" category, identified internally under `SymId` using the `lowerCamelCase` naming convention. These are accidentals used when you need more than one accidental per note (or when MuseScore only supports this accidental 'symbolically').
-
-**High priority: all SymId/SMuFL IDs must be accounted for.**
-
-<br>
-
-The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalType`s) are represented in the document, and that all `SymId`s/`AccidentalType`s that point to a similar-looking accidental are grouped together on the same row.
-
+1. Use [this tool for looking up symbols and their IDs](https://musescore.org/en/node/341701#comment-1164436), kindly provided by _msfp_ on the MuseScore forums. Download the .zip from the link and open the .html file to access the lookup/symbol search tool.
+2. Gather all `SymID`s and `AccidentalType`s that point to the same/similar-looking accidental symbol and tabulate them in the spreadsheet.
 
 ## Caveats
 
@@ -1313,14 +1413,20 @@ The task at hand is to simply ensure all `SymId`s (and optionally, `AccidentalTy
 
 - The use of the term _accidental chain_ in this readme is not related to ["Nominal-Accidental Chains"](https://en.xen.wiki/w/Nominal-accidental_chain). The former represents a sequence of accidentals where two adjacent accidentals differ by a more-or-less consistent interval size. The latter is a more general descriptor of the phenomenon where most western-centric notation systems involve one nominal and some accidentals which can generate a sequence of notes.
 
-- The "Xen Tuner" name is unrelated to [Keenan Pepper's MuseScore Xentuner pluging](https://github.com/keenanpepper/musescore-xentuner). This naming coincidence I only realized after naming the project.
+- The "Xen Tuner" name is unrelated to [Keenan Pepper's MuseScore Xentuner plugin](https://github.com/keenanpepper/musescore-xentuner). This naming coincidence I only realized after naming the project.
 
 -----
 
 ## [Contributors](CONTRIBUTORS.md)
 
------
+## [Changelog](CHANGELOG.md)
 
 ## [Dev Notes](/DEVELOPMENT.md)
 
-See dev notes for technical implementation details.
+See dev notes for technical implementation details & how to contribute.
+
+## Support me
+
+[![YouTube](https://img.shields.io/youtube/channel/subscribers/UC5KoRLrbkARhAUQC1tBngaA?label=YouTube%3A%20euwbah&style=social)](https://www.youtube.com/channel/UC5KoRLrbkARhAUQC1tBngaA)
+
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/euwbah?style=for-the-badge)](https://github.com/sponsors/euwbah)

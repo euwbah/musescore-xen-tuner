@@ -28,10 +28,20 @@ import QtQuick.Dialogs 1.1
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.1"
+      version: "0.4.0"
       description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
           + "script to generate one MPE midi file per staff."
       menuPath: "Plugins.Xen Tuner.Export MIDI CSV"
+      
+      id: pluginId
+
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
 
       FileIO {
         id: fileIO
@@ -46,7 +56,7 @@ MuseScore {
         title: ""
         text: ""
         onAccepted: {
-          Qt.quit()
+          return;
         }
       }
 
@@ -54,12 +64,14 @@ MuseScore {
         console.log('Xenharmonic Export MIDI CSV');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
-        console.log(Qt.resolvedUrl("."));
+        var isMS4 = mscoreMajorVersion >= 4;
+        Fns.init(Accidental, NoteType, SymId, Element,
+          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
+        console.log(Qt.resolvedUrl("../"));
 
 
         if (typeof curScore === 'undefined')
-              Qt.quit();
+              return;
 
         // Stores midi text to be written to file.
         var midiText = division + '\n';
@@ -261,7 +273,7 @@ MuseScore {
               // Tune the note!
 
               if (cursor.element) {
-                if (cursor.element.type == Ms.CHORD) {
+                if (cursor.element.name == "Chord") {
                   var graceChords = cursor.element.graceNotes;
                   for (var i = 0; i < graceChords.length; i++) {
                     // iterate through all grace chords
@@ -301,7 +313,5 @@ MuseScore {
         }
 
         messageDialog.open();
-
-        Qt.quit();
       }
 }

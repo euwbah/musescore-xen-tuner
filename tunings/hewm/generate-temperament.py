@@ -1,8 +1,8 @@
 import math
 
 PRIME_LIMIT = 61 # The highest prime used in the TUNING_CONFIG text below
-EDO = 311
-OUT_FILE_NAME = "311edo.txt"
+EDO = 540
+OUT_FILE_NAME = "540edo.txt"
 
 list_of_primes = []
 
@@ -70,6 +70,8 @@ C4: 440 * {2 ** (t(16,27)/1200)}
 bbb bb b ({t(2187,2048)}c) # x #x
 '-'.'-'.'-' '-'.'-' '-' ({t(81,80)}c) '+' '+'.'+' '+'.'+'.'+'
 '<'.'<' '<' ({t(64,63)}c) '>' '>'.'>'
+
+displaysteps({EDO}, below)
 
 aux(0)
 aux(1)

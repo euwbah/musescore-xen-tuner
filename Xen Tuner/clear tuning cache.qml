@@ -27,11 +27,21 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.1"
+      version: "0.4.0"
       description: "The tuning cache contains cached data about tunings used in the score.\n" +
         "If you've experimented with many different tunings within a score, but aren't currently using most of them," +
         "it is highly recommended to clear the Tuning Config cache."
       menuPath: "Plugins.Xen Tuner.Clear Tuning Cache"
+
+      id: pluginId
+
+      Component.onCompleted : {
+        if (mscoreMajorVersion >= 4) {
+          pluginId.title = qsTr("Xen Tuner");
+          // pluginId.thumbnailName = "some_thumbnail.png";
+          pluginId.categoryCode = "composing-arranging-tools";
+        }
+      }
 
       FileIO {
         id: fileIO
@@ -42,17 +52,17 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Xenharmonic Clear Tuning Cache');
+        console.log('Xen Tuner - Clear Tuning Cache');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
-        Fns.init(Accidental, NoteType, SymId, Element, Ms, fileIO, Qt.resolvedUrl("."), curScore);
-        console.log(Qt.resolvedUrl("."));
+        var isMS4 = mscoreMajorVersion >= 4;
+        Fns.init(Accidental, NoteType, SymId, Element,
+          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
+        console.log(Qt.resolvedUrl("../"));
 
         if (typeof curScore === 'undefined')
-              Qt.quit();
+              return;
 
         Fns.clearTuningConfigCaches();
-
-        Qt.quit();
       }
 }

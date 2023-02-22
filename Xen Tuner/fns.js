@@ -19,13 +19,15 @@
 
 var Lookup = ImportLookup();
 
+var isMS4; // init sets this to true if MuseScore 4 is detected.
+
 /**
- * During init, this will be assigned to the MuseScore plugin API `Accidental` enum.
+ * If {@link isMS4}, this will be assigned to `mu::plugins::api::enums::AccidentalType`,
+ * otherwise, it will be `MS::PluginAPI::Accidental` for MuseScore 3.
  */
 var Accidental = null;
 var NoteType = null;
 var Element = null;
-var Ms = null;
 var SymId = null; // WARNING: SymId has a long loading time.
 /** @type {FileIO} */
 var fileIO;
@@ -291,6 +293,10 @@ var tuningConfigCache = {};
  * @returns {TuningConfig}
  */
 function generateDefaultTuningConfig() {
+    if (tuningConfigCache['!default!'] != null) {
+        return tuningConfigCache['!default!'];
+    }
+
     fileIO.source = pluginHomePath + "tunings/default.txt";
     var defaultTxt = fileIO.read();
     /** @type {TuningConfig} */
@@ -310,6 +316,7 @@ function generateDefaultTuningConfig() {
     // console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote +
     //     ', nominal: ' + tuningConfig.tuningNominal);
 
+    tuningConfigCache['!default!'] = tuningConfig;
     return tuningConfig;
 }
 
@@ -318,17 +325,17 @@ function generateDefaultTuningConfig() {
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
  */
-function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSMs, MSFileIO, homePath, MSCurScore) {
+function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSFileIO, homePath, MSCurScore, _isMS4) {
     Lookup = ImportLookup();
     // console.log(JSON.stringify(Lookup));
     Accidental = MSAccidental;
     SymId = MSSymId;
     NoteType = MSNoteType;
-    Ms = MSMs;
     Element = MSElement;
     fileIO = MSFileIO;
     pluginHomePath = homePath;
     _curScore = MSCurScore;
+    isMS4 = _isMS4;
     console.log("Initialized! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
 }
 
@@ -1686,6 +1693,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             tuningConfig.displayCentsReference = centType;
             tuningConfig.displayCentsPrecision = precision;
             tuningConfig.displayCentsPosition = position;
+            continue;
         }
 
         // If we are here, then there are no section/setting declarations
@@ -3314,7 +3322,7 @@ function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
                     }
                     var nomsOffset = mod(tuningConfig.relativeTuningNominal, tuningConfig.numNominals);
                     var eqvOffset = Math.floor(tuningConfig.relativeTuningNominal / tuningConfig.numNominals);
-                    fingeringJIOffset *= Math.pow(2, (tuningConfig.nominals[nomsOffset] + eqvOffset * tuningConfig.equaveSize) / 1200);
+                    fingeringJIOffset += tuningConfig.nominals[nomsOffset] + eqvOffset * tuningConfig.equaveSize;
                 }
                 fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
             }
@@ -3547,22 +3555,38 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
  * returns `-1` for the next bar tick.
  * 
  * @param {number} tick The tick position to check
- * @param {number[]} bars List of tick positions of each barline.
- * @returns {number[]} `[tickOfThisBar, tickOfNextBar]`
+ * @param {number[]} bars List of tick positions of each barline. These must be sorted in increasing order.
+ * @param {boolean?} returnIndices If `true`, returns indices of the bars array instead of the ticks themselves.
+ * @returns {number[]} 
+ * `[tickOfThisBar, tickOfNextBar]` or `[currBarIdx, nextBarIdx]`
  */
-function getBarBoundaries(tick, bars) {
-    var tickOfNextBar = -1; // if -1, the cursor at the last bar
-    var tickOfThisBar = -1; // if -1, something's wrong.
+function getBarBoundaries(tick, bars, returnIndices) {
 
-    for (var i = 0; i < bars.length; i++) {
-        if (bars[i] > tick) {
-            tickOfNextBar = bars[i];
-            break;
-        }
-        tickOfThisBar = bars[i];
+    if (tick >= bars[bars.length - 1]) {
+        return returnIndices ? [bars.length - 1, -1] : [bars[bars.length - 1], -1];
     }
 
-    return [tickOfThisBar, tickOfNextBar];
+    var guessIdx = Math.floor(bars.length / 2);
+    var highGuess = bars.length - 1;
+    var lowGuess = 0;
+    for (var i = 0; i < bars.length; i++) {
+        if (tick >= bars[guessIdx] && tick < bars[guessIdx + 1]) {
+            // console.log('found target bar', guessIdx, bars[guessIdx]);
+            return returnIndices ? [guessIdx, guessIdx + 1] : [bars[guessIdx], bars[guessIdx + 1]];
+        }
+        if (tick < bars[guessIdx]) {
+            // console.log('guess too high: ', guessIdx, bars[guessIdx], lowGuess, highGuess);
+            highGuess = guessIdx;
+            guessIdx = Math.floor((highGuess + lowGuess) / 2);
+        } else {
+            // console.log('guess too low', guessIdx, bars[guessIdx], lowGuess, highGuess);
+            lowGuess = guessIdx;
+            guessIdx = Math.floor((highGuess + lowGuess) / 2);
+        }
+    }
+
+    console.error('ERROR: getBarBoundaries() failed to find bar boundaries of tick ' + tick + ' in bars: ' + JSON.stringify(bars));
+    return [-1, -1];
 }
 
 /**
@@ -3603,7 +3627,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
         setCursorToPosition(cursor, tickOfThisBar, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && cursor.tick < tickOfNextBar) {
-            if (cursor.element && cursor.element.type == Ms.CHORD) {
+            if (cursor.element && cursor.element.name == "Chord") {
                 var notes = cursor.element.notes;
                 var graceChords = cursor.element.graceNotes;
                 var currTick = cursor.tick;
@@ -4130,7 +4154,6 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
     cursor.rewind(1);
     cursor.voice = voice;
     cursor.staffIdx = staffIdx;
-    cursor.rewind(0);
 
     if (voice < 0 || voice > 3) {
         console.error("FATAL ERROR: setCursorToPosition voice out of range: " + voice);
@@ -4142,29 +4165,7 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
         return;
     }
 
-    // console.log('Called setCursorToPosition. tick: ' + tick + ', voice: ' + voice + ', staffIdx: ' + staffIdx);
-
-    while (cursor.tick < tick) {
-        if (cursor.measure && tick > cursor.measure.lastSegment.tick) {
-            if (!cursor.nextMeasure()) {
-                // console.log('INFO: setCursorToPosition reached end during forward measure traversal. tick: '
-                //     + cursor.tick + ', elem: ' + cursor.element);
-                break;
-            }
-        } else if (!cursor.next()) {
-            // console.log('INFO: setCursorToPosition reached end during forward traversal to '
-            //     + tick + '|' + voice + '. tick: ' + cursor.tick + ', elem: ' + cursor.element);
-            break;
-        }
-    }
-
-    while (cursor.tick > tick) {
-        if (!cursor.prev()) {
-            // console.log('WARN: setCursorToPosition reached start during backward traversal. tick: '
-            //     + cursor.tick + ', elem: ' + cursor.element);
-            break;
-        }
-    }
+    cursor.rewindToTick(tick);
 
     if (cursor.tick != tick) {
         // This happens very frequently because the position to move to
@@ -4552,15 +4553,10 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) 
 
     note.line = newLine;
 
-    var acc = newElement(Element.ACCIDENTAL);
-    note.add(acc);
     note.accidentalType = Accidental.NATURAL;
-
-    acc = newElement(Element.ACCIDENTAL);
-    note.add(acc);
     note.accidentalType = Accidental.NONE;
 
-    note.line = newLine; // Finally...
+    note.line = newLine;
 
     setAccidental(note, orderedSymbols, newElement, tuningConfig);
 }
@@ -4599,7 +4595,7 @@ function forceExplicitAccidentalsAfterNote(
         while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
             // console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
-            if (!(cursor.element && cursor.element.type == Ms.CHORD)) {
+            if (!(cursor.element && cursor.element.name == "Chord")) {
                 cursor.next();
                 continue;
             }
@@ -4690,11 +4686,11 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var bars = parms.bars;
     var noteTick = getTick(note);
 
-    var barBoundaries = getBarBoundaries(noteTick, bars);
+    var barBoundaries = getBarBoundaries(noteTick, bars, false);
     var tickOfThisBar = barBoundaries[0];
     var tickOfNextBar = barBoundaries[1];
 
-    console.log('executeTranspose(' + direction + ', ' + aux + '). Check same: ' + JSON.stringify(constantConstrictions));
+    console.log('executeTranspose(' + direction + ', ' + aux + '). Tick: ' + noteTick);
 
     var noteData = parseNote(note, tuningConfig, keySig,
         tickOfThisBar, tickOfNextBar, cursor, newElement);
@@ -4801,35 +4797,28 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
  *  If -1, performs the operation till the end of the score.
  * @param {Parms} parms Global `parms` object.
  * @param {Cursor} cursor Cursor object
- * @param {*} newElement Reference to the `PluginAPI.newElement()` function
+ * @param {newElement} newElement Reference to the `PluginAPI.newElement()` function
+ * @param {number?} firstBarTickIndex 
+ * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
+ * If provided, {@link startBarTick} will be ignored.
+ * @param {number?} lastBarTickIndex 
+ * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
+ * If provided, {@link endBarTick} will be ignored.
  */
-function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, newElement) {
+function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, newElement, firstBarTickIndex, lastBarTickIndex) {
 
     var staff = cursor.staffIdx;
     var bars = parms.bars;
 
-    var lastBarTickIndex = -1; // if -1, means its the last bar of score
-    var firstBarTickIndex = -1;
-
-    for (var i = 0; i < bars.length; i++) {
-        if (endBarTick != -1 && bars[i] > endBarTick) {
-            lastBarTickIndex = i - 1;
-            break;
-        }
-        if (bars[i] > startBarTick && firstBarTickIndex == -1) {
-            firstBarTickIndex = i - 1;
-        }
-    }
+    var lastBarTickIndex = lastBarTickIndex || getBarBoundaries(endBarTick, bars, true)[1]; // if -1, means its the last bar of score
+    var firstBarTickIndex = firstBarTickIndex || getBarBoundaries(startBarTick, bars, true)[0];
 
     if (lastBarTickIndex == -1)
         lastBarTickIndex = bars.length - 1;
 
-    if (firstBarTickIndex == -1)
-        firstBarTickIndex = lastBarTickIndex;
-
     var tickOfThisBar = bars[firstBarTickIndex];
 
-    console.log('removeUnnec( from bar ' + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + endBarTick + ')');
+    console.log('removeUnnec( from bar ' + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + lastBarTickIndex + ')');
 
     // Repeat procedure for 1 bar at a time.
 
@@ -5067,7 +5056,7 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
         setCursorToPosition(cursor, tickOfThisBar, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && cursor.tick < tickOfNextBar) {
-            if (cursor.element && cursor.element.type == Ms.CHORD) {
+            if (cursor.element && cursor.element.name == "Chord") {
                 var notes = cursor.element.notes;
                 var graceChords = cursor.element.graceNotes;
                 var currTick = cursor.tick;
@@ -5478,34 +5467,27 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
  *  till the end of the score.
  * @param {number[]} bars List of ticks of bars.
  * @param {Cursor} cursor MuseScore cursor object
+ * @param {number?} firstBarTickIndex 
+ * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
+ * If provided, {@link startTick} will be ignored.
+ * @param {number?} lastBarTickIndex 
+ * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
+ * If provided, {@link endTick} will be ignored.
  */
-function autoPositionAccidentals(startTick, endTick, parms, cursor) {
+function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTickIndex, lastBarTickIndex) {
     var bars = parms.bars;
     var staff = cursor.staffIdx;
 
-    var lastBarTickIndex = -1; // if -1, means its the last bar of score
-    var firstBarTickIndex = -1;
-
-    for (var i = 0; i < bars.length; i++) {
-        if (endTick != -1 && bars[i] > endTick) {
-            lastBarTickIndex = i - 1;
-            break;
-        }
-        if (bars[i] > startTick && firstBarTickIndex == -1) {
-            firstBarTickIndex = i - 1;
-        }
-    }
+    var lastBarTickIndex = lastBarTickIndex || getBarBoundaries(endTick, bars, true)[1]; // if -1, means its the last bar of score
+    var firstBarTickIndex = firstBarTickIndex || getBarBoundaries(startTick, bars, true)[0];
 
     if (lastBarTickIndex == -1)
         lastBarTickIndex = bars.length - 1;
 
-    if (firstBarTickIndex == -1)
-        firstBarTickIndex = lastBarTickIndex;
-
     var tickOfThisBar = bars[firstBarTickIndex];
 
     console.log('autoPosition(' + startTick + ', ' + endTick + ') from bar '
-        + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + endTick);
+        + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + lastBarTickIndex);
 
     // Repeat procedure for 1 bar at a time.
 
@@ -5538,7 +5520,9 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
         //     '\nTicks found: ' + ticks.join(', '));
 
         ticks.forEach(function (tick) {
-            // the Chords object
+            /**
+             * @type {Chords}
+             */
             var chords = chordsByTick[tick];
 
             // One vert stack = all chords at a tick that should be
@@ -5589,7 +5573,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor) {
                         continue;
                     }
 
-                    if (chdElement.parent.type != Ms.CHORD) {
+                    if (chdElement.parent.name != "Chord") {
                         console.error("ERROR: parent of note object isn't a chord??");
                         continue;
                     }
@@ -5904,7 +5888,7 @@ function operationTune(display) {
 
                         parms.bars.push(cursor.segment.tick);
                         measureCount++;
-                        console.log("New bar - " + measureCount);
+                        // console.log("New bar - " + measureCount);
                     }
                 }
 
@@ -5919,6 +5903,9 @@ function operationTune(display) {
     }
 
     // Staff configs have been populated!
+
+    var startBarIdx = getBarBoundaries(startTick, parms.bars, true)[0];
+    var endBarIdx = getBarBoundaries(endTick, parms.bars, true)[1];
 
     // Go through each staff + voice to start tuning notes.
 
@@ -5940,13 +5927,7 @@ function operationTune(display) {
 
             // 0-indexed bar counter.
             // Used to keep track of bar boundaries efficiently.
-            var currBar = parms.bars.length - 1;
-            for (var i = 0; i < parms.bars.length; i++) {
-                if (parms.bars[i] > cursor.tick) {
-                    currBar = i - 1;
-                    break;
-                }
-            }
+            var currBar = getBarBoundaries(cursor.tick, parms.bars, true)[0];
 
             var tickOfThisBar = parms.bars[currBar];
             var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
@@ -5963,8 +5944,6 @@ function operationTune(display) {
             // Loop elements of a voice
             while (cursor.segment && (fullScore || cursor.tick < endTick)) {
                 if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
-                    removeUnnecessaryAccidentals(
-                        tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
                     // Update bar boundaries.
                     currBar++;
                     tickOfThisBar = tickOfNextBar;
@@ -5986,7 +5965,7 @@ function operationTune(display) {
                 // Tune the note!
 
                 if (cursor.element) {
-                    if (cursor.element.type == Ms.CHORD) {
+                    if (cursor.element.name == "Chord") {
                         var graceChords = cursor.element.graceNotes;
                         for (var i = 0; i < graceChords.length; i++) {
                             // iterate through all grace chords
@@ -6017,21 +5996,20 @@ function operationTune(display) {
                 }
                 cursor.next();
             }
-
-            if (tickOfLastModified != -1) {
-                removeUnnecessaryAccidentals(
-                    tickOfLastModified, tickOfLastModified, parms,
-                    cursor, newElement);
-            }
         } // end of voice loop
 
         _curScore.endCmd();
 
         _curScore.startCmd();
+        
+        removeUnnecessaryAccidentals(
+            startTick, endTick, parms, cursor, newElement, startBarIdx, endBarIdx
+        );
 
         autoPositionAccidentals(
-            startTick, endTick, parms, cursor
+            startTick, endTick, parms, cursor, startBarIdx, endBarIdx
         );
+    
 
         _curScore.endCmd();
     }
@@ -6058,7 +6036,6 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
     if (typeof _curScore === 'undefined')
         return;
 
-    console.log(Qt.resolvedUrl("."));
     /** @type {Parms} */
     var parms = {};
     _curScore.createPlayEvents();
@@ -6129,7 +6106,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                         parms.bars.push(cursor.segment.tick);
                         measureCount++;
-                        console.log("New bar - " + measureCount + ", tick: " + cursor.segment.tick);
+                        // console.log("New bar - " + measureCount + ", tick: " + cursor.segment.tick);
                     }
                 }
 
@@ -6141,6 +6118,13 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
         parms.staffConfigs[staff] = configs.sort(function (a, b) {
             return a.tick - b.tick;
         });
+    }
+
+    var startBarIdx = null, endBarIdx = null;
+
+    if (!noPhraseSelection) {
+        startBarIdx = getBarBoundaries(startTick, parms.bars, true)[0];
+        endBarIdx = getBarBoundaries(endTick, parms.bars, true)[1];
     }
 
     // End of config population.
@@ -6236,27 +6220,27 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                     }
                 }
 
-                var barBoundaries = getBarBoundaries(tick, parms.bars);
-
                 // Modify pitch.
 
                 _curScore.startCmd();
 
+                var barBoundIdx = getBarBoundaries(tick, parms.bars, true);
+
                 // direction: 1: up, -1 = down, 0: enharmonic cycle.
-                var barState = executeTranspose(note, stepwiseDirection,
+                executeTranspose(note, stepwiseDirection,
                     stepwiseAux, parms, newElement, cursor);
 
                 // Remove unnecessary accidentals just for this bar.
 
                 removeUnnecessaryAccidentals(
-                    tick, tick, parms, cursor, newElement);
+                    tick, tick, parms, cursor, newElement, barBoundIdx[0], barBoundIdx[1]);
 
                 _curScore.endCmd();
                 _curScore.startCmd();
 
                 // Auto position accidentals in this bar.
                 autoPositionAccidentals(
-                    tick, tick, parms, cursor
+                    tick, tick, parms, cursor, barBoundIdx[0], barBoundIdx[1]
                 );
                 _curScore.endCmd();
 
@@ -6278,13 +6262,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                 // 0-indexed bar counter.
                 // Used to keep track of bar boundaries efficiently.
-                var currBar = parms.bars.length - 1;
-                for (var i = 0; i < parms.bars.length; i++) {
-                    if (parms.bars[i] > cursor.tick) {
-                        currBar = i - 1;
-                        break;
-                    }
-                }
+                var currBar = getBarBoundaries(cursor.tick, parms.bars, true)[0];
 
                 var tickOfThisBar = parms.bars[currBar];
                 var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
@@ -6299,22 +6277,6 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 // Loop elements of a voice
                 while (cursor.segment && (cursor.tick < endTick)) {
                     if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
-                        // At the end of every bar, remove unnecessary accidentals.
-                        removeUnnecessaryAccidentals(
-                            tickOfThisBar, tickOfThisBar, parms, cursor, newElement);
-
-                        // We can't do this one-shot at the end, because the unnecessary accidentals
-                        // dependins on tuning config & key sig, which may be different for each
-                        // bar.
-
-                        // However, a more efficient method would be to store the last tick when
-                        // key sig/tuning config was changed, and when config is changed
-                        // again, we remove unnecessary accidentals, then proceed.
-                        // This would be more efficient than re-running this function every bar.
-                        // 
-                        // TODO: improve efficiency of removeUnnecessaryAccidentals call
-                        // (Only if performance improvements are necessary)
-
                         // Update bar boundaries.
                         currBar++;
                         tickOfThisBar = tickOfNextBar;
@@ -6329,7 +6291,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                     }
 
                     if (cursor.element) {
-                        if (cursor.element.type == Ms.CHORD) {
+                        if (cursor.element.name == "Chord") {
                             var graceChords = cursor.element.graceNotes;
                             for (var i = 0; i < graceChords.length; i++) {
                                 // iterate through all grace chords
@@ -6377,12 +6339,17 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
             _curScore.endCmd();
 
             _curScore.startCmd();
+            
+            removeUnnecessaryAccidentals(
+                startTick, endTick, parms, cursor, newElement, startBarIdx, endBarIdx
+            );
 
             // After processing all voices in a staff, 
             // auto position accidentals in this staff in the selection range
             autoPositionAccidentals(
-                startTick, endTick, parms, cursor
+                startTick, endTick, parms, cursor, startBarIdx, endBarIdx
             );
+            
             _curScore.endCmd();
         }
     }
