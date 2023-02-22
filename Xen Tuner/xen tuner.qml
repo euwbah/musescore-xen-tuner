@@ -50,8 +50,8 @@ MuseScore {
 
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("."), curScore, isMS4);
-        console.log('present working dir: ' + Qt.resolvedUrl("."));
+          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
+        console.log('present working dir: ' + Qt.resolvedUrl("../"));
       }
 
       Component.onCompleted : {

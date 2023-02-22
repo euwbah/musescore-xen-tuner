@@ -66,8 +66,8 @@ MuseScore {
         // console.log(JSON.stringify(Fns));
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("."), curScore, isMS4);
-        console.log(Qt.resolvedUrl("."));
+          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
+        console.log(Qt.resolvedUrl("../"));
 
 
         if (typeof curScore === 'undefined')

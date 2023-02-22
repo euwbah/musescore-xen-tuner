@@ -62,7 +62,7 @@ MuseScore {
         console.log('Xen Tuner - Display Steps');
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("."), curScore, isMS4);
+          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
 
         Fns.operationTune(2);
       }

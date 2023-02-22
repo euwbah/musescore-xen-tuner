@@ -6036,7 +6036,6 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
     if (typeof _curScore === 'undefined')
         return;
 
-    console.log(Qt.resolvedUrl("."));
     /** @type {Parms} */
     var parms = {};
     _curScore.createPlayEvents();
