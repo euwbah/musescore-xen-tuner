@@ -51,6 +51,9 @@ MuseScore {
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
           fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
+        openLog('xen tuner 0.4.log');
+        logn('test xen tuner');
+        closeLog();
         console.log('present working dir: ' + Qt.resolvedUrl("../"));
       }
 
