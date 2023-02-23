@@ -1,0 +1,7 @@
+// Based on: http://tonalsoft.com/enc/q/qt-staff.aspx
+//
+// Use reference tuning changes to notate multi-staff systems.
+
+A4: 440
+
+0 1*1200/24c 2*1200/24c
