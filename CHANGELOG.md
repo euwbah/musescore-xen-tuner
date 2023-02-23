@@ -1,13 +1,5 @@
 # Changelog
 
-## 0.4.0
-
-- Attempt MuseScore 4 support.
-  - Changed 'dock' to 'dialog' type to support MuseScore 4.
-  - Remove dependency on old `PluginAPI::Ms`, using `Element.name` instead.
-  - Use `AccidentalType` when on MS4 instead of `Accidental`.
-- Fix shortcuts breaking when plugin closed and reopened in plugin creator/MS 4.
-
 ## 0.3.2
 
 - Huge performance improvements for tuning & up/down/enharmonic cycle for large scores

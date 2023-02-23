@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.4.0"
+      version: "0.3.3"
       pluginType: "dialog" // changed from "dock" to "dialog" to support both MS3 and 4
       // dockArea: "left"
       description: "Starts the XenTuner plugin.\n\n" +

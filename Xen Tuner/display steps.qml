@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.4.0"
+      version: "0.3.3"
       description: "Create fingerings to display edo/neji-steps of notes relative to the reference note.\n\n" +
         "Applies to selection, or entire score if nothing is selected."
       menuPath: "Plugins.Xen Tuner.Display Steps"
