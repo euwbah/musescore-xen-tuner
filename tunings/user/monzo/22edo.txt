@@ -1,0 +1,56 @@
+A4: 440
+0c 1200*4/22c 1200*5/22c 1200*9/22c 1200*13/22c 1200*14/22c 1200*18/22c 2/1
+b (1200*3/22c) #
+\\ (1200*1/22c) /
+
+displaysteps(22, below)
+
+lig(1,2)!
+-2 -2 bbv2
+-2 -1 bbv
+-2 0 bb
+-2 1 bb^
+-2 2 bb^2
+-1 -2 bv2
+-1 -1 bv
+-1 0 b
+-1 1 b^
+-1 2 b^2
+0 -2 v2
+0 -1 \\
+0 1 /
+0 2 ^2
+1 -2 #v2
+1 -1 #v
+1 0 #
+1 1 #^
+1 2 #^2
+2 -2 xv2
+2 -1 xv
+2 0 x
+2 1 x^
+2 2 x^2
+
+// Because this ligature is declared as important,
+// we have to duplicate these default symbols as ligatures
+// so that they will show up in enharmonic cycles.
+0 -2 v2
+0 -1 \\
+0 1 /
+0 2 ^2
+
+sec()
+'bb' bb -1200*6/22c
+'b' b -1200*3/22c
+'##' x 1200*6/22c
+'x' x 1200*6/22c
+'#' # 1200*3/22c
+'vv' v2 -1200*2/22c
+'v' \\ -1200*1/22c
+'^^' ^2 1200*2/22c
+'^' / 1200*1/22c
+
+
+aux(0)
+aux(1)
+aux(2)
