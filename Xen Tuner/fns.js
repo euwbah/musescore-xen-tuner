@@ -6244,6 +6244,8 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 // handle transposing the firstTiedNote in the event that a non-first tied note
                 // is selected.
                 note = note.firstTiedNote;
+                var firstTiedTick = getTick(note);
+                var lastTiedTick = getTick(note.lastTiedNote);
 
                 var alreadyTrans = false;
                 for (var j = 0; j < affected.length; j++) {
@@ -6280,7 +6282,8 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                 _curScore.startCmd();
 
-                var barBoundIdx = getBarBoundaries(tick, parms.bars, true);
+                var firstTiedBarIdx = getBarBoundaries(firstTiedTick, parms.bars, true)[0];
+                var lastTiedBarEndIdx = getBarBoundaries(lastTiedTick, parms.bars, true)[1];
 
                 // direction: 1: up, -1 = down, 0: enharmonic cycle.
                 executeTranspose(note, stepwiseDirection,
@@ -6289,14 +6292,14 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 // Remove unnecessary accidentals just for this bar.
 
                 removeUnnecessaryAccidentals(
-                    tick, tick, parms, cursor, newElement, barBoundIdx[0], barBoundIdx[1]);
+                    tick, tick, parms, cursor, newElement, firstTiedBarIdx, lastTiedBarEndIdx);
 
                 _curScore.endCmd();
                 _curScore.startCmd();
 
                 // Auto position accidentals in this bar.
                 autoPositionAccidentals(
-                    tick, tick, parms, cursor, barBoundIdx[0], barBoundIdx[1]
+                    tick, tick, parms, cursor, firstTiedBarIdx, lastTiedBarEndIdx
                 );
                 _curScore.endCmd();
 

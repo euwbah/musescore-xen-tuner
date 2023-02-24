@@ -6,6 +6,7 @@
 - Fix key signatures:
   - `0` for natural breaks key signatures
   - Unnecessary natural accidentals are incorrectly registered as not necessary if key signature is specified.
+- Fix symbols not auto-positioned if accidentals are created/modified by notes in other bars due to forward/backward ties in `explicit()` accidental mode.
 - Add [userspace tunings folder](/tunings/user)
 
 ## 0.3.2
