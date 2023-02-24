@@ -366,7 +366,7 @@ function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSFileIO, MSCurScore
 
     // set to absolute path
     pluginHomePath = Qt.resolvedUrl("../").replace("file:///", "");
-    if (pluginHomePath.match(/^\w:/g)) {
+    if (pluginHomePath.match(/^\w:/g) == null) {
         // if no drive letter, prefix a slash (*nix systems)
         pluginHomePath = "/" + pluginHomePath;
     }
