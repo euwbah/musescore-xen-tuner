@@ -441,9 +441,9 @@ function readSymbolCode(codeOrText) {
     var codeOrText = codeOrText.trim();
     var code = Lookup.TEXT_TO_CODE[codeOrText];
     if (!code)
-        code = parseInt(codeOrText) || null;
+        code = parseInt(codeOrText);
 
-    if (code >= Lookup.CODE_TO_LABELS.length) {
+    if (isNaN(code) || code >= Lookup.CODE_TO_LABELS.length) {
         return null;
     }
     return code;
@@ -5009,18 +5009,21 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                 // we found an explicit accidental on this note.
                                 // check if we really need it or not.
 
-                                var currAccState = accidentalState[lineNum];
+                                var prevExplicitAccHash = accidentalState[lineNum];
 
-                                log('currAccState: ' + currAccState + ', accHash: ' + accHash
+                                log('currAccState: ' + prevExplicitAccHash + ', accHash: ' + accHash
                                     + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
 
-                                if (currAccState && currAccState == accHash) {
+                                if (prevExplicitAccHash && prevExplicitAccHash == accHash) {
                                     // if the exact same accidental hash is found on the
                                     // accidental state and this note, this note's
                                     // accidental is redundant. Remove it.
 
                                     setAccidental(msNote.internalNote, null, newElement, tuningConfig);
-                                } else if (!currAccState && keySig) {
+                                    continue;
+                                } 
+                                
+                                if (!prevExplicitAccHash && keySig) {
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
                                     // is also redundant. Remove.
@@ -5029,18 +5032,23 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     log('realKeySig: ' + realKeySig);
                                     if (realKeySig == accHash) {
                                         setAccidental(msNote.internalNote, null, newElement, tuningConfig);
+                                        continue;
                                     }
-                                } else if (isNatural && !currAccState && (!keySig || !keySig[nominal])) {
+                                } 
+                                
+                                if (isNatural && !prevExplicitAccHash && (!keySig || !keySig[nominal])) {
                                     // This note has a natural accidental, but it is not
                                     // needed, since the prior accidental state/key sig is natural.
 
                                     setAccidental(msNote.internalNote, null, newElement, tuningConfig);
-                                } else {
-                                    // Otherwise, if we find an explicit accidental
-                                    // that is necessary, update the accidental state.
-
-                                    accidentalState[lineNum] = accHash;
+                                    continue;
                                 }
+
+                                // Otherwise, if we find an explicit accidental
+                                // that is necessary, update the accidental state.
+
+                                accidentalState[lineNum] = accHash;
+                                
                             }
                         }
                     }

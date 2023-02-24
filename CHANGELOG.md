@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3
+
+- Change logging method (got debug logging to work for MS4)
+- Fix key signatures:
+  - `0` for natural breaks key signatures
+  - Unnecessary natural accidentals are incorrectly registered as not necessary if key signature is specified.
+- Add [userspace tunings folder](/tunings/user)
+
 ## 0.3.2
 
 - Huge performance improvements for tuning & up/down/enharmonic cycle for large scores
