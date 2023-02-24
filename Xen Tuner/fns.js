@@ -242,11 +242,22 @@ var VALID_ASCII_ACC_ESC_CHARS = {
 /**
  * The default tuning config in case tunings/default.txt is invalid or not found.
  */
-var DEFAULT_TUNING_CONFIG = "   \n\
-A4: 440                         \n\
-0 200 300 500 700 800 1000 1200 \n\
-bb b (100) # x                  \n\
-";
+var DEFAULT_TUNING_CONFIG = "           \n\
+A4: 440                                 \n\
+0 200c 300c 500c 700c 800c 1000c 1200c  \n\
+bbb bb b (100c) # x #x                  \n\
+aux(0)                                  \n\
+aux(1)                                  \n\
+sec()                                   \n\
+'bbb' bbb -300c                         \n\
+'bb' bb -200c                           \n\
+'b' b -100c                             \n\
+'###' #x 300c                           \n\
+'#x' #x 300c                            \n\
+'x#' #x 300c                            \n\
+'##' x 200c                             \n\
+'x' x 200c                              \n\
+'#' # 100c";
 
 /**
  * If a fingering has this Z index, it signifies that it is a
