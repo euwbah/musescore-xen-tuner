@@ -35,12 +35,13 @@ MuseScore {
       description: "Create fingerings to display cent offsets of notes.\n\n" +
         "Applies to selection, or entire score if nothing is selected."
       menuPath: "Plugins.Xen Tuner.Display Cents"
+      readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
       
       id: pluginId
 
       Component.onCompleted : {
         if (mscoreMajorVersion >= 4) {
-          pluginId.title = qsTr("Xen Tuner - Display Cents");
+          pluginId.title = qsTr("Xen Tuner");
           // pluginId.thumbnailName = "some_thumbnail.png";
           pluginId.categoryCode = "composing-arranging-tools";
         }
@@ -62,7 +63,7 @@ MuseScore {
         console.log('Xen Tuner - Display Cents');
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
+          fileIO, pluginHomePath, curScore, isMS4);
 
         Fns.operationTune(1);
       }

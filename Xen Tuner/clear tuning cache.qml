@@ -32,12 +32,13 @@ MuseScore {
         "If you've experimented with many different tunings within a score, but aren't currently using most of them," +
         "it is highly recommended to clear the Tuning Config cache."
       menuPath: "Plugins.Xen Tuner.Clear Tuning Cache"
+      readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
 
       id: pluginId
 
       Component.onCompleted : {
         if (mscoreMajorVersion >= 4) {
-          pluginId.title = qsTr("Xen Tuner - Clear tuning cache");
+          pluginId.title = qsTr("Xen Tuner");
           // pluginId.thumbnailName = "some_thumbnail.png";
           pluginId.categoryCode = "composing-arranging-tools";
         }
@@ -57,8 +58,8 @@ MuseScore {
         // console.log(JSON.stringify(Fns));
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
-        console.log(Qt.resolvedUrl("../"));
+          fileIO, pluginHomePath, curScore, isMS4);
+        console.log(pluginHomePath);
 
         if (typeof curScore === 'undefined')
               return;
