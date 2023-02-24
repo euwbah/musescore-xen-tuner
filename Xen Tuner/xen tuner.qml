@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.4.0"
+      version: "0.3.3"
       pluginType: "dock"
       dockArea: "left"
       description: "Starts the XenTuner plugin.\n\n" +
@@ -56,11 +56,13 @@ MuseScore {
       }
 
       Component.onCompleted : {
-        if (mscoreMajorVersion >= 4) {
-          pluginId.title = qsTr("Xen Tuner");
-          // pluginId.thumbnailName = "some_thumbnail.png";
-          pluginId.categoryCode = "composing-arranging-tools";
-        }
+        // This plugin shouldn't appear in MS 4 as it is only for MS3.
+
+        // if (mscoreMajorVersion >= 4) {
+        //   pluginId.title = qsTr("Xen Tuner");
+        //   pluginId.thumbnailName = "some_thumbnail.png";
+        //   pluginId.categoryCode = "composing-arranging-tools";
+        // }
       }
 
       FileIO {

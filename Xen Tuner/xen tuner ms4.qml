@@ -31,9 +31,8 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.4.0"
-      pluginType: "dialog" // changed from "dock" to "dialog" to support both MS3 and 4
-      // dockArea: "left"
+      version: "0.3.3"
+      pluginType: "dialog"
       description: "Starts the XenTuner plugin.\n\n" +
         "This will open a small docked panel to the side.\n\nIMPORTANT: Do not close the window.\n"+
         "Make sure you only have 1 instance of this plugin running at a time."
