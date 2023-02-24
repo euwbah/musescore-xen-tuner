@@ -37,7 +37,7 @@ MuseScore {
 
       Component.onCompleted : {
         if (mscoreMajorVersion >= 4) {
-          pluginId.title = qsTr("Xen Tuner");
+          pluginId.title = qsTr("Xen Tuner - Clear Tuning Cache");
           // pluginId.thumbnailName = "some_thumbnail.png";
           pluginId.categoryCode = "composing-arranging-tools";
         }
