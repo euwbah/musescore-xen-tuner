@@ -32,6 +32,7 @@ MuseScore {
       description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
           + "script to generate one MPE midi file per staff."
       menuPath: "Plugins.Xen Tuner.Export MIDI CSV"
+      readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
       
       id: pluginId
 
@@ -66,8 +67,8 @@ MuseScore {
         // console.log(JSON.stringify(Fns));
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
-        console.log(Qt.resolvedUrl("../"));
+          fileIO, pluginHomePath, curScore, isMS4);
+        console.log(pluginHomePath);
 
 
         if (typeof curScore === 'undefined')

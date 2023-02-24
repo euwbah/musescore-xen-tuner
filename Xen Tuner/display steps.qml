@@ -35,6 +35,7 @@ MuseScore {
       description: "Create fingerings to display edo/neji-steps of notes relative to the reference note.\n\n" +
         "Applies to selection, or entire score if nothing is selected."
       menuPath: "Plugins.Xen Tuner.Display Steps"
+      readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
       
       id: pluginId
 
@@ -62,7 +63,7 @@ MuseScore {
         console.log('Xen Tuner - Display Steps');
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
+          fileIO, pluginHomePath, curScore, isMS4);
 
         Fns.operationTune(2);
       }

@@ -42,6 +42,7 @@ MuseScore {
       implicitWidth: 300
       id: pluginId
       readonly property var window: Window.window
+      readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
       
       onRun: {
         console.log('Started Xen Tuner');
@@ -50,8 +51,8 @@ MuseScore {
 
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, Qt.resolvedUrl("../"), curScore, isMS4);
-        console.log('present working dir: ' + Qt.resolvedUrl("../"));
+          fileIO, pluginHomePath, curScore, isMS4);
+        console.log('present working dir: ' + pluginHomePath);
       }
 
       Component.onCompleted : {
