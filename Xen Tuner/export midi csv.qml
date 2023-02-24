@@ -32,7 +32,6 @@ MuseScore {
       description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
           + "script to generate one MPE midi file per staff."
       menuPath: "Plugins.Xen Tuner.Export MIDI CSV"
-      readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
       
       id: pluginId
 
@@ -62,13 +61,13 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Xenharmonic Export MIDI CSV');
         // When you want to find which import has a syntax error, uncomment this line
-        // console.log(JSON.stringify(Fns));
+        // Fns.log(JSON.stringify(Fns));
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, pluginHomePath, curScore, isMS4);
-        console.log(pluginHomePath);
+          fileIO, curScore, isMS4);
+        Fns.preAction();
+        Fns.log('Xen Tuner Export MIDI CSV');
 
 
         if (typeof curScore === 'undefined')
@@ -78,7 +77,7 @@ MuseScore {
         var midiText = division + '\n';
         var currentScorePath = curScore.path;
 
-        console.log("currentScorePath: " + currentScorePath);
+        Fns.log("currentScorePath: " + currentScorePath);
 
         var parms = {};
         curScore.createPlayEvents();
@@ -108,7 +107,7 @@ MuseScore {
           }
           endStaff = cursor.staffIdx;
         }
-        console.log("startStaff: " + startStaff + ", endStaff: " + endStaff + ", endTick: " + endTick);
+        Fns.log("startStaff: " + startStaff + ", endStaff: " + endStaff + ", endTick: " + endTick);
         //
         //
         //
@@ -149,14 +148,14 @@ MuseScore {
             cursor.rewind(0);
 
             var measureCount = 0;
-            console.log("Populating configs. staff: " + staff + ", voice: " + voice);
+            Fns.log("Populating configs. staff: " + staff + ", voice: " + voice);
 
             while (true) {
               // loop from first segment to last segment of this staff+voice.
               if (cursor.segment) {
                 for (var i = 0; i < cursor.segment.annotations.length; i++) {
                   var annotation = cursor.segment.annotations[i];
-                  console.log("found annotation type: " + annotation.name);
+                  Fns.log("found annotation type: " + annotation.name);
                   if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
                       (annotation.name == 'SystemText')) {
                     var maybeConfigUpdateEvent = Fns.parsePossibleConfigs(annotation.text, cursor.tick);
@@ -174,7 +173,7 @@ MuseScore {
 
                   parms.bars.push(cursor.segment.tick);
                   measureCount ++;
-                  console.log("New bar - " + measureCount);
+                  Fns.log("New bar - " + measureCount);
                 }
               }
 
@@ -218,8 +217,8 @@ MuseScore {
             var tickOfThisBar = parms.bars[currBar];
             var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
 
-            console.log("Tuning. staff: " + staff + ", voice: " + voice);
-            // console.log("Starting bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
+            Fns.log("Tuning. staff: " + staff + ", voice: " + voice);
+            // Fns.log("Starting bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
 
             // Tuning doesn't affect note/accidental state,
             // we can reuse bar states per bar to prevent unnecessary
@@ -236,7 +235,7 @@ MuseScore {
                 currBar ++;
                 tickOfThisBar = tickOfNextBar;
                 tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
-                // console.log("Next bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
+                // Fns.log("Next bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
                 // reset bar state.
                 reusedBarState = {};
               }
@@ -250,7 +249,7 @@ MuseScore {
                   for (var j = 0; j < configKeys.length; j++) {
                     var key = configKeys[j];
                     parms[key] = config.config[key];
-                    // console.log('Applied config: ' + key + ' = eqvSize: ' + config.config[key].equaveSize +
+                    // Fns.log('Applied config: ' + key + ' = eqvSize: ' + config.config[key].equaveSize +
                     //   ', staff: ' + staff + ', voice: ' + voice + ', config tick: ' + config.tick
                     //   + ', cursor tick: ' + cursor.tick);
                   }
@@ -260,12 +259,12 @@ MuseScore {
               for (var i = 0; i < cursor.segment.annotations.length; i++) {
                 var annotation = cursor.segment.annotations[i];
                 if (annotation.name == 'Dynamic') {
-                  console.log('Found dynamic: ' + annotation.text + ', velo: ' + annotation.velocity);
+                  Fns.log('Found dynamic: ' + annotation.text + ', velo: ' + annotation.velocity);
                   velo = annotation.velocity;
                 }
                 if (annotation.name == 'Tempo' && staff == startStaff && voice == 0) {
                   var bpm = annotation.tempo * 60; // the tempo is in bps
-                  console.log('Found tempo: ' + bpm + 'bpm');
+                  Fns.log('Found tempo: ' + bpm + 'bpm');
                   // staff -2 denotes special info for tempo
                   midiText += '-2, ' + bpm + ', ' + cursor.tick + '\n';
                 }
@@ -314,5 +313,7 @@ MuseScore {
         }
 
         messageDialog.open();
+        
+        Fns.postAction();
       }
 }

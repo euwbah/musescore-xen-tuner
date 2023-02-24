@@ -1624,3 +1624,19 @@ class FileIO {
      */
     write(str) { }
 }
+
+/**
+ * Opens a log file for writing.
+ * 
+ * Use {@link logn} to log to this file.
+ * 
+ * Remember to {@link closeLog()} afterwards.
+ * 
+ * @param {string} filePath path to log file
+ */
+function openLog(filePath) {}
+
+function closeLog() {}
+
+/** Log with new line */
+function logn(str) {}

@@ -60,11 +60,13 @@ MuseScore {
       }
 
       onRun: {
-        console.log('Xen Tuner - Display Steps');
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, pluginHomePath, curScore, isMS4);
+          fileIO, curScore, isMS4);
+        Fns.preAction();
+        Fns.log('Xen Tuner - Display Steps');
 
         Fns.operationTune(2);
+        Fns.postAction();
       }
 }

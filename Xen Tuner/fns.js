@@ -302,10 +302,10 @@ function generateDefaultTuningConfig() {
     /** @type {TuningConfig} */
     var tuningConfig;
     if (defaultTxt.length == 0) {
-        console.log("default.txt not found, generating default tuning config...");
+        log("default.txt not found, generating default tuning config...");
         tuningConfig = parseTuningConfig(DEFAULT_TUNING_CONFIG, true, true);
     } else {
-        console.log('Generated default tuning config from default.txt');
+        log('Generated default tuning config from default.txt');
         tuningConfig = parseTuningConfig(defaultTxt, true, true);
         if (tuningConfig == null) {
             console.error("ERROR: default.txt is invalid. Please fix your tuning config. Generating default tuning config...");
@@ -313,7 +313,7 @@ function generateDefaultTuningConfig() {
         }
     }
 
-    // console.log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote +
+    // log('Default tuning config freq: ' + tuningConfig.tuningFreq + ', midi: ' + tuningConfig.tuningNote +
     //     ', nominal: ' + tuningConfig.tuningNominal);
 
     tuningConfigCache['!default!'] = tuningConfig;
@@ -321,22 +321,59 @@ function generateDefaultTuningConfig() {
 }
 
 /**
+ * Logs debug message to opened log file (MS4) & console (MS3).
+ * 
+ * Make sure {@link openLog} is called before calling this, and
+ * {@link closeLog} is called after to flush logs.
+ * 
+ * @param {string} msg 
+ */
+function log(msg) {
+    logn(msg);
+    console.log(msg);
+}
+
+/**
+ * Executes before any shortcut/operation is handled
+ * Call this after {@link init}
+ */
+function preAction() {
+    openLog(pluginHomePath + "xen tuner.log");
+}
+
+/**
+ * Executes after any shortcut/operation is handled
+ */
+function postAction() {
+    closeLog();
+}
+
+/**
  * 
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
  */
-function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSFileIO, homePath, MSCurScore, _isMS4) {
+function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSFileIO, MSCurScore, _isMS4) {
     Lookup = ImportLookup();
-    // console.log(JSON.stringify(Lookup));
+    // log(JSON.stringify(Lookup));
     Accidental = MSAccidental;
     SymId = MSSymId;
     NoteType = MSNoteType;
     Element = MSElement;
     fileIO = MSFileIO;
-    pluginHomePath = homePath;
     _curScore = MSCurScore;
     isMS4 = _isMS4;
-    console.log("Initialized! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
+
+    // set to absolute path
+    pluginHomePath = Qt.resolvedUrl("../").replace("file:///", "");
+    if (pluginHomePath.match(/^\w:/g)) {
+        // if no drive letter, prefix a slash (*nix systems)
+        pluginHomePath = "/" + pluginHomePath;
+    }
+    openLog(pluginHomePath + "xen tuner.log");
+    log("Home path: " + pluginHomePath);
+    log("Initialized! Enharmonic eqv: " + ENHARMONIC_EQUIVALENT_THRESHOLD + " cents");
+    closeLog();
 }
 
 /**
@@ -467,7 +504,7 @@ function tokenizeNote(note) {
     var nominals = Lookup.TPC_TO_NOMINAL[note.tpc][0];
     octavesFromA4 += Lookup.TPC_TO_NOMINAL[note.tpc][1];
 
-    // console.log('note bbox: ' + JSON.stringify(note.bbox) +
+    // log('note bbox: ' + JSON.stringify(note.bbox) +
     //     ', pagePos: ' + JSON.stringify(note.pagePos));
 
     var hasAcc = false;
@@ -666,7 +703,7 @@ function accidentalsHash(accidentals) {
         // `accidentals` param is a list of individual symbol codes
 
         if (accidentals.length == 0) {
-            console.log('WARN: accidentalsHash called with 0 SymbolCodes in array');
+            log('WARN: accidentalsHash called with 0 SymbolCodes in array');
             return '';
         }
 
@@ -776,7 +813,7 @@ function addAccSym(x, y) {
  * @returns {AccidentalSymbols?} The result of x - y, or `null` if not possible.
  */
 function subtractAccSym(x, y) {
-    // console.log('subtractAccSym\n' + JSON.stringify(x) + ' - ' + JSON.stringify(y));
+    // log('subtractAccSym\n' + JSON.stringify(x) + ' - ' + JSON.stringify(y));
     if (!x)
         return null;
     if (!y)
@@ -1189,7 +1226,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     if (tuningConfigCache[textOrPath]) {
         if (!silent) {
-            console.log('Using cached tuning config:\n' + textOrPath + '\n' +
+            log('Using cached tuning config:\n' + textOrPath + '\n' +
                 tuningConfigCache[textOrPath].stepsList.length + ' notes/equave, ' + tuningConfigCache[textOrPath].equaveSize + 'c equave');
         }
 
@@ -1206,7 +1243,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             if (maybeCached) {
                 // Cached tuning config found. Use it!
                 if (!silent) {
-                    console.log('Using cached tuning config:\n' + textOrPath + '\n' +
+                    log('Using cached tuning config:\n' + textOrPath + '\n' +
                         maybeCached.stepsList.length + ' notes/equave, ' + maybeCached.equaveSize + 'c equave');
                 }
 
@@ -1225,7 +1262,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // read from a file
 
         if (textOrPath.length == 0) {
-            // console.log('not tuning config: empty text');
+            // log('not tuning config: empty text');
             return null;
         }
 
@@ -1248,7 +1285,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
             if (jsonTuningConfig.nominals) {
                 tuningConfigCache[textOrPath] = jsonTuningConfig;
-                console.log('Loaded JSON tuning config from ' + fileIO.source + ':\n');
+                log('Loaded JSON tuning config from ' + fileIO.source + ':\n');
                 return jsonTuningConfig;
             }
         } catch (e) {
@@ -1265,7 +1302,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // If no file/IO Error, parse the textOrPath as the config itself.
         text = textOrPath;
     } else {
-        console.log('Reading tuning config from ' + fileIO.source);
+        log('Reading tuning config from ' + fileIO.source);
     }
 
     // remove comments from tuning config text.
@@ -1331,7 +1368,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     var referenceTuning = lines[0].split(':').map(function (x) { return x.trim() });
 
     if (referenceTuning.length != 2) {
-        // console.log(lines[0] + ' is not a reference tuning');
+        // log(lines[0] + ' is not a reference tuning');
         return null;
     }
 
@@ -1342,7 +1379,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     var lettersNominal = Lookup.LETTERS_TO_NOMINAL[referenceLetter];
 
     if (lettersNominal == undefined) {
-        // console.log("Invalid reference note specified: " + referenceLetter);
+        // log("Invalid reference note specified: " + referenceLetter);
         return null;
     }
 
@@ -1375,7 +1412,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     });
 
     if (hasInvalid) {
-        console.log('Invalid nominal decl: ' + lines[1]);
+        log('Invalid nominal decl: ' + lines[1]);
         return null;
     }
 
@@ -1761,7 +1798,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                         console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
                             + '\n"' + words[wordIdx] + '" is not a valid cents or ratio tuning.');
                         if (words.length > 2)
-                            console.log('HELP: Did you specify the correct number of nominals for per-nominal tuning declaration?');
+                            log('HELP: Did you specify the correct number of nominals for per-nominal tuning declaration?');
                         return null;
                     }
                     cents.push(maybeCents);
@@ -1856,7 +1893,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     + ': Override declaration has incorrect number of acc vector degrees in: ' + line
                     + '\nExpected ' + tuningConfig.accChains.length + ' degrees, got ' + (words.length - 2)
                     + ' instead.');
-                console.log('HELP: Make sure there are no spaces in the cents/ratio tuning');
+                log('HELP: Make sure there are no spaces in the cents/ratio tuning');
                 return null;
             }
 
@@ -2256,7 +2293,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                         // Add the ligature as if it were an enharmonic equivalent.
 
                         var hash = createXenHash(nomIdx, ligOrderedSymbols);
-                        // console.log(hash + ': ligOrderedSymbols: ' + JSON.stringify(ligOrderedSymbols));
+                        // log(hash + ': ligOrderedSymbols: ' + JSON.stringify(ligOrderedSymbols));
                         xenNotesEquaves[hash] = {
                             av: accidentalVector,
                             xen: { // XenNote
@@ -2389,7 +2426,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             // If there are more than one enharmonic equivalents,
             // populate the enharmonic graph.
 
-            // console.log((i+1) + '/' + tuningConfig.stepsList.length + ': ' 
+            // log((i+1) + '/' + tuningConfig.stepsList.length + ': ' 
             //     + JSON.stringify(enhEquivNotes));
 
             for (var j = 0; j < enhEquivNotes.length; j++) {
@@ -2408,10 +2445,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         tuningConfigCache[textOrPath] = tuningConfig;
         saveMetaTagCache();
 
-        console.log('Saved tuning to runtime & metaTag cache.');
+        log('Saved tuning to runtime & metaTag cache.');
     }
 
-    console.log(tuningConfig.stepsList.length + ' notes/equave');
+    log(tuningConfig.stepsList.length + ' notes/equave');
 
     return tuningConfig;
 }
@@ -2475,7 +2512,7 @@ function parseKeySig(text) {
         }
     });
 
-    console.log('Parsed keySig: ' + JSON.stringify(keySig));
+    log('Parsed keySig: ' + JSON.stringify(keySig));
 
     return keySig;
 }
@@ -2530,7 +2567,7 @@ function parseChangeReferenceTuning(text) {
     var referenceTuning = text.split(':').map(function (x) { return x.trim() });
 
     if (referenceTuning.length != 2) {
-        // console.log(text + ' is not a reference tuning');
+        // log(text + ' is not a reference tuning');
         return null;
     }
 
@@ -2551,7 +2588,7 @@ function parseChangeReferenceTuning(text) {
     var lettersNominal = Lookup.LETTERS_TO_NOMINAL[referenceLetter];
 
     if (lettersNominal == undefined) {
-        // console.log("Invalid reference note specified: " + referenceLetter);
+        // log("Invalid reference note specified: " + referenceLetter);
         return null;
     }
 
@@ -2659,7 +2696,7 @@ function parsePossibleConfigs(text, tick) {
     maybeConfig = parseChangeReferenceTuning(text);
 
     if (maybeConfig != null) {
-        console.log("Found reference tuning change:\n" + text);
+        log("Found reference tuning change:\n" + text);
         // reference tuning change found.
 
         return { // ConfigUpdateEvent
@@ -2699,7 +2736,7 @@ function parsePossibleConfigs(text, tick) {
                     var oldHz = parms.currTuning.originalTuningFreq * Math.pow(2, oldCentsFromReference / 1200);
                     var newHz = maybeConfig.tuningFreq;
 
-                    // console.log('oldHz: ' + oldHz, 'newHz: ' + newHz, 'oldCentsFromReference: ' + oldCentsFromReference);
+                    // log('oldHz: ' + oldHz, 'newHz: ' + newHz, 'oldCentsFromReference: ' + oldCentsFromReference);
 
                     parms.currTuning.tuningFreq = newHz / oldHz * parms.currTuning.originalTuningFreq;
                 } else {
@@ -2715,7 +2752,7 @@ function parsePossibleConfigs(text, tick) {
 
     if (maybeConfig != null) {
         var numSteps = maybeConfig.stepsList.length;
-        console.log("Found tuning config:\n" + text + "\n" + numSteps + " notes/equave");
+        log("Found tuning config:\n" + text + "\n" + numSteps + " notes/equave");
         // tuning config found.
 
         return { // ConfigUpdateEvent
@@ -2736,7 +2773,7 @@ function parsePossibleConfigs(text, tick) {
 
     if (maybeConfig != null) {
         // key sig found
-        console.log("Found key sig:\n" + text);
+        log("Found key sig:\n" + text);
 
         return { // ConfigUpdateEvent
             tick: tick,
@@ -2813,7 +2850,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     // Check fingerings for accidental declarations
     var maybeFingeringAccSymbols = readFingeringAccidentalInput(msNote, tuningConfig);
     if (maybeFingeringAccSymbols != null) {
-        // console.log('found fingering acc input: ' + JSON.stringify(maybeFingeringAccSymbols.symCodes));
+        // log('found fingering acc input: ' + JSON.stringify(maybeFingeringAccSymbols.symCodes));
         if (!CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY &&
             maybeFingeringAccSymbols.type == "ascii" && retrievedAccHash != null) {
             // We need to combine existing accidentals and newly created ones
@@ -2852,7 +2889,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     if (accSyms != null) {
         // First, check for ligatures, they count as primary accidentals.
         tuningConfig.ligatures.forEach(function (lig, idx) {
-            // console.log('checking ligature: ' + JSON.stringify(lig));
+            // log('checking ligature: ' + JSON.stringify(lig));
             var mostSymbolsMatched = 0;
             /** @type {SymbolCode[]} */
             var bestSymbolMatch = null;
@@ -2862,7 +2899,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
                 var syms = lig.ligAvToSymbols[key];
                 var trySubtract = subtractAccSym(accSyms, syms);
                 if (trySubtract != null && syms.length > mostSymbolsMatched) {
-                    // console.log('lig subtracted ' + JSON.stringify(syms) + ' from ' + JSON.stringify(accSyms));
+                    // log('lig subtracted ' + JSON.stringify(syms) + ' from ' + JSON.stringify(accSyms));
                     mostSymbolsMatched = syms.length;
                     bestSymbolMatch = syms;
                     bestSubtracted = trySubtract;
@@ -2980,7 +3017,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
             "\n\n...this is likely due to an incorrect order of declaration of ligature/secondary accidentals. "
             + "Read the above note parsing trace messages to see how the plugin mis-parsed this note.\n"
             + "\n-----------------------\n");
-        // console.log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
+        // log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
     }
 
@@ -3415,7 +3452,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
 
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
 
-    // console.log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
+    // log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
 
     var midiOffset = Math.round(centsOffset / 100);
 
@@ -3507,7 +3544,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         // the PlayEvent.pitch property is relative
         // to the original note's pitch.
         note.playEvents[i].pitch = midiOffset;
-        // console.log('play event: ' + JSON.stringify(note.playEvents[i]));
+        // log('play event: ' + JSON.stringify(note.playEvents[i]));
     }
 
     if (!returnMidiCSV) {
@@ -3536,9 +3573,9 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         var tuning = centsOffset - midiOffset * 100;
         tuning = tuning.toFixed(5); // don't put too many decimal places
 
-        console.log('registered: staff: ' + staffIdx + ', pitch: ' + pitch + ', ontime: ' + ontime
+        log('registered: staff: ' + staffIdx + ', pitch: ' + pitch + ', ontime: ' + ontime
             + ', len: ' + len + ', vel: ' + velo + ', cents: ' + tuning);
-        console.log('veloType: ' + note.veloType);
+        log('veloType: ' + note.veloType);
 
         midiText += staffIdx + ', ' + pitch + ', ' + ontime + ', ' + len + ', '
             + velo + ', ' + tuning + '\n';
@@ -3571,15 +3608,15 @@ function getBarBoundaries(tick, bars, returnIndices) {
     var lowGuess = 0;
     for (var i = 0; i < bars.length; i++) {
         if (tick >= bars[guessIdx] && tick < bars[guessIdx + 1]) {
-            // console.log('found target bar', guessIdx, bars[guessIdx]);
+            // log('found target bar', guessIdx, bars[guessIdx]);
             return returnIndices ? [guessIdx, guessIdx + 1] : [bars[guessIdx], bars[guessIdx + 1]];
         }
         if (tick < bars[guessIdx]) {
-            // console.log('guess too high: ', guessIdx, bars[guessIdx], lowGuess, highGuess);
+            // log('guess too high: ', guessIdx, bars[guessIdx], lowGuess, highGuess);
             highGuess = guessIdx;
             guessIdx = Math.floor((highGuess + lowGuess) / 2);
         } else {
-            // console.log('guess too low', guessIdx, bars[guessIdx], lowGuess, highGuess);
+            // log('guess too low', guessIdx, bars[guessIdx], lowGuess, highGuess);
             lowGuess = guessIdx;
             guessIdx = Math.floor((highGuess + lowGuess) / 2);
         }
@@ -3609,7 +3646,7 @@ function getBarBoundaries(tick, bars, returnIndices) {
  */
 function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
 
-    // console.log('readBarState(' + tickOfThisBar + ', ' + tickOfNextBar + ')');
+    // log('readBarState(' + tickOfThisBar + ', ' + tickOfNextBar + ')');
 
     var ogCursorPos = saveCursorPosition(cursor);
 
@@ -3758,17 +3795,17 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
 
     var note = noteData.ms.internalNote;
 
-    console.log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
+    log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
 
     if (direction === 0) {
         // enharmonic cycling
         var enharmonicNoteHash = tuningConfig.enharmonics[noteData.xen.hash];
 
-        console.log('retrieved enharmonicNoteHash: ' + enharmonicNoteHash);
+        log('retrieved enharmonicNoteHash: ' + enharmonicNoteHash);
 
         if (enharmonicNoteHash === undefined) {
             // No enharmonic spelling found. Return null.
-            // console.log(JSON.stringify(tuningConfig.enharmonics));
+            // log(JSON.stringify(tuningConfig.enharmonics));
             return null;
         }
 
@@ -3818,7 +3855,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     // The index of the StepwiseList this note is currently at.
     var currStepIdx = tuningConfig.stepsLookup[noteData.xen.hash];
 
-    console.log('currStepIdx: ' + currStepIdx);
+    log('currStepIdx: ' + currStepIdx);
 
     // If a valid step is found, this will contain list of enharmonically equivalent
     // XenNote.hashes that matches the accidental vector requirements of `regarding`.
@@ -3907,14 +3944,14 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     }
 
     if (validOptions == null || validOptions.length == 0) {
-        console.log('WARNING: no valid next note options found for note: ' + noteData.xen.hash +
+        log('WARNING: no valid next note options found for note: ' + noteData.xen.hash +
             '\nDid you declare an invalid tuning system?');
         return null;
     }
 
     if (tuningConfig.equaveSize < 0) {
         equaveOffset = -equaveOffset;
-        console.log('equaveSize < 0, reversing equaveOffset: ' + equaveOffset);
+        log('equaveSize < 0, reversing equaveOffset: ' + equaveOffset);
     }
 
     /** 
@@ -4043,10 +4080,10 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
             var first = sortDirection <= 0 ? a.nextNote.xen.hash : b.nextNote.xen.hash;
             var second = sortDirection <= 0 ? b.nextNote.xen.hash : a.nextNote.xen.hash;
             if (sortDirection == 0) {
-                console.log('No preference between ' + first + ' and ' + second);
+                log('No preference between ' + first + ' and ' + second);
                 return 0;
             }
-            console.log('picked ' + first + ' over ' + second + ' because: ' + str);
+            log('picked ' + first + ' over ' + second + ' because: ' + str);
             return sortDirection;
         } : function (sortDirection, str) {
             return sortDirection;
@@ -4173,7 +4210,7 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
         //
         // In these cases, the cursor will not move to the 'correct' location, but it is
         // fine since there is nothing to check anyways.
-        // console.log('WARN: didn\'t set Cursor correctly (This is fine if voice/staff is blank).\n' +
+        // log('WARN: didn\'t set Cursor correctly (This is fine if voice/staff is blank).\n' +
         //     'requested: ' + tick + ', got t|v: ' + cursor.tick + ' cursor.voice: ' + cursor.voice);
     }
 }
@@ -4262,7 +4299,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     var nTick = getTick(note);
     var nLine = lineOverride || note.line;
 
-    // console.log("getAccidental() tick: " + nTick + " (within " + tickOfThisBar + " - " 
+    // log("getAccidental() tick: " + nTick + " (within " + tickOfThisBar + " - " 
     //     + tickOfNextBar + "), line: " + nLine);
 
     if ((tickOfNextBar != -1 && nTick > tickOfNextBar) || nTick < tickOfThisBar) {
@@ -4308,7 +4345,7 @@ function getAccidental(cursor, note, tickOfThisBar,
 
     for (var tIdx = 0; tIdx < lineTicks.length; tIdx++) {
         var currTick = lineTicks[tIdx];
-        // console.log('tick: ' + currTick);
+        // log('tick: ' + currTick);
         if (currTick > nTick) {
             // Accidentals cannot possibly affect a previous note.
             // skip.
@@ -4362,7 +4399,7 @@ function getAccidental(cursor, note, tickOfThisBar,
                         // we cannot proceed, because we're traversing backwards
                         // and a future accidental cannot affect a previous note.
                         if (chdIdxOfNote == -1) {
-                            // console.log('skip chd. chdIdx: ' + chdIdx);
+                            // log('skip chd. chdIdx: ' + chdIdx);
                             continue; // go to previous chdIdx
                         }
                     }
@@ -4388,7 +4425,7 @@ function getAccidental(cursor, note, tickOfThisBar,
                             // the note in question,
                             //
                             // and check that we exclude the note itself if required.
-                            // console.log('skipped: nIdx: ' + nIdx + ', nIdxOfNote: ' + nIdxOfNote);
+                            // log('skipped: nIdx: ' + nIdx + ', nIdxOfNote: ' + nIdxOfNote);
                             continue;
                         }
                     }
@@ -4399,7 +4436,7 @@ function getAccidental(cursor, note, tickOfThisBar,
                     if (msNote.accidentals) {
                         // we found the first explicit accidental! return it!
                         var accHash = accidentalsHash(msNote.accidentals);
-                        console.log('Found accidental (' + accHash + ') at: t: ' +
+                        log('Found accidental (' + accHash + ') at: t: ' +
                             currTick + ', v: ' + voice + ', chd: ' + chdIdx + ', n: ' + nIdx);
 
                         return accHash;
@@ -4525,7 +4562,7 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
     var symbols = noteData.secondaryAccSyms.concat(noteData.xen.orderedSymbols);
-    console.log('makeAccidentalsExplicit: ' + JSON.stringify(symbols));
+    log('makeAccidentalsExplicit: ' + JSON.stringify(symbols));
     if (symbols.length != 0) {
         setAccidental(note, symbols, newElement, tuningConfig);
     } else {
@@ -4546,7 +4583,7 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
  * @param {TuningConfig} tuningConfig
  */
 function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) {
-    console.log('modifyNote(' + (note.line + lineOffset) + ')');
+    log('modifyNote(' + (note.line + lineOffset) + ')');
     var newLine = note.line + lineOffset;
 
     // This is the easiest hacky solution to move a note's line.
@@ -4593,7 +4630,7 @@ function forceExplicitAccidentalsAfterNote(
         setCursorToPosition(cursor, noteTick, voice, ogCursorPos.staffIdx);
 
         while (cursor.segment && (cursor.tick < tickOfNextBar || tickOfNextBar == -1)) {
-            // console.log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
+            // log('cursor.tick: ' + cursor.tick + ', tickOfNextBar: ' + tickOfNextBar);
 
             if (!(cursor.element && cursor.element.name == "Chord")) {
                 cursor.next();
@@ -4690,7 +4727,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     var tickOfThisBar = barBoundaries[0];
     var tickOfNextBar = barBoundaries[1];
 
-    console.log('executeTranspose(' + direction + ', ' + aux + '). Tick: ' + noteTick);
+    log('executeTranspose(' + direction + ', ' + aux + '). Tick: ' + noteTick);
 
     var noteData = parseNote(note, tuningConfig, keySig,
         tickOfThisBar, tickOfNextBar, cursor, newElement);
@@ -4709,7 +4746,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         return newBarState;
     }
 
-    // console.log('nextNote: ' + JSON.stringify(nextNote));
+    // log('nextNote: ' + JSON.stringify(nextNote));
 
     var newLine = note.line + nextNote.lineOffset;
 
@@ -4750,8 +4787,8 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         // We need to keep secondary accidentals.
         // Carry forward secondary symbols and prepend them
         accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
-        console.log('keeping acc symbols: ' + JSON.stringify(accSymbols));
-        console.log('secondary: ' + JSON.stringify(noteData.secondaryAccSyms));
+        log('keeping acc symbols: ' + JSON.stringify(accSymbols));
+        log('secondary: ' + JSON.stringify(noteData.secondaryAccSyms));
     }
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
@@ -4818,7 +4855,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
     var tickOfThisBar = bars[firstBarTickIndex];
 
-    console.log('removeUnnec( from bar ' + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + lastBarTickIndex + ')');
+    log('removeUnnec( from bar ' + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + lastBarTickIndex + ')');
 
     // Repeat procedure for 1 bar at a time.
 
@@ -4963,7 +5000,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                                 var currAccState = accidentalState[lineNum];
 
-                                console.log('currAccState: ' + currAccState + ', accHash: ' + accHash
+                                log('currAccState: ' + currAccState + ', accHash: ' + accHash
                                     + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
 
                                 if (currAccState && currAccState == accHash) {
@@ -4978,7 +5015,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     // is also redundant. Remove.
 
                                     var realKeySig = removeUnusedSymbols(keySig[nominal], tuningConfig) || '';
-                                    console.log('realKeySig: ' + realKeySig);
+                                    log('realKeySig: ' + realKeySig);
                                     if (realKeySig == accHash) {
                                         setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                     }
@@ -5019,7 +5056,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
  * @returns {boolean} `true` if intervals overlap, `false` otherwise.
  */
 function intervalOverlap(a1, a2, b1, b2) {
-    // console.log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
+    // log('intervalOverlap(' + a1 + ', ' + a2 + ', ' + b1 + ', ' + b2 + ')');
     return (a1 - b2) * (a2 - b1) <= 0;
 }
 
@@ -5038,7 +5075,7 @@ function intervalOverlap(a1, a2, b1, b2) {
  *  A mapping of `Chords` objects indexed by tick position.
  */
 function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
-    // console.log('partitionChords(' + tickOfThisBar + ', ' + tickOfNextBar + ')');
+    // log('partitionChords(' + tickOfThisBar + ', ' + tickOfNextBar + ')');
 
     var ogCursorPos = saveCursorPosition(cursor);
 
@@ -5184,8 +5221,8 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
     // First, we need to sort the chord by increasing line number. (top-to-bottom)
     chord.sort(function (a, b) { return a.line - b.line });
 
-    // console.log("chord.length: " + chord.length);
-    // chord.forEach(function(n) { console.log("HALLO: " + Object.keys(n)); });
+    // log("chord.length: " + chord.length);
+    // chord.forEach(function(n) { log("HALLO: " + Object.keys(n)); });
 
     // Then, we create two indices, one ascending and one descending.
     // This is to accomplish zigzag pattern.
@@ -5211,7 +5248,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
     // of noteheads are all fixed relative to the chord segment.
 
     chord.forEach(function (note) {
-        // console.log('noteline: ' + note.line);
+        // log('noteline: ' + note.line);
         positionedElemsBbox.push(
             {
                 left: note.pagePos.x + note.bbox.left - ACC_NOTESPACE,
@@ -5240,7 +5277,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
     while (count++ < chord.length) {
         // Iterate notes in chord in zig zag pattern.
 
-        // console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
+        // log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
         //     return bbox.left;
         // })));
         var note = chord[isZig ? ascIdx : descIdx];
@@ -5250,7 +5287,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
          */
         var staffLineIntersectsNote = (note.line % 2 === 0);
         // for some NONSENSE reason, x % 2 == 0 always returns true, but x % 2 === 0 checks isEven.
-        // console.log('staffLineIntersectsNote: ' + staffLineIntersectsNote + ', line: ' + note.line + ', mod 2: ' + (note.line % 2));
+        // log('staffLineIntersectsNote: ' + staffLineIntersectsNote + ', line: ' + note.line + ', mod 2: ' + (note.line % 2));
 
         // var absNoteBbox = {
         //     left: note.pagePos.x + note.bbox.left,
@@ -5275,7 +5312,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
         for (var i = 0; i < note.elements.length; i++) {
             var elem = note.elements[i];
             var isAccSym = false;
-            // console.log(JSON.stringify(elem.bbox));
+            // log(JSON.stringify(elem.bbox));
             if (elem.symbol) {
                 var symCode = Lookup.LABELS_TO_CODE[elem.symbol.toString()];
                 if (symCode && (tuningConfig.usedSymbols[symCode]
@@ -5339,7 +5376,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
                 var bbox = positionedElemsBbox[i];
                 var willCollideVertically = intervalOverlap(bbox.top, bbox.bottom, symbolsTop, symbolsBottom);
 
-                // console.log('check bbox: ' + bbox.left + ', willCollideVertically: ' + willCollideVertically);
+                // log('check bbox: ' + bbox.left + ', willCollideVertically: ' + willCollideVertically);
                 if (!willCollideVertically) continue;
 
                 if (prevElemLeft == null) {
@@ -5352,7 +5389,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
                 prevElemLeft = bbox.left; // absolute x left pos of positioned bbox.
 
                 if (gapWidth >= symbolsWidth && prevElemLeft <= note.pagePos.x) {
-                    // console.log('gapWidth: ' + gapWidth + ', symbolsWidth: ' + symbolsWidth + ', prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x)
+                    // log('gapWidth: ' + gapWidth + ', symbolsWidth: ' + symbolsWidth + ', prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x)
                     // the symbols can be added in this gap.
                     // exit loop. prevElemLeft now contains the absolute position
                     // to put the right most symbol.
@@ -5391,7 +5428,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
 
                 var offX = prevX - effectiveSymWidth + cusOff.additionalXOffset;
                 var offY = cusOff.additionalYOffset;
-                // console.log('offX: ' + offX);
+                // log('offX: ' + offX);
                 registeredSymbolOffsets.push({
                     elem: elem,
                     x: offX + spaceCentralizationOffset,
@@ -5436,7 +5473,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
         isZig = !isZig;
     } // finish registering positions
 
-    // console.log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
+    // log(count + ') posElemsBbox: ' + JSON.stringify(positionedElemsBbox.map(function (bbox) {
     //     return bbox.left;
     // })));
 
@@ -5486,7 +5523,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
 
     var tickOfThisBar = bars[firstBarTickIndex];
 
-    console.log('autoPosition(' + startTick + ', ' + endTick + ') from bar '
+    log('autoPosition(' + startTick + ', ' + endTick + ') from bar '
         + firstBarTickIndex + ' (' + tickOfThisBar + ') to ' + lastBarTickIndex);
 
     // Repeat procedure for 1 bar at a time.
@@ -5516,7 +5553,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
         var chordsByTick = partitionChords(tickOfThisBar, tickOfNextBar, cursor);
         var ticks = Object.keys(chordsByTick);
 
-        // console.log('auto positioning from ' + tickOfThisBar + ' to ' + tickOfNextBar +
+        // log('auto positioning from ' + tickOfThisBar + ' to ' + tickOfNextBar +
         //     '\nTicks found: ' + ticks.join(', '));
 
         ticks.forEach(function (tick) {
@@ -5544,19 +5581,19 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
                 // for all voices, at this tick.
                 var vertStack = [];
                 for (var voice = 0; voice <= 3; voice++) {
-                    // console.log('num chords in voice ' + voice + ': ' + chords[voice].length);
+                    // log('num chords in voice ' + voice + ': ' + chords[voice].length);
                     var chord = chords[voice][vertStackIndex]; // [Note]
                     if (!chord) {
-                        // console.log('no chord in voice ' + voice + ' at vertStackIndex ' + vertStackIndex);
+                        // log('no chord in voice ' + voice + ' at vertStackIndex ' + vertStackIndex);
                         continue;
                     }
 
                     if (chord.length == 0) {
-                        // console.log('chord no notes');
+                        // log('chord no notes');
                         continue;
                     }
 
-                    // console.log('num notes in chord: ' + chord.length);
+                    // log('num notes in chord: ' + chord.length);
 
                     // At the same time, we need to push back the chord
                     // by graceOffset, so that the symbols that were just
@@ -5579,13 +5616,13 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
                     }
 
                     chdElement.parent.offsetX = graceOffset;
-                    // console.log('applied grace chord offset: ' + graceOffset);
+                    // log('applied grace chord offset: ' + graceOffset);
 
                     vertStack = vertStack.concat(chord);
                 }
 
-                // console.log('vertStack.length: ' + vertStack.length);
-                // console.log('vertStack[0]: ' + vertStack[0]);
+                // log('vertStack.length: ' + vertStack.length);
+                // log('vertStack[0]: ' + vertStack[0]);
 
                 // If no more chords at this vert stack index,
                 // finish.
@@ -5593,7 +5630,7 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
 
                 // Now, we have all notes that should be vertically aligned.
                 // Position symbols for this vert stack.
-                // console.log(vertStack.length);
+                // log(vertStack.length);
                 var biggestXOffset = positionAccSymbolsOfChord(vertStack, fakeParms.currTuning);
 
                 graceOffset += biggestXOffset;
@@ -5793,7 +5830,7 @@ settings in xen tuner.qml.
  * @returns 
  */
 function operationTune(display) {
-    console.log('Running Xen Tune');
+    log('Running Xen Tune');
     if (typeof _curScore === 'undefined')
         return;
 
@@ -5827,7 +5864,7 @@ function operationTune(display) {
         }
         endStaff = cursor.staffIdx;
     }
-    console.log("startStaff: " + startStaff + ", endStaff: " + endStaff + ", endTick: " + endTick);
+    log("startStaff: " + startStaff + ", endStaff: " + endStaff + ", endTick: " + endTick);
 
     //
     //
@@ -5863,14 +5900,14 @@ function operationTune(display) {
             cursor.rewind(0);
 
             var measureCount = 0;
-            // console.log("Populating configs. staff: " + staff + ", voice: " + voice);
+            // log("Populating configs. staff: " + staff + ", voice: " + voice);
 
             while (true) {
                 // loop from first segment to last segment of this staff+voice.
                 if (cursor.segment) {
                     for (var i = 0; i < cursor.segment.annotations.length; i++) {
                         var annotation = cursor.segment.annotations[i];
-                        console.log("found annotation type: " + annotation.name);
+                        log("found annotation type: " + annotation.name);
                         if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
                             (annotation.name == 'SystemText')) {
                             var maybeConfigUpdateEvent = parsePossibleConfigs(annotation.text, cursor.tick);
@@ -5888,7 +5925,7 @@ function operationTune(display) {
 
                         parms.bars.push(cursor.segment.tick);
                         measureCount++;
-                        // console.log("New bar - " + measureCount);
+                        // log("New bar - " + measureCount);
                     }
                 }
 
@@ -5932,8 +5969,8 @@ function operationTune(display) {
             var tickOfThisBar = parms.bars[currBar];
             var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
 
-            console.log("Tuning. staff: " + staff + ", voice: " + voice);
-            // console.log("Starting bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
+            log("Tuning. staff: " + staff + ", voice: " + voice);
+            // log("Starting bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
 
             // Tuning doesn't affect note/accidental state,
             // we can reuse bar states per bar to prevent unnecessary
@@ -5948,7 +5985,7 @@ function operationTune(display) {
                     currBar++;
                     tickOfThisBar = tickOfNextBar;
                     tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
-                    // console.log("Next bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
+                    // log("Next bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
                     // reset bar state.
                     reusedBarState = {};
                 }
@@ -6031,7 +6068,7 @@ function operationTune(display) {
  *  the same nominal/degree during the transpose up/down operation.
  */
 function operationTranspose(stepwiseDirection, stepwiseAux) {
-    console.log("Xen Up");
+    log("Xen Up");
 
     if (typeof _curScore === 'undefined')
         return;
@@ -6049,7 +6086,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
     var noPhraseSelection = false;
     if (!cursor.segment) { // no selection
         // no action if no selection.
-        console.log('no phrase selection');
+        log('no phrase selection');
         noPhraseSelection = true;
     } else {
         startStaff = cursor.staffIdx;
@@ -6081,14 +6118,14 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
             cursor.rewind(0);
 
             var measureCount = 0;
-            console.log("Populating configs. staff: " + staff + ", voice: " + voice);
+            log("Populating configs. staff: " + staff + ", voice: " + voice);
 
             while (true) {
                 if (cursor.segment) {
                     // scan edo & tuning center first. key signature parsing is dependant on edo used.
                     for (var i = 0; i < cursor.segment.annotations.length; i++) {
                         var annotation = cursor.segment.annotations[i];
-                        console.log("found annotation type: " + annotation.name);
+                        log("found annotation type: " + annotation.name);
                         if ((annotation.name == 'StaffText' && Math.floor(annotation.track / 4) == staff) ||
                             (annotation.name == 'SystemText')) {
                             var maybeConfigUpdateEvent = parsePossibleConfigs(annotation.text, cursor.tick);
@@ -6106,7 +6143,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                         parms.bars.push(cursor.segment.tick);
                         measureCount++;
-                        // console.log("New bar - " + measureCount + ", tick: " + cursor.segment.tick);
+                        // log("New bar - " + measureCount + ", tick: " + cursor.segment.tick);
                     }
                 }
 
@@ -6147,7 +6184,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
         // - If selection contains individual notes, transpose them.
 
         if (curScore.selection.elements.length == 0) {
-            console.log('no individual selection. quitting.');
+            log('no individual selection. quitting.');
             return;
         } else {
             /** @type {PluginAPINote[]} */
@@ -6164,7 +6201,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
             // }
 
             if (selectedNotes.length == 0 && fallthroughUpDownCommand) {
-                console.log('no selected note elements, defaulting to pitch-up/pitch-down shortcuts');
+                log('no selected note elements, defaulting to pitch-up/pitch-down shortcuts');
                 if (stepwiseDirection == 1)
                     cmd('pitch-up');
                 else if (stepwiseDirection == -1)
@@ -6204,7 +6241,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                 setCursorToPosition(cursor, tick, voice, staffIdx);
 
-                console.log('indiv note: line: ' + note.line + ', voice: ' + cursor.voice
+                log('indiv note: line: ' + note.line + ', voice: ' + cursor.voice
                     + ', staff: ' + cursor.staffIdx + ', tick: ' + tick);
 
 
@@ -6270,7 +6307,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 cursor.staffIdx = staff;
                 cursor.voice = voice;
 
-                console.log('processing:' + cursor.tick + ', voice: ' + cursor.voice + ', staffIdx: ' + cursor.staffIdx);
+                log('processing:' + cursor.tick + ', voice: ' + cursor.voice + ', staffIdx: ' + cursor.staffIdx);
 
                 var tickOfLastModified = -1;
 
