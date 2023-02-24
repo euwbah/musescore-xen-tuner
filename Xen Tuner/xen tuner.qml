@@ -51,7 +51,7 @@ MuseScore {
 
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, pluginHomePath, curScore, isMS4);
+          fileIO, curScore, isMS4);
         console.log('present working dir: ' + pluginHomePath);
       }
 
@@ -102,6 +102,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: tuneShortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Tuning score/selection...";
             Fns.operationTune();
             afterOperation();
@@ -112,6 +113,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: enharmonicShortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Cycling enharmonics";
             Fns.operationTranspose(0, 0);
             afterOperation();
@@ -122,6 +124,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: upShortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) up";
             Fns.operationTranspose(1, 0);
             afterOperation();
@@ -132,6 +135,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: up1Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) up aux 1";
             Fns.operationTranspose(1, 1);
             afterOperation();
@@ -142,6 +146,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: up2Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) up aux 2";
             Fns.operationTranspose(1, 2);
             afterOperation();
@@ -152,6 +157,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: up3Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) up aux 3";
             Fns.operationTranspose(1, 3);
             afterOperation();
@@ -162,6 +168,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: up4Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) up aux 4";
             Fns.operationTranspose(1, 4);
             afterOperation();
@@ -173,6 +180,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: up5Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) up aux 5";
             Fns.operationTranspose(1, 5);
             afterOperation();
@@ -184,6 +192,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: up6Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) up aux 6";
             Fns.operationTranspose(1, 6);
             afterOperation();
@@ -194,6 +203,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: downShortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) down";
             Fns.operationTranspose(-1, 0);
             afterOperation();
@@ -204,6 +214,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: down1Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) down aux 1";
             Fns.operationTranspose(-1, 1);
             afterOperation();
@@ -214,6 +225,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: down2Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) down aux 2";
             Fns.operationTranspose(-1, 2);
             afterOperation();
@@ -224,6 +236,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: down3Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) down aux 3";
             Fns.operationTranspose(-1, 3);
             afterOperation();
@@ -234,6 +247,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: down4Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) down aux 4";
             Fns.operationTranspose(-1, 4);
             afterOperation();
@@ -245,6 +259,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: down5Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
             afterOperation();
@@ -256,6 +271,7 @@ MuseScore {
         context: Qt.ApplicationShortcut
         id: down6Shortcut
         onActivated: {
+            Fns.preAction();
             infoText.text = "Moving note(s) down aux 5";
             Fns.operationTranspose(-1, 5);
             afterOperation();
@@ -289,6 +305,7 @@ MuseScore {
       function afterOperation() {
         // Don't do this, it will steal focus from the score
         // pluginId.window.requestActivate();
+        Fns.postAction();
       }
 
       function handleClose() {
