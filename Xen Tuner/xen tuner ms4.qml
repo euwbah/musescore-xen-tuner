@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.3"
+      version: "0.3.4"
       pluginType: "dialog"
       description: "Starts the XenTuner plugin.\n\n" +
         "This will open a small docked panel to the side.\n\nIMPORTANT: Do not close the window.\n"+

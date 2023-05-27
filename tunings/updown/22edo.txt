@@ -31,14 +31,6 @@ lig(1,2)!
 2 1 x^
 2 2 x^2
 
-// Because this ligature is declared as important,
-// we have to duplicate these default symbols as ligatures
-// so that they will show up in enharmonic cycles.
-0 -2 v2
-0 -1 \\
-0 1 /
-0 2 ^2
-
 sec()
 'bb' bb -1200*6/22c
 'b' b -1200*3/22c

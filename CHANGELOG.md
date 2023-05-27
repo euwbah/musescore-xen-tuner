@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4
+
+- Added [generate-edo-updown.py](tunings/updown/generate-edo-updown.py) script to automatically generate tuning configs for EDOs/EDs with ups & downs notation (Kite) with fully configurable parameters.
+
 ## 0.3.3
 
 - Change logging method (got debug logging to work for MS4)

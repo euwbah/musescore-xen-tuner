@@ -5,6 +5,8 @@ nominal & accidental vector combination of a NEJI.
 Copy & paste the output of this script into the tuning config .txt
 to declare the NEJI overrides.
 
+Configure tuning-specific numbers/values where it says "MODIFY THIS".
+
 Use this script and "34 under 71x3.txt" as a template to define your own NEJIs.
 
 For even larger NEJIs, consider adding more degrees to the second accidental chain.
@@ -16,10 +18,10 @@ the second as the first, since sharps/flats don't map to anything.
 # This file is an example of how to generate the override()
 # section of 34-neji 71*3 notated as standard 34 edo
 
-# MODIFY THIS:
 import math
 
 
+# MODIFY THIS:
 NUM_NOTES = 34
 
 # MODIFY THIS: (can use javascript expression to stretch cents)
