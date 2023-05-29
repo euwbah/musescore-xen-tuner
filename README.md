@@ -68,15 +68,17 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 
 ![specify tuning config](imgs/specify%20tuning%20config.png)
 
-You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the [configuration text](#tuning-configuration-syntax-overview) itself, or a path to a `.txt` or `.json` file in the `tunings/` folder. Do not include the `.txt` or `.json` extension.
-
-> 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
->
-> You can find tunings in the [tunings/](./tunings/) folder to find notations that are already supported.
+You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the [configuration text](#tuning-configuration-syntax-overview) itself, or a path to a `.txt` or `.json` file in the `tunings/` folder that contains the config text. Do not include the `.txt` or `.json` extension.
 
 A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on. A configuration is only applied to notes from its bar onwards. Only place configuration texts/key signatures at the start of a bar.
 
 These Staff/System Texts don't have to be visible (you can press `V` to toggle visibility).
+
+> 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
+>
+> You can find tunings in the [tunings/](./tunings/) folder to find notations that are already supported.
+>
+> Continue reading to learn how to [create your own tuning configurations](#how-to-tuning-configuration), or [submit a tuning config request issue](https://github.com/euwbah/musescore-xen-tuner/issues/new?assignees=&labels=tuning+config+request&projects=&template=request-contribute-tuning-config.md&title=).
 
 ### 5. Entering notes & accidentals
 
@@ -140,9 +142,11 @@ You can use math/javascript expressions to calculate the frequency:
 
 ### 7. Implement your own tunings/notation systems!
 
-Read [how the plugin conceptualizes tunings & accidentals](#introduction) (and the rest of the guide) to start making your own tuning configurations.
+Continue reading the rest of the guide to learn how to create custom tuning configurations.
 
-See the [`tunings/`](./tunings/) folder for example tuning configurations.
+Alternatively, dive straight in to the [`tunings/`](./tunings/) folder for examples. [heji/5 limit](./tunings/heji/5%20limit.txt) showcases all the main features of this plugin, so it's a good place to start.
+
+If you require assistance with implementing any particular notation system, or want to contribute a tuning config but don't know how to use Git, feel free to [file an issue under Request/contribute tuning config](https://github.com/euwbah/musescore-xen-tuner/issues/new?assignees=&labels=tuning+config+request&projects=&template=request-contribute-tuning-config.md&title=).
 
 #### [Tuning config web tool](#tuning-config-web-tool)
 
@@ -1337,7 +1341,9 @@ If you ran Xen Tuner from the Plugin Creator, you will need to restart MuseScore
 
 ## Reporting an issue
 
-If none of the above remedies work, you will need to [file an issue here](https://github.com/euwbah/musescore-xen-tuner/issues). Please include the following information:
+If none of the above remedies work, you will need to [file an bug report issue here](https://github.com/euwbah/musescore-xen-tuner/issues/new?assignees=&labels=bug&projects=&template=bug_report.md&title=). 
+
+Do follow the template provided and include the following information:
 
 - Version of MuseScore
 - Version of plugin

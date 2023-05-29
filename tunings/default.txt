@@ -1,3 +1,7 @@
+// This config will be used if no tuning config is specified in staff/system text.
+// 
+// Modify this to change the default tuning config.
+
 A4: 440
 0c 200c 300c 500c 700c 800c 1000c 1200c
 bbb bb b (100c) # x #x
