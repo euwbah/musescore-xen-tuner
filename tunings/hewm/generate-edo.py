@@ -1,8 +1,8 @@
 import math
 
 PRIME_LIMIT = 61 # The highest prime used in the TUNING_CONFIG text below
-EDO = 540
-OUT_FILE_NAME = "540edo.txt"
+EDO = 41
+OUT_FILE_NAME = f"{EDO}edo.txt"
 
 list_of_primes = []
 
