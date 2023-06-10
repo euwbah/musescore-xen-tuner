@@ -104,22 +104,21 @@ These Staff/System Texts don't have to be visible (you can press `V` to toggle v
 
 ### 5. Entering notes & accidentals
 
-Enter notes as per normal. Press `Alt+R` after entering new notes to update the tuning.
+- Enter notes as per normal. 
+- **Press `Alt+R`** after entering new notes to update the tuning. (⚠️ **Do not confuse with `Ctrl` + `R`**, which will undo the plugin's autoplacement of the accidentals)
+- The up and down arrow keys will cycle through pitches defined in the tuning configuration.
+  -   🟡 In large tuning configurations (e.g. `hewm/540edo`), not all pitches can be accessed using up/down arrow keys alone. Instead, you will need to input the accidentals manually using fingerings or by other means. These manual-input accidentals are called **secondary accidentals**, as opposed to the **primary accidentals** which are declared in the tuning configuration as [**primary accidental chains**](#accidental-chains--degrees).
 
-There are many ways to input accidentals &mdash; the most primitive method being dragging symbols in from the Master Palette, then hitting `Alt+R`.
-
-> 🔴 **IMPORTANT:** the plugin **does not recognize standard accidentals** from the 'Accidentals' palette. You must use SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut: `Z`).
-
-However, the recommended way to enter accidentals would be to use **up/down/enharmonic cycle operations**. These are available as keyboard shortcuts ([which can be modified](#how-to-change-shortcuts)):
+You can use `Alt`/`Ctrl`/`Shift` modifiers to control the pitch modification performed by arrow keys:
 
 - `Up/Down`: Move note up/down to the next nearest step
 - `J`: Cycle through enharmonics of the note
-- `Alt+Up/Down`: up/down **auxiliary operation 1** (usually for moving up/down diatonically)
-- `Ctrl+Alt+Up/Down`: up/down **auxiliary operation 2** (usually for sharps/flats - first accidental chain)
-- `Alt+Shift+Up/Down`: up/down **auxiliary operation 3** (usually 5-limit accidentals - or second accidental chain)
-- `Ctrl+Alt+Shift+Up/Down`: up/down **auxiliary operation 4** (usually 7-limit accidentals - or third accidental chain)
+- `Alt+Up/Down`: **auxiliary operation 1** (usually for moving up/down diatonically)
+- `Ctrl+Alt+Up/Down`: **auxiliary operation 2** (usually for sharps/flats - first accidental chain)
+- `Alt+Shift+Up/Down`: **auxiliary operation 3** (usually 5-limit accidentals - or second accidental chain)
+- `Ctrl+Alt+Shift+Up/Down`: **auxiliary operation 4** (usually 7-limit accidentals - or third accidental chain)
 
-**Auxiliary operations** are very useful when dealing with JIs where there are many distinct notes in the [main tuning space](#main-tuning-space), so using only the up/down arrow keys will take too much time. You can change what the auxiliary operations do by [modifying auxiliary operations declarations in the tuning configuration](#auxiliary-operations).
+These shortcuts can all be modified, and more auxiliary operations can be added, with a simple edit made to the main `.qml` plugin file. [Read how to configure shortcuts here](#how-to-change-shortcuts).
 
 #### Entering accidentals directly using fingerings
 
@@ -130,6 +129,12 @@ The next best way to enter accidentals is by entering fingerings containing the 
 Select a note, hit `Ctrl+F`, then enter the [text representation](#advanced-declaring-text-representations-of-accidentals) of the accidental(s) you need on that note. You can press space or shift+space to apply fingerings on next/previous notes.
 
 Once fingerings are entered, hit `Alt+R` and the accidentals will render themselves.
+
+#### Manually adding accidentals
+
+The most primitive method: dragging SMuFL symbols in from the Master Palette, then hitting `Alt`+`R`.
+
+⚠️ A word of caution if you are using this method: the plugin **does not recognize the standard accidentals** that MuseScore normally uses from the **Accidentals** palette. You must use SMuFL symbols from the 'Symbols' category in the Master Palette (shortcut: `Z`).
 
 ### 6. Change reference pitch
 
@@ -209,6 +214,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
   - [4b. Annotate key signatures](#4b-annotate-key-signatures)
   - [5. Entering notes \& accidentals](#5-entering-notes--accidentals)
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
+    - [Manually adding accidentals](#manually-adding-accidentals)
   - [6. Change reference pitch](#6-change-reference-pitch)
   - [7. Implement your own tunings/notation systems!](#7-implement-your-own-tuningsnotation-systems)
     - [Tuning config web tool](#tuning-config-web-tool)
