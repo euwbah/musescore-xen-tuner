@@ -40,9 +40,9 @@ Extract files to plugins folder and **activate all the following plugins** (see 
 - _display cents_ - To auto-generate [cent offset text](#8-display-steps--display-cents)
 - _display steps_ To display [edosteps of notes](#8-display-steps--display-cents)
 
-### 2. Remap/Remove MuseScore default shortcuts
+### 2. Remove MuseScore default shortcuts
 
-🔴 **You must remove/remap the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts). (This plugin is designed to replace MuseScore's default shortcuts.)
+🔴 **You must remove the following default keyboard shortcuts** in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts). (This plugin is designed to replace MuseScore's default shortcuts.)
 
 - Pitch up/down or move text/articulation up/down (`Up/Down` arrow keys)
 - Change enharmonic spelling (`J`)
@@ -51,6 +51,8 @@ Extract files to plugins folder and **activate all the following plugins** (see 
 - Go to top/bottom note in chord (`Ctrl+Alt+Up/Down`)
 
 Also, if you're going to use the [fingering accidentals/tuning feature](#how-to-use-fingering-annotations) a lot, it's recommended to **change `Ctrl+F` to "Add fingering"** instead of "Find / Go to".
+
+> 🟢 If you still want access to the old MuseScore keyboard operations, you can also remap them to unused keystrokes.
 
 ### 3. Start Xen Tuner
 
@@ -64,21 +66,41 @@ Once you have activated the plugins & replaced the shortcuts, you can start the 
 >
 > 🔴 If you wish to close the plugin, use the "Quit" button. **Do not close the plugin window directly using the window's 'X' button.**
 
-### 4. Select tuning configuration & key signatures
+### 4a. Select tuning configuration
 
 ![specify tuning config](imgs/specify%20tuning%20config.png)
 
-You can specify which [tuning/notation system](#how-to-tuning-configuration) and [key signatures](#how-to-key-signatures) to use by adding a System Text or Staff Text element. The text can be the [configuration text](#tuning-configuration-syntax-overview) itself, or a path to a `.txt` or `.json` file in the `tunings/` folder that contains the config text. Do not include the `.txt` or `.json` extension.
+[**Tunings configurations**](#how-to-tuning-configuration) are `.txt` (text) files located inside the `tunings/` folder of the project which describe a particular tuning and notation system to the plugin.
 
-A System Text configuration will affect all staves, whereas a Staff Text configuration will only affect the staff it is on. A configuration is only applied to notes from its bar onwards. Only place configuration texts/key signatures at the start of a bar.
+In the image above,
 
-These Staff/System Texts don't have to be visible (you can press `V` to toggle visibility).
+- **heji/5 limit** refers to the tuning config file located in [`tunings/heji/5 limit.txt`](tunings/heji/5%20limit.txt),
+- **hewm/7 limit hybrid** refers to the tuning config file located in [`tunings/hewm/7 limit hybrid.txt`](tunings/hewm/7%20limit%20hybrid.txt).
+- ...in general, **a/b/c/d** refers to the file located in `tunings/a/b/c/d.txt`.
+
+To activate a tuning configuration to all staves, insert a System Text to the score at the start of any bar, which will apply the referenced tuning configuration `.txt` file from that bar onwards, you can change between tunings/notation systems in different bars.
+
+To apply a configuration to only one staff, use a Staff Text instead of System Text.
+
+These Staff/System Texts can be made invisible (you can select them and press `V` to toggle visibility).
 
 > 🟢 For a start, try out `heji/5 limit`, which references the `./tunings/heji/5 limit.txt` tuning system configuration file.
 >
-> You can find tunings in the [tunings/](./tunings/) folder to find notations that are already supported.
+> You can browse tunings in the [tunings/](./tunings/) folder to find notations that are already supported.
 >
 > Continue reading to learn how to [create your own tuning configurations](#how-to-tuning-configuration), or [submit a tuning config request issue](https://github.com/euwbah/musescore-xen-tuner/issues/new?assignees=&labels=tuning+config+request&projects=&template=request-contribute-tuning-config.md&title=).
+
+> 🟡 **For power users**: Sometimes, a tuning config file has a `.json` file type instead of the usual `.txt`. This is used for [very large tunings](#1-pre-compute-the-tuning-config) which have precomputed tuning configuration files. Modifying the `.txt` file alone will not affect the tuning configuration, instead, you will have to delete the `.json` file, and use the [web tool (https://euwbah.github.io/musescore-xen-tuner/)](https://euwbah.github.io/musescore-xen-tuner/) to create a new `.json` precomputed tuning configuration file.
+>
+> 🟠 While it is not recommended, you can also input the [tuning configuration text](#tuning-configuration-syntax-overview) directly into System/Staff texts, which may be helpful when you are creating your own custom tuning configs and want to test them out. Newlines/enter/return can be entered into System/Staff Text using `Shift` + `Enter`/`Return`. This feature saves the need for going back and forth between the text editor and MuseScore. Remember to save it into a `.txt` file once you're done!
+
+### 4b. Annotate key signatures
+
+All key signatures, both standard and custom/microtonal, must be annotated in order for the plugin can read them, otherwise they will be ignored by the plugin.
+
+[Read how to annotate key signatures here](#how-to-key-signatures)
+
+These Staff/System Texts don't have to be visible (you can press `V` to toggle visibility).
 
 ### 5. Entering notes & accidentals
 
@@ -181,9 +203,10 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 - [Features/Goals](#featuresgoals)
 - [Quick Start](#quick-start)
   - [1. Download \& activate plugin](#1-download--activate-plugin)
-  - [2. Remap/Remove MuseScore default shortcuts](#2-remapremove-musescore-default-shortcuts)
+  - [2. Remove MuseScore default shortcuts](#2-remove-musescore-default-shortcuts)
   - [3. Start Xen Tuner](#3-start-xen-tuner)
-  - [4. Select tuning configuration \& key signatures](#4-select-tuning-configuration--key-signatures)
+  - [4a. Select tuning configuration](#4a-select-tuning-configuration)
+  - [4b. Annotate key signatures](#4b-annotate-key-signatures)
   - [5. Entering notes \& accidentals](#5-entering-notes--accidentals)
     - [Entering accidentals directly using fingerings](#entering-accidentals-directly-using-fingerings)
   - [6. Change reference pitch](#6-change-reference-pitch)
