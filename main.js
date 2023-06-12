@@ -132,7 +132,26 @@ function debugTC() {
     // to enable browser console debugging
     window.tc = tuningConfig;
 
+    console.log('Access the tuning config object via the `tc` variable:')
+    console.debug(tc)
+
     return tuningConfigJSON;
+}
+
+/**
+ * 
+ * @param {string} hash XenNote hash
+ * @returns List of all enharmonics of given hash
+ */
+function enharmonics(hash) {
+    if (!tc || !tc.enharmonics[hash]) return;
+    let curr = tc.enharmonics[hash];
+    let enharmonics = [hash];
+    while (curr != hash) {
+        enharmonics.push(curr);
+        curr = tc.enharmonics[curr];
+    }
+    return enharmonics;
 }
 
 function generateTuningConfigJSON() {

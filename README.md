@@ -175,7 +175,7 @@ Alternatively, dive straight in to the [`tunings/`](./tunings/) folder for examp
 
 If you require assistance with implementing any particular notation system, or want to contribute a tuning config but don't know how to use Git, feel free to [file an issue under Request/contribute tuning config](https://github.com/euwbah/musescore-xen-tuner/issues/new?assignees=&labels=tuning+config+request&projects=&template=request-contribute-tuning-config.md&title=).
 
-#### [Tuning config web tool](#tuning-config-web-tool)
+#### [Tuning config web tool](https://euwbah.github.io/musescore-xen-tuner)
 
 You can use the [tuning configuration compiler/debugger](https://euwbah.github.io/musescore-xen-tuner) web tool to [check for syntax errors](#i-made-my-own-tuning-config-but-it-doesnt-seem-to-be-doing-anything-treated-as-12edo). You can also use it 'compile' your tuning config into a `.json` file so that [large tuning files can be pre-computed](#1-pre-compute-the-tuning-config) for faster loading.
 

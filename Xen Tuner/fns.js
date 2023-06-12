@@ -227,6 +227,16 @@ var KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC = true;
 var fallthroughUpDownCommand = true;
 
 /**
+ * In the event that a particular note in the tuningTable is this many
+ * cents underneath an equave, it will be assumed that the note's tuning
+ * is exactly one equave.
+ * 
+ * This prevents floating point errors from causing the enharmonics of
+ * a note to have the wrong octave offset due to floating point errors.
+ */
+var EPSILON = 1e-8;
+
+/**
  * Contains a lookup of valid characters that can occur after
  * a backslash escape character when declaring Symbol Codes in
  * tuning config via Text Code or ASCII.
@@ -2175,6 +2185,15 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
                 // Because the reference note is on 'top', and it works downwards.
                 equavesAdjusted += 1;
+            }
+            
+
+            if (tuningConfig.equaveSize - cents < EPSILON) {
+                // Prevent floating point errors from causing enharmonics of the
+                // unison of the reference pitch to be one equave higher than
+                // it should be.
+                cents = 0;
+                equavesAdjusted--;
             }
 
             var hash = createXenHash(nomIdx, accidentalSymbols);

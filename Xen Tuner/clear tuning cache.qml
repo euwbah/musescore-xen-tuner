@@ -27,7 +27,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.4"
+      version: "0.3.5"
       description: "The tuning cache contains cached data about tunings used in the score.\n" +
         "If you've experimented with many different tunings within a score, but aren't currently using most of them," +
         "it is highly recommended to clear the Tuning Config cache."

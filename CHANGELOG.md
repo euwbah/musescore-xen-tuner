@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5
+
+- Fix floating point errors/small inaccuracies causing enharmonics of the reference pitch to be mapped one equave higher (because the cents are just shy of the equave). The added `EPSILON` user config variable controls the condition `equave - cents < EPSILON`, which when true, sets `cents = 0` and corrects the equave.
+
 ## 0.3.4
 
 - Added [generate-edo-updown.py](tunings/updown/generate-edo-updown.py) script to automatically generate tuning configs for EDOs/EDs with ups & downs notation (Kite) with fully configurable parameters.
