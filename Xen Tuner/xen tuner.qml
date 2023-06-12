@@ -31,7 +31,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.4"
+      version: "0.3.5"
       pluginType: "dock"
       dockArea: "left"
       description: "Starts the XenTuner plugin.\n\n" +
@@ -43,7 +43,7 @@ MuseScore {
       id: pluginId
       readonly property var window: Window.window
       readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
-      
+
       onRun: {
         console.log('Started Xen Tuner');
         // When you want to find which import has a syntax error, uncomment this line
@@ -312,5 +312,6 @@ MuseScore {
           shortcuts[i].context = Qt.WindowShortcut; // make the shortcut disappear with the window.
           console.log('disable shortcut: ' + shortcuts[i].sequence);
         }
+        Qt.quit(); // TODO: Delete for MS4, use dialog instead of dock plugin type.
       }
 }
