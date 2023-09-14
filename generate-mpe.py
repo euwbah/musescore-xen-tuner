@@ -59,8 +59,8 @@ try:
         first_tick = 1e9
         
         for row in reader:
-            staff = int(row[0])
-            tick = int(row[2])
+            staff = int(float(row[0]))
+            tick = int(float(row[2]))
             if staff > max_staff:
                 max_staff = staff
             
@@ -76,7 +76,7 @@ try:
             if staff_notes.get(staff) is None:
                 staff_notes[staff] = []
             
-            staff_notes[staff].append([int(row[1]), tick, int(row[3]), int(row[4]), float(row[5])])
+            staff_notes[staff].append([int(float(row[1])), tick, int(float(row[3])), int(float(row[4])), float(row[5])])
         
         if max_staff == -1:
             print("No notes found. Not exporting anything.")
