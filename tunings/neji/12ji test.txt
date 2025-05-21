@@ -1,0 +1,56 @@
+// 12-note JI tuning. 1/1 = A4 = 440 Hz.
+//
+// 1/1 25/24 9/8 6/5 5/4 4/3 45/32 3/2 8/5 5/3 9/5 15/8
+
+A4: 440
+
+// the nominal & accidental chain tunings don't matter because all of them
+// will be overriden by the tuning override
+
+// When generating tuning overrides, make sure the first nominal declared
+// matches the reference note of the tuning config!
+0 0 0 0 0 0 0 2/1
+
+bb b (0) # x
+(0)
+
+displaysteps(12, below)
+
+aux(0)
+aux(0,1)
+override()
+0 -2 0 9/5/(2)
+0 -1 0 15/8/(2)
+0 0 0 1/1
+0 1 0 25/24
+0 2 0 9/8
+1 -2 0 1/1
+1 -1 0 25/24
+1 0 0 9/8
+1 1 0 6/5
+1 2 0 5/4
+2 -2 0 25/24
+2 -1 0 9/8
+2 0 0 6/5
+2 1 0 5/4
+2 2 0 4/3
+3 -2 0 6/5
+3 -1 0 5/4
+3 0 0 4/3
+3 1 0 45/32
+3 2 0 3/2
+4 -2 0 4/3
+4 -1 0 45/32
+4 0 0 3/2
+4 1 0 8/5
+4 2 0 5/3
+5 -2 0 45/32
+5 -1 0 3/2
+5 0 0 8/5
+5 1 0 5/3
+5 2 0 9/5
+6 -2 0 8/5
+6 -1 0 5/3
+6 0 0 9/5
+6 1 0 15/8
+6 2 0 1/1*(2)
