@@ -29,6 +29,15 @@ lig(1,2)!
 2 0 x
 2 1 x^
 
+// Here we declare 4 auxiliary up/down operations.
+// These will be accessible as the aux1, aux2, aux3, aux4 up/down operations
+// respectively. You can look up/modify the keyboard shortcuts to these
+// operations in the "xen tuner.qml" file.
+aux(0) // aux1 will modify nominals only, without modifying accidentals
+aux(1) // aux2 will modify flats/sharps only, without modifying nominals or other accs
+aux(2) // aux3 will modify syntonic comas only
+aux(0,1) // aux4 will modify both nominals and flats/sharps.
+
 sec()
 'bb' bb -154.8387097c
 '##' x 154.8387097c

@@ -1,17 +1,17 @@
 // Copyright (C) 2023 euwbah
-// 
+//
 // This file is part of Xen Tuner.
-// 
+//
 // Xen Tuner is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Xen Tuner is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Xen Tuner.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -28,11 +28,11 @@ import QtQuick.Dialogs 1.1
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.5"
-      description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py " 
+      version: "0.3.6"
+      description: "Tunes & export the entire score/selection as a midi.csv file. Feed the generated text file into the text-to-midi.py "
           + "script to generate one MPE midi file per staff."
       menuPath: "Plugins.Xen Tuner.Export MIDI CSV"
-      
+
       id: pluginId
 
       Component.onCompleted : {
@@ -133,7 +133,7 @@ MuseScore {
         // First, populate ConfigUpdateEvents for each staff.
 
         for (var staff = startStaff; staff <= endStaff; staff++) {
-          
+
           // Contains [ConfigUpdateEvent]s for curr staff
           var configs = [];
 
@@ -166,7 +166,7 @@ MuseScore {
                   }
                 }
 
-                if (cursor.segment.tick == cursor.measure.firstSegment.tick && 
+                if (cursor.segment.tick == cursor.measure.firstSegment.tick &&
                     voice === 0 && staff == startStaff) {
                   // For the first staff/voice, store tick positions of the start of each bar.
                   // this is used for accidental calculations.
@@ -193,7 +193,7 @@ MuseScore {
 
         for (var staff = startStaff; staff <= endStaff; staff++) {
           for (var voice = 0; voice < 4; voice++) {
-            // After each voice & rewind, 
+            // After each voice & rewind,
             // reset all configs back to default
             Fns.resetParms(parms);
 
@@ -279,13 +279,13 @@ MuseScore {
                     // iterate through all grace chords
                     var notes = graceChords[i].notes;
                     for (var j = 0; j < notes.length; j++) {
-                      midiText += Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning, 
+                      midiText += Fns.tuneNote(notes[j], parms.currKeySig, parms.currTuning,
                         tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement, true, velo);
                     }
                   }
                   var notes = cursor.element.notes;
                   for (var i = 0; i < notes.length; i++) {
-                    midiText += Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning, 
+                    midiText += Fns.tuneNote(notes[i], parms.currKeySig, parms.currTuning,
                       tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement, true, velo);
                   }
                 }
@@ -298,9 +298,9 @@ MuseScore {
         // Export midiText to file.
 
         var pathParts = currentScorePath.split('/');
-        var exportPath = pathParts.slice(0, pathParts.length - 1).join('/') 
+        var exportPath = pathParts.slice(0, pathParts.length - 1).join('/')
           + '/' + curScore.scoreName + '.mid.csv';
-        
+
         fileIO.source = exportPath;
         var success = fileIO.write(midiText);
 
@@ -313,7 +313,7 @@ MuseScore {
         }
 
         messageDialog.open();
-        
+
         Fns.postAction();
       }
 }

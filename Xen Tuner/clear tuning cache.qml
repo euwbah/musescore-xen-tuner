@@ -1,17 +1,17 @@
 // Copyright (C) 2023 euwbah
-// 
+//
 // This file is part of Xen Tuner.
-// 
+//
 // Xen Tuner is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Xen Tuner is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Xen Tuner.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -27,7 +27,7 @@ import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.3.5"
+      version: "0.3.6"
       description: "The tuning cache contains cached data about tunings used in the score.\n" +
         "If you've experimented with many different tunings within a score, but aren't currently using most of them," +
         "it is highly recommended to clear the Tuning Config cache."
@@ -57,7 +57,7 @@ MuseScore {
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
           fileIO, curScore, isMS4);
-        
+
         Fns.preAction();
 
         if (typeof curScore === 'undefined')

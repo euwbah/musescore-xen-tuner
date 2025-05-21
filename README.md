@@ -131,6 +131,9 @@ These shortcuts can all be modified, and more auxiliary operations can be added,
 
 The next best way to enter accidentals is by entering fingerings containing the text-representation of accidentals. This feature can be used when [text representations of accidentals](#advanced-declaring-text-representations-of-accidentals) are declared in the tuning config. The plugin matches strings of text and converts them into accidental symbols (which can either be SMuFL or text-based). Refer to the tuning config .txt files to lookup which characters represent which accidental symbols.
 
+> [!NOTE]
+> Use the fingering text `n` to add a natural accidental.
+
 > [!TIP]
 > When using this feature, it is recommended to **map the default `Ctrl+F` shortcut to "Add fingering"** instead of "Find / Go to".
 
@@ -1049,6 +1052,11 @@ sec()
 ```
 
 The above example declares two secondary accidentals, `u77` and `u7`. To input them effeciently, you can attach a fingering and enter `up77` or `up7` respectively. After any plugin operation is applied to that note, the note will be regarded as if it has the symbols attached to it.
+
+> [!NOTE]
+> **The ASCII text `n` is used to refer to the natural accidental, and for adding the natural accidental using fingerings**. If you want, this can be overriden by declaring a secondary accidental with text representation 'n' (e.g. `'n' 152 0c`), but you won't be able to enter the usual natural symbol with fingerings if so.
+>
+> For devs: this is implemented under the hood as declaring `'n' 2 0c` as the last secondary accidental with the lowest precedence.
 
 🔴 As usual, the **declaration order matters**. If the text representation `'up7'` was declared before `'up77'`, then `up77` would be matched as `up7` first, leaving a `7` that would not be matched. The plugin will then ignore the fingering as it thinks that it is not a valid text-representation of accidental(s).
 

@@ -1,17 +1,17 @@
 // Copyright (C) 2023 euwbah
-// 
+//
 // This file is part of Xen Tuner.
-// 
+//
 // Xen Tuner is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Xen Tuner is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Xen Tuner.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -40,9 +40,9 @@ var _curScore = null; // don't clash with namespace
 
 /**
  * FontStyle enumeration.
- * 
+ *
  * Values used as bitmask.
- * 
+ *
  * TODO: This is a polyfill for the missing FontStyle enumeration in the PluginAPI.
  * Remove this once the PluginAPI has a FontStyle enumeration.
  */
@@ -54,21 +54,21 @@ var FontStyle = {
 };
 
 /**
-                                            _____                               
+                                            _____
   __  __________  _____   _________  ____  / __(_)___ _   _   ______ ___________
  / / / / ___/ _ \/ ___/  / ___/ __ \/ __ \/ /_/ / __ `/  | | / / __ `/ ___/ ___/
-/ /_/ (__  )  __/ /     / /__/ /_/ / / / / __/ / /_/ /   | |/ / /_/ / /  (__  ) 
-\__,_/____/\___/_/      \___/\____/_/ /_/_/ /_/\__, /    |___/\__,_/_/  /____/  
-                                              /____/                                                
+/ /_/ (__  )  __/ /     / /__/ /_/ / / / / __/ / /_/ /   | |/ / /_/ / /  (__  )
+\__,_/____/\___/_/      \___/\____/_/ /_/_/ /_/\__, /    |___/\__,_/_/  /____/
+                                              /____/
 */
 
 /**
  * When using JI ratios attached to noteheads as fingerings,
  * this determines whether the period after the ratio is required.
- * 
+ *
  * If you wish to use fingerings normally (i.e. to denote fingerings)
  * you should leave this as `true`.
- * 
+ *
  * If you don't want to enter a period after every JI ratio, and you
  * don't mind having fingerings rendered as JI ratios, you can set this
  * to false.
@@ -102,13 +102,13 @@ PlayEvent adjustments, which will internally change the MIDI note playback
 of this note during playback.
 
 However, when PlayEvents are used to offset tuning a note, the playback sounded
-when selecting/modifying the note will not include the semitone offset. 
+when selecting/modifying the note will not include the semitone offset.
 
 The score has to be played in order to hear the correct pitch.
 
 If you rather hear the correct pitch when selecting/modifying the note,
 in spite of weird timbres caused by playback, set this number higher
-(e.g. 40). 
+(e.g. 40).
 
 If you rather preserve timbre as much as possible, set this
 number to 1.
@@ -120,8 +120,8 @@ var PLAY_EVENT_MOD_SEMITONES_THRESHOLD = 12;
 
 /**
  * All symbol/ascii accidentals must be at least this far apart
- * from each other. 
- * 
+ * from each other.
+ *
  * Some accidentals are very very thin and the default auto-positioning
  * will make them too tight and cluttered to read.
  */
@@ -130,12 +130,12 @@ var MIN_ACC_WIDTH = 0.75;
 /**
  * Represents additional horizontal space to put between accidentals
  * when auto-positioning them.
- * 
+ *
  * (Increases the width of the accidental bounding box)
- * 
+ *
  * The smaller the number, the more tightly packed accidental symbols
  * are when auto-positioning accidentals.
- * 
+ *
  * Number is in spatium units.
  */
 var ACC_SPACE = 0.1;
@@ -143,23 +143,23 @@ var ACC_SPACE = 0.1;
 /**
  * Represents additional horizontal space to put between the notehead
  * and the accidental when auto-positioning accidentals.
- * 
+ *
  * Number is in spatium units.
  */
 var ACC_NOTESPACE = 0.2;
 
 /**
  * Font size of text-based ASCII accidentals. In px.
- * 
+ *
  * Text-based accidentals are rendered with fingering text.
- * 
+ *
  * Auto placement of single ASCII symbols/punctuation is
  * optimized for this font size.
  */
 var ASCII_ACC_FONT_SIZE = 11;
 
 /**
- * Font size of the fingering text containing the step number of 
+ * Font size of the fingering text containing the step number of
  * the note.
  */
 var STEPS_DISPLAY_FONT_SIZE = 10;
@@ -172,10 +172,10 @@ var CENTS_DISPLAY_FONT_SIZE = 10;
 /**
  * By default, whenever an accidental is entered via ascii
  * input, it will clear all prior accidentals attached to the note.
- * 
- * This mimics the same behavior as entering accidentals via 
+ *
+ * This mimics the same behavior as entering accidentals via
  * AccidentalVector method.
- * 
+ *
  * However, if you want the new accidentals to pile up on top of
  * existing accidentals instead of replacing the old ones, set this
  * to false.
@@ -185,14 +185,14 @@ var CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY = true;
 /**
  * If `true`, the non-diatonic up/down operations will keep prior secondary
  * accidentals that were attached to the note.
- * 
+ *
  * This defaults to `false` as the intention of a non-diatonic up/down is to
  * modify the existing accidentals on the note.
- * 
+ *
  * It would seem weird to keep some of the old accidentals only because
  * they are 'secondary' accidentals, then have the user manually delete them
  * later.
- * 
+ *
  * However, in HCJI where comma shifts are notated as secondary accidentals,
  * (which is not recommended), then the user may find this feature handy
  * and set this to `true`.
@@ -201,7 +201,7 @@ var KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE = false;
 /**
  * If `false`, the plugin will delete secondary accidentals after a
  * diatonic transpose is performed. (That is, aux(0))
- * 
+ *
  * This defaults to `true` to keep in line with the expected behavior
  * that a "diatonic" transpose should only change the nominal and
  * not affect the accidentals.
@@ -210,7 +210,7 @@ var KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC = true;
 /**
  * If `false`, the plugin will delete secondary accidentals after a
  * enharmonic cycle operation is performed.
- * 
+ *
  * This defaults to `true` to keep in line with the expectation that
  * enharmonic notes should have the same pitch. Thus, any secondary
  * accidentals present must remain to keep the pitch consistent.
@@ -220,7 +220,7 @@ var KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC = true;
 /**
  * If true, the plugin will allow `cmd('pitch-up')` and `cmd('pitch-down')` to be
  * sent when the selection doesn't include notes and up/down operations are being sent.
- * 
+ *
  * Set this to false when the user is editing text elements, so that the user can
  * press up/down to navigate the text without being interrupted.
  */
@@ -230,7 +230,7 @@ var fallthroughUpDownCommand = true;
  * In the event that a particular note in the tuningTable is this many
  * cents underneath an equave, it will be assumed that the note's tuning
  * is exactly one equave.
- * 
+ *
  * This prevents floating point errors from causing the enharmonics of
  * a note to have the wrong octave offset due to floating point errors.
  */
@@ -240,7 +240,7 @@ var EPSILON = 1e-8;
  * Contains a lookup of valid characters that can occur after
  * a backslash escape character when declaring Symbol Codes in
  * tuning config via Text Code or ASCII.
- * 
+ *
  * @type {Object.<string, boolean>}
  */
 var VALID_ASCII_ACC_ESC_CHARS = {
@@ -273,7 +273,7 @@ sec()                                   \n\
  * If a fingering has this Z index, it signifies that it is a
  * per-note tuning fingering annotation that has already been
  * processed.
- * 
+ *
  * This currently no purpose other than to set the Z index of
  * the fingering to the non-default value so that it won't be
  * repeatedly attempted to be processed as an ASCII-representation
@@ -286,9 +286,9 @@ var CENTS_DISPLAY_FINGERING_Z = 3905;
 
 /**
  * This is the default Z index for fingerings as of MuseScore 3.6.2.
- * 
+ *
  * If MuseScore changes this, we need to change this as well.
- * 
+ *
  * The default fingering z index is used to mark that a fingering
  * has not been processed, and that we will need to process it.
  */
@@ -297,20 +297,22 @@ var DEFAULT_FINGERING_Z_INDEX = 3900;
 /**
  * Cached mapping of tuning config strings to `TuningConfig` objects that the string
  * refers to.
- * 
+ *
  * This object is dynamically created and populated as tuning configs are loaded.
- * 
+ *
  * If the `'tuningconfig'` metaTag exists in the score, populate from there as well.
- * 
+ *
  * The `'tuningconfig'` metaTag can be set by the Save Tuning Cache plugin.
- * 
+ *
  * @type {TuningConfigLookup}
  */
 var tuningConfigCache = {};
 
+var ENABLE_LOGGING = true;
+
 /**
  * Returns the default tuning config to apply when none is specified
- * 
+ *
  * @returns {TuningConfig}
  */
 function generateDefaultTuningConfig() {
@@ -343,15 +345,17 @@ function generateDefaultTuningConfig() {
 
 /**
  * Logs debug message to opened log file (MS4) & console (MS3).
- * 
+ *
  * Make sure {@link openLog} is called before calling this, and
  * {@link closeLog} is called after to flush logs.
- * 
- * @param {string} msg 
+ *
+ * @param {string} msg
  */
 function log(msg) {
-    logn(msg);
-    console.log(msg);
+    if (ENABLE_LOGGING) {
+        logn(msg);
+        console.log(msg);
+    }
 }
 
 /**
@@ -370,7 +374,7 @@ function postAction() {
 }
 
 /**
- * 
+ *
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
  */
@@ -399,7 +403,7 @@ function init(MSAccidental, MSNoteType, MSSymId, MSElement, MSFileIO, MSCurScore
 
 /**
  * Modulo function that always returns a positive number.
- * 
+ *
  * @param {number} x
  * @param {number} y
  */
@@ -424,11 +428,11 @@ function arraysEqual(a, b) {
 /**
  * Check if two notes are to be considered enharmonically equivalent
  * based on cents.
- * 
+ *
  * @param {number} cents1
  * @param {number} cents2
  * @param {number} equaveSize Size of equave in cents.
- * @returns 
+ * @returns
  */
 function isEnharmonicallyEquivalent(cents1, cents2, equaveSize) {
     return (Math.abs(cents1 - cents2) < ENHARMONIC_EQUIVALENT_THRESHOLD) ||
@@ -437,13 +441,13 @@ function isEnharmonicallyEquivalent(cents1, cents2, equaveSize) {
 
 /**
  * Convert user-input {@link SymbolCode} or Text Code ({@link Lookup.TEXT_TO_CODE}) into SymbolCode ID.
- * 
+ *
  * This function only reads SMuFL symbol {@link SymbolCode}s or Text Codes.
- * 
+ *
  * In v0.2, an update was made such that SymbolCodes can now be ASCII as well.
- * 
+ *
  * The full parsing implementation of symbols is in {@link parseSymbolsDeclaration}.
- * 
+ *
  * @param {string} codeOrText
  * @returns {SymbolCode?} {@link SymbolCode} or null if invalid.
  */
@@ -461,10 +465,10 @@ function readSymbolCode(codeOrText) {
 
 /**
  * Gets the tick of a MuseScore note object.
- * 
+ *
  * Can be used on notes & grace notes.
- * 
- * @param {PluginAPINote} note 
+ *
+ * @param {PluginAPINote} note
  * @returns {number} tick time-position of note.
  */
 function getTick(note) {
@@ -477,7 +481,7 @@ function getTick(note) {
 
 /**
  * If note is a grace note, return the Chord it belongs to.
- * 
+ *
  * @param {PluginAPINote} note `PluginAPI::Note`
  * @returns {PluginAPIChord?} Chord element containing the grace note, or null
  */
@@ -494,28 +498,28 @@ function findGraceChord(note) {
 }
 
 /*
-  _          __                       _           _                   
- / |_       [  |  _                  (_)         (_)                  
-`| |-' .--.  | | / ] .---.  _ .--.   __   ____   __   _ .--.   .--./) 
- | | / .'`\ \| '' < / /__\\[ `.-. | [  | [_   ] [  | [ `.-. | / /'`\; 
- | |,| \__. || |`\ \| \__., | | | |  | |  .' /_  | |  | | | | \ \._// 
- \__/_'.__.'[__|  \_]'.__.'[___||__][___][_____][___][___||__].',__`  
- .' _ '.                                                     ( ( __)) 
- | (_) '___                                                           
- .`___'/ _/                                                           
-| (___)  \_                      _                                    
-`._____.\__|                    (_)                                   
- _ .--.   ,--.   _ .--.  .--.   __   _ .--.   .--./)                  
-[ '/'`\ \`'_\ : [ `/'`\]( (`\] [  | [ `.-. | / /'`\;                  
- | \__/ |// | |, | |     `'.'.  | |  | | | | \ \._//                  
- | ;.__/ \'-;__/[___]   [\__) )[___][___||__].',__`                   
-[__|                                        ( ( __))                  
+  _          __                       _           _
+ / |_       [  |  _                  (_)         (_)
+`| |-' .--.  | | / ] .---.  _ .--.   __   ____   __   _ .--.   .--./)
+ | | / .'`\ \| '' < / /__\\[ `.-. | [  | [_   ] [  | [ `.-. | / /'`\;
+ | |,| \__. || |`\ \| \__., | | | |  | |  .' /_  | |  | | | | \ \._//
+ \__/_'.__.'[__|  \_]'.__.'[___||__][___][_____][___][___||__].',__`
+ .' _ '.                                                     ( ( __))
+ | (_) '___
+ .`___'/ _/
+| (___)  \_                      _
+`._____.\__|                    (_)
+ _ .--.   ,--.   _ .--.  .--.   __   _ .--.   .--./)
+[ '/'`\ \`'_\ : [ `/'`\]( (`\] [  | [ `.-. | / /'`\;
+ | \__/ |// | |, | |     `'.'.  | |  | | | | \ \._//
+ | ;.__/ \'-;__/[___]   [\__) )[___][___||__].',__`
+[__|                                        ( ( __))
 */
 
 
 /**
  * Reads the {@link PluginAPINote} and tokenizes it into a {@link MSNote}.
- * 
+ *
  * @param {PluginAPINote} note `PluginAPI::Note`
  * @returns {MSNote}
  */
@@ -537,7 +541,7 @@ function tokenizeNote(note) {
     var fingerings = [];
 
     // Removed. This plugin no longer attempts to deal with musescore's accidentals.
-    // 
+    //
     // This plugin relies on SMuFL symbols attached from symbols in the "Symbols"
     // category of the Master Palette only.
     //
@@ -606,23 +610,23 @@ function tokenizeNote(note) {
 
 /**
  * Filters accidentals to remove symbols that aren't used by the tuning config.
- * 
+ *
  * **WARNING:** If the resulting accidental is empty, returns `null`.
- * In some {@link AccidentalHash} use cases, '' is required instead of null. 
+ * In some {@link AccidentalHash} use cases, '' is required instead of null.
  * Make sure to check what is required.
- * 
+ *
  * @param {AccidentalHash|SymbolCode[]|AccidentalSymbols} accHashOrSymbols Accidentals to remove unused symbols from.
  * @param {TuningConfig} tuningConfig
- * @returns {(AccidentalHash|SymbolCode[]|AccidentalSymbols)?} 
- *  Returns an {@link AccidentalHash}, {@link SymbolCode}[], or {@link AccidentalSymbols} 
+ * @returns {(AccidentalHash|SymbolCode[]|AccidentalSymbols)?}
+ *  Returns an {@link AccidentalHash}, {@link SymbolCode}[], or {@link AccidentalSymbols}
  *  depending on what was passed in.
- * 
+ *
  *  Returns `null` if there are no symbols left after filtering.
  */
 function removeUnusedSymbols(accHashOrSymbols, tuningConfig) {
     if (!accHashOrSymbols) return null;
     if (typeof (accHashOrSymbols) == 'string') {
-        // Accidental Hash 
+        // Accidental Hash
         var accHashWords = accHashOrSymbols.split(' ');
         var newAccHashWords = [];
 
@@ -666,25 +670,25 @@ function removeUnusedSymbols(accHashOrSymbols, tuningConfig) {
 
 /**
  * Hashes the {@link AccidentalSymbols} attached to a note.
- * 
+ *
  * The result is appended to the nominal of a note to construct a {@link XenNote}.
- * 
+ *
  * You can also specify a list of unsorted {@link SymbolCode}s that are present.
  * (useful for hashing accidentals from user-input).
- * 
+ *
  * Accidentals hash format:
- * 
+ *
  * ```txt
  * 3 1 5 2 // this means SymCode 3 appears once, and SymCode 5 appears twice.
  * 'asdf 1 // this means the ASCII accidental 'asdf' appears once.
  * 7 2 '7 2 // this means the SymCode 7 appears 2 times, and the
  *          // ASCII symbol '7' appears 2 times.
  * ```
- * 
- * To differentiate between ASCII and SMuFL internally, ASCII accidental 
+ *
+ * To differentiate between ASCII and SMuFL internally, ASCII accidental
  * {@link SymbolCode}s are represented with a prefixed quote (`'`).
- * 
- * @param {AccidentalSymbols|SymbolCode[]|null|undefined} accidentals 
+ *
+ * @param {AccidentalSymbols|SymbolCode[]|null|undefined} accidentals
  *      The AccidentalSymbols object, or a list of `SymbolCode` numbers, or nothing.
  * @returns {string}
  * {@link AccidentalSymbols} hash string.
@@ -776,10 +780,10 @@ function accidentalsHash(accidentals) {
 
 /**
  * Adds accidentals from two different collections together.
- * 
+ *
  * Returns a new {@link AccidentalSymbols} object.
- * 
- * @param {AccidentalSymbols} x 
+ *
+ * @param {AccidentalSymbols} x
  * @param {AccidentalSymbols | SymbolCode[]} y
  * @returns {AccidentalSymbols}
  */
@@ -820,15 +824,15 @@ function addAccSym(x, y) {
 
 /**
  * Subtract x - y.
- * 
+ *
  * Removes as many accidental symbols there are in Y from X, and returns
  * a new object.
- * 
+ *
  * If X does not have enough symbols & not possible to subtract because the
  * number of symbols will go into the negative, returns `null`.
- * 
+ *
  * @param {AccidentalSymbols} x The acc syms to subtract from
- * @param {AccidentalSymbols|SymbolCode[]} y 
+ * @param {AccidentalSymbols|SymbolCode[]} y
  *  The symbols to subtract. Can be specified either as {@link AccidentalSymbols}
  *  or {@link SymbolCode}[] array.
  * @returns {AccidentalSymbols?} The result of x - y, or `null` if not possible.
@@ -885,7 +889,7 @@ function subtractAccSym(x, y) {
 
 /**
  * Convert a {@link SymbolCode}[] array into an {@link AccidentalSymbols} object.
- * 
+ *
  * @param {SymbolCode[]} symList Array of {@link SymbolCode}s
  * @returns {AccidentalSymbols?}
  * An {@link AccidentalSymbols} object, or `null` if the array is empty.
@@ -907,7 +911,7 @@ function accidentalSymbolsFromList(symList) {
 
 /**
  * Convert an {@link AccidentalHash} string to an {@link AccidentalSymbols} object.
- * 
+ *
  * @param {AccidentalHash?} accHash Accidental Hash string
  * @returns {AccidentalSymbols?}
  * An {@link AccidentalSymbols} object, or `null` if the string is empty, or
@@ -927,7 +931,7 @@ function accidentalSymbolsFromHash(accHash) {
 
 /**
  * Calculate a {@link XenNote.hash} string from its nominal and accidentals.
- * 
+ *
  * @param {number} nominal
  * @param {AccidentalSymbols|SymbolCode[]|null|undefined} accidentals
  */
@@ -937,7 +941,7 @@ function createXenHash(nominal, accidentals) {
 
 /**
  * Saves the current `tuningConfigCache` as a metaTag in the current score.
- * 
+ *
  * This is very slow, run this function very sparsely.
  */
 function saveMetaTagCache() {
@@ -954,13 +958,13 @@ function saveMetaTagCache() {
 
 /**
  * Clears runtime & metaTag tuning config caches from the current score.
- * 
+ *
  * Be sure to run this time to time, especially if you're experimenting
  * with many tuning configs in one score. This will force the plugin to repopulate
- * 
+ *
  * (Tell the user to run this if they are creating/experimenting with different tuning configs,
  * then deleting them, and are currently not using most of them)
- * 
+ *
  * Otherwise, the cache text will contain too many tuning configs and it will become
  * pointless to use the cache as the JSON parsing will take longer than just generating
  * the tuning config.
@@ -972,31 +976,31 @@ function clearTuningConfigCaches() {
 
 /**
  * Parses a string that declares {@link SymbolCode}s in a Tuning Config.
- * 
+ *
  * E.g. '\\\'+.'.'$'.# represents 3 symbols. Left to right, they are
- * 
+ *
  * 1. ASCII symbol consisting of \'+. (quote, plus, period).\
  *    \\ escapes into backslash\
  *    \' escapes into quote.
  * 2. ASCII symbol consisting of $ (dollar sign)
  * 3. Standard-issue SMuFL sharp symbol.
- * 
+ *
  * Backslash escapes must be used both inside and outside quotes.
- * 
+ *
  * The valid escapes are:
- * 
+ *
  * - \\  - backslash
  * - \' - quote
  * - \/ - forward slash.
- * 
+ *
  * 'abc'# is invalid syntax. A dot must separate distinct symbols,
  * and ASCII symbols are distinct from SMuFL symbols.
- * 
+ *
  * The plugin will not check for this syntax error and will instead
  * parse it as a single ASCII symbol: 'abc#'.
- * 
+ *
  * If failed to parse, logs error messages to the console.
- * 
+ *
  * @param {string} str Text that represents a symbol.
  * @param {boolean?} suppressError If true, will not log error messages to the console.
  * @returns {SymbolCode[]?} Array of {@link SymbolCode}s, or `null` if the string is invalid.
@@ -1068,7 +1072,7 @@ function parseSymbolsDeclaration(str, suppressError) {
     }
 
     if (currStr.length > 0) {
-        // last symbol 
+        // last symbol
 
         // period separates symbols.
         if (currIsQuoted) {
@@ -1096,9 +1100,9 @@ function parseSymbolsDeclaration(str, suppressError) {
 /**
  * Convert user-input string that denotes a cent/ratio interval value
  * into the number of cents it represents.
- * 
+ *
  * If the string is invalid, it logs the error message and returns `null`.
- * 
+ *
  * @param {string} str Parses cents or ratio text into cents offset.
  * @param {boolean?} suppressError If true, will not log error messages to the console.
  * @returns {number?} Cents offset, or null if invalid syntax.
@@ -1138,15 +1142,15 @@ function parseCentsOrRatio(str, suppressError) {
 }
 
 /**
- * Splits an accidental degree declaration in the acc chain into 
+ * Splits an accidental degree declaration in the acc chain into
  * symbols string and tuning offset.
- * 
+ *
  * E.g.: `'(!!!)(Math.pow(3/2,3))'` should return:
- * 
+ *
  * `['(!!!)', 'Math.pow(3/2,3)']`
- * 
+ *
  * Parsing method:
- * 
+ *
  * - If the string ends with a closing bracket, find the matching opening bracket.
  * - Split at the matching opening bracket. The left part is the symbols declaration
  *   and the right part is the tuning offset.
@@ -1154,12 +1158,12 @@ function parseCentsOrRatio(str, suppressError) {
  *   as the symbols declaration.
  * - If the matched tuning offset has a syntax error, treat the entire string as
  *   the symbols declaration.
- * 
- * 
- * @param {string} str 
- * String containing accidental symbols definition and optional irregular 
+ *
+ *
+ * @param {string} str
+ * String containing accidental symbols definition and optional irregular
  * tuning offset. Whitespace should be trimmed.
- * 
+ *
  * @returns {[string, number]?}
  * `[symbols, centsOffset]`. Returns null if the syntax is invalid.
  */
@@ -1202,37 +1206,37 @@ function parseSymbolOffsetPair(str) {
 
 /**
  * Tests if a certain text/tuning file is a tuning config.
- * 
+ *
  * First it will look up cached TuningConfigs so it won't
  * have to parse the text again.
- * 
- * The cache will contain strings (either entire texts or references to .txt files) 
+ *
+ * The cache will contain strings (either entire texts or references to .txt files)
  * that generated a TuningConfig, and maps it to TuningConfig objects.
- * 
+ *
  * If a cached TuningConfig is not found, parses the text/tuning file
  * and creates a TuningConfig object.
- * 
+ *
  * Example tuning config text:
- * 
+ *
  * ```txt
  * A4: 440
  * 0 203.91 294.13 498.04 701.96 792.18 996.09 1200
  * bb.bb 7 bb b (113.685) # x 2 x.x
  * \.\ \ (21.506) / /./
  * ```
- * 
- * @param {string} text 
+ *
+ * @param {string} text
  *  The system/staff text contents, or a path to a file containing the config text.
- * 
+ *
  *  The path should be relative to the 'tunings' folder in the plugin home directory.
  *  The '.txt' extension is optional.
- * 
- * @param {boolean?} isNotPath 
+ *
+ * @param {boolean?} isNotPath
  *  Optional. Specify `true` to read text verbatim instead of trying to read from a file.
- * 
+ *
  * @param {boolean?} silent
  *  Optional. Specify `true` to suppress cache loading messages.
- * 
+ *
  * @returns {TuningConfig} The parsed tuning configuration object, or null text was not a tuning config.
  */
 function parseTuningConfig(textOrPath, isNotPath, silent) {
@@ -1550,16 +1554,16 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     /**
      * Stores current parsing state.
-     * 
+     *
      * First value is a string that signifies what info the parser is
      * parsing. Empty string `''` denotes that the parser is awaiting
      * EOF or a new config declaration.
-     * 
+     *
      * Only `'lig'` and `'sec'` are valid states which have additional
      * data.
-     * 
+     *
      * If state is `'lig'`, the second value is a {@link Ligature} object.
-     * 
+     *
      * @type {[''|'lig'|'sec'|'override', Ligature?]}
      */
     var state = [];
@@ -1567,7 +1571,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     /**
      * After EOF or at the start of each new declaration, add the previously
      * parsed declaration to the tuning config.
-     * 
+     *
      * Call this before modifying the `state`.
      */
     var commitParsedSection = function () {
@@ -1965,15 +1969,20 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     //
     //
 
+    // Always use ascii 'n' for adding natural accidental symbol for fingerings
+
+    tuningConfig.asciiToSmuflConv['n'] = 2; // 2 is the symbol code for natural sign
+    tuningConfig.asciiToSmuflConvList.push('n');
+
     //
     //
     // SETTLE PERMUTATIONS OF XenNotes
-    // 
+    //
     //
 
     /**
      * Permute all combinations of accidental chains.
-     * 
+     *
      * The number of accidental chains can vary, so we need a way to
      * generate a variable number of nested for loops.
      */
@@ -2015,7 +2024,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     // Now we have all permutations of accidental vectors by index
 
-    /* 
+    /*
     Contains all possible XenNote names within one equave.
 
     A list of objects, each containing:
@@ -2028,14 +2037,14 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     /**
      * This is a KVP of {@link XenNote.hash XenNote hashes} to {@link XNE}.
-     * 
+     *
      * The user may declare ligatures that have the same {@link XenNote.hash} as
      * existing {@link XenNote XenNotes} from the accidental chains to explicitly give
      * them 'important' priority. (See `hewm/5 limit.txt` or `updown/22edo.txt`)
-     * 
+     *
      * It's important to let ligatured {@link XNE} override default {@link XNE} entries
      * that come from acc chains.
-     * 
+     *
      * @type {XenNotesEquaves}
      */
     var xenNotesEquaves = {};
@@ -2108,7 +2117,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             Stores the order that the SymbolCode keys should appear in.
             This determines the order accidentals will be displayed left-to-right.
 
-            According to spec, symbols belonging to the first accidental chain 
+            According to spec, symbols belonging to the first accidental chain
             should be displayed right-most.
 
             If a single degree of a chain consists of multiple symbols, they are to be
@@ -2186,7 +2195,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 // Because the reference note is on 'top', and it works downwards.
                 equavesAdjusted += 1;
             }
-            
+
 
             if (tuningConfig.equaveSize - cents < EPSILON) {
                 // Prevent floating point errors from causing enharmonics of the
@@ -2218,24 +2227,24 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             //
             //
 
-            /** 
+            /**
              * A list of orderedSymbols that are populated as ligatures are found.
              * Every subsequent ligature match builds upon prior enharmonically equivalent spellings.
-             * 
+             *
              * E.g. lets say we have symbols [a,b,c,d].
              * Ligature 1 matches [a,b] into X and ligature 2 matches [c,d] into Y.
-             * 
+             *
              * This value will initialize with only [[1,2,3,4]].
              * After processing lig 1, it will contain [[1,2,3,4], [X,3,4]].
              * After processing lig 2, it will contain [[1,2,3,4], [X,3,4], [1,2,Y], [X,Y]], where
              * each new value is lig2 applied to each of the previous values.
-             * 
+             *
              * All of which are valid equivalent ligatured spellings of the original symbols.
-             * 
+             *
              * This implementation relies on the fact that ligatures declared do not entirely overlap.
              * It is up to the user's discretion to ensure ligatures are sensible.
-             * 
-             * @type {SymbolCode[][]} 
+             *
+             * @type {SymbolCode[][]}
              */
             var ligatureEnharmonics = [orderedSymbols];
 
@@ -2244,7 +2253,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
              * that a lower-precedence ligature does not override the
              * {@link TuningConfig.avToSymbols} lookup which determines the best way to
              * represent a particular AV when accidentals are entered via fingering.
-             * 
+             *
              * 0: weak, non-important (does not override avToSymbols lookup)
              * 1: strong, non-important
              * 2: weak, important
@@ -2456,7 +2465,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             // If there are more than one enharmonic equivalents,
             // populate the enharmonic graph.
 
-            // log((i+1) + '/' + tuningConfig.stepsList.length + ': ' 
+            // log((i+1) + '/' + tuningConfig.stepsList.length + ': '
             //     + JSON.stringify(enhEquivNotes));
 
             for (var j = 0; j < enhEquivNotes.length; j++) {
@@ -2485,33 +2494,33 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
 /**
  * Parse System/Staff Text into `KeySig` object.
- * 
+ *
  * Key Sig text example format for tuning system with 5 nominals:
- * 
+ *
  * ```txt
  * keysig x./ 20 0 +.9 3
  * ```
- * 
- * The above KeySig denotes for the 1st to 5th nominals respectively: 
- * 
+ *
+ * The above KeySig denotes for the 1st to 5th nominals respectively:
+ *
  * 1. double sharp & up arrow
  * 2. SymbolCode 20
  * 3. no accidental
  * 4. quarter sharp & SymbolCode 9
  * 5. SymbolCode 3
- * 
+ *
  * - KeySig declarations must be prepended with 'keysig' (cAsE dOeSn'T mAtTeR)
- * 
+ *
  * - Every nominal must be separated with one or more spaces
- * 
+ *
  * - Multiple symbols on one nominal must be separated by a period (.), as per usual.
- * 
- * 
+ *
+ *
  * WARNING: The returned KeySig may not have the correct number of nominals
  * for the tuning system. It's important to CHECK if the `KeySig` is valid
  * w.r.t. the tuning system before trying to apply it in `readNoteData()` or
  * anywhere else.
- * 
+ *
  * @param {string} text System/Staff Text content
  * @returns {KeySig?} KeySig object or null if not a KeySig
  */
@@ -2551,33 +2560,33 @@ function parseKeySig(text) {
  * The user can specify just the reference tuning (e.g. `A4: 405`)
  * to update the Tuning Config's reference note & frequency
  * without having to recalculate the whole tuning config.
- * 
+ *
  * This saves a lot of loading time for large JI systems with
  * comma shifts implemented as reference tuning changes, or
  * when the user wants to write for transposing instruments.
- * 
+ *
  * When only reference tuning is changed, the mode of the nominals
  * will be preserved, unless `!` is prefixed to the change reference
- * tuning declaration. 
- * 
- * E.g.: `!C4: 263` will set the 0th nominal to the midi note C4, whereas 
+ * tuning declaration.
+ *
+ * E.g.: `!C4: 263` will set the 0th nominal to the midi note C4, whereas
  * `C4: 263` will keep the 0th nominal as per the tuning config (
  * which is {@link TuningConfig.tuningNominal}), but change the
  * 0th nominal's tuning frequency such that the written C4 on the
  * score will be exactly 263 Hz.
- * 
- * If the reference frequency is not specified (e.g. 'D4:'), 
- * it represents that the reference nominal should change without 
+ *
+ * If the reference frequency is not specified (e.g. 'D4:'),
+ * it represents that the reference nominal should change without
  * changing the tuning.
- * 
+ *
  * E.g. If reference is originally A4: 440 and "C4:" is specified,
- * then the relative reference offset will be -5, but the tuning frequency 
+ * then the relative reference offset will be -5, but the tuning frequency
  * will remain the same (at A4: 440),
- * 
+ *
  * The use case would be when JI ratios are specified as per-note
  * fingering annotations, and the ratios are to be related to a
  * different 1/1 instead of the default.
- * 
+ *
  * @param {string} text reference tuning text
  * @returns {ChangeReferenceTuning?}
  */
@@ -2648,9 +2657,9 @@ function parseChangeReferenceTuning(text) {
 
 /**
  * Removes HTML/XML formatting code from text and decodes HTML escape sequences.
- * 
+ *
  * Make sure formatting code is removed before parsing System/Staff/Fingering text!
- * 
+ *
  * @param {string} str Raw System/Staff text contents
  * @returns {string} Text with formatting code removed
  */
@@ -2663,9 +2672,9 @@ function removeFormattingCode(str) {
 
 /**
  * Use this when writing to the {@link PluginAPIElement.text} property.
- * 
+ *
  * Characters <, >, &, " are escaped to their HTML escape sequences.
- * 
+ *
  * @param {string} str String to escape
  * @returns {string} Escaped string
  */
@@ -2679,11 +2688,11 @@ function escapeHTML(str) {
 
 /**
  * Decodes html espace sequences.
- * 
+ *
  * **DO NOT USE DIRECTLY**. Use `removeFormattingCode()` instead!
- * 
+ *
  * Text in musescore is HTML Encoded (since it is represented in XML).
- * 
+ *
  * @param {string} str String containing html escape sequences
  */
 function _decodeHTMLEscape(str) {
@@ -2697,17 +2706,17 @@ function _decodeHTMLEscape(str) {
 
 /**
  * Parses a System/Staff Text contents to check if it represents any config.
- * 
+ *
  * If a config is found, returns a `ConfigUpdateEvent` object to be added to
  * the `parms.staffConfigs[]` list.
- * 
+ *
  * `ConfigUpdateEvent`s can modify the parms object.
- * 
+ *
  * @param {string} text System/Staff Text contents
  * @param {number} tick Current tick position
- * @returns {ConfigUpdateEvent?} 
+ * @returns {ConfigUpdateEvent?}
  *  The `ConfigUpdateEvent` to add to `staffConfigs[]`, or `null` if invalid/not a config
- * 
+ *
  */
 function parsePossibleConfigs(text, tick) {
     if (tick === undefined || tick === null) {
@@ -2788,7 +2797,7 @@ function parsePossibleConfigs(text, tick) {
         return { // ConfigUpdateEvent
             // Spoofing 1 tick earlier, because any TuningConfigs should
             // should be applied before a ChangeReferenceTuning event.
-            // 
+            //
             // This way, a System Text TuningConfig can be used to apply to
             // all staves, while individual staves can use ChangeReferenceTuning
             // to emulate transposing instruments.
@@ -2818,7 +2827,7 @@ function parsePossibleConfigs(text, tick) {
 
 /**
  * At the start of each voice, call this to reset parms to default.
- * 
+ *
  * @param {Parms} parms Parms object.
  */
 function resetParms(parms) {
@@ -2829,9 +2838,9 @@ function resetParms(parms) {
 /**
  * Use this function if you need to get the xen nominal of a note, but don't need
  * any other information.
- * 
+ *
  * @param {MSNote} msNote Tokenized musescore Note object
- * @param {TuningConfig} tuningConfig 
+ * @param {TuningConfig} tuningConfig
  */
 function getNominal(msNote, tuningConfig) {
     var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
@@ -2840,16 +2849,18 @@ function getNominal(msNote, tuningConfig) {
 }
 
 /**
- * 
- * Uses TuningConfig and cursor to read XenNote data from a tokenized musescore note.
- * 
- * Uses cursor & getAccidental() to find the effective accidental being applied
- * on `msNote`, including accidentals on `msNote` itself.
- * 
+ *
+ * 1. Uses TuningConfig and cursor to read XenNote data from a tokenized musescore note.
+ *
+ * 2. Checks for new accidentals added via fingerings (and resolves ligatures if any)
+ *
+ * Uses cursor & getAccidental() to find the effective accidental being applied on `msNote`,
+ * including accidentals on `msNote` itself.
+ *
  * If no prior explicit accidentals found, looks for accidentals on key signature.
- * 
+ *
  * Otherwise, just returns the nominal XenNote object.
- * 
+ *
  * @param {MSNote} msNote Representation of tokenized musescore note
  * @param {TuningConfig} tuningConfig The current tuning config applied.
  * @param {KeySig?} keySig The current key signature applied, or null if none.
@@ -2857,8 +2868,7 @@ function getNominal(msNote, tuningConfig) {
  * @param {number} tickOfNextBar Tick of first seg of the next bar, or -1 if last bar
  * @param {Cursor} MuseScore Cursor object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
- * @returns {NoteData?} 
- *      The parsed note data. If the note's accidentals are not valid within the
+ * @returns {NoteData?} The parsed note data. If the note's accidentals are not valid within the
  *      declared TuningConfig, returns `null`.
  */
 function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
@@ -2900,13 +2910,22 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         debugStr += '\nCreated symbols from key sig: ' + JSON.stringify(accSyms);
     }
 
+    var isNaturalFingeringAdded = false;
+
     if (accSyms != null) {
-        // make sure that if the only symbols present are natural symbols,
-        // we make accSyms null.
+        // make sure that if the only symbol present is the natural symbol, we make accSyms null
+        // since the natural symbol will be leftover/unmatched after the matching process.
         var syms = Object.keys(accSyms);
         if (syms.length == 1 && syms[0] == '2') {
             accSyms = null;
             debugStr += '\nOnly natural symbols found, setting accSyms to null.';
+
+            // However, if the natural symbol was added because of the fingering, we need to
+            // explicitly create a natural accidental symbol manually. We set a flag for setting
+            // updatedSymbols later.
+            if (maybeFingeringAccSymbols != null && maybeFingeringAccSymbols.type == "ascii") {
+                isNaturalFingeringAdded = true;
+            }
         }
     }
 
@@ -3050,6 +3069,7 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         // log("Tuning config: " + JSON.stringify(tuningConfig.notesTable));
         return null;
     }
+    log('Note parsing: xenHash:' + xenHash + debugStr + '\n-----------');
 
     // If new accidentals created from fingerings, use the best representation
     // of the accidental so that the proper ligatures are applied.
@@ -3060,34 +3080,73 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
         xenNote = tuningConfig.notesTable[newHash];
     }
 
+    /**
+     * If new accidentals should replace the ones currently on the note, this will be non-null.
+     * @type {SymbolCode[]?}
+     */
+    var updatedSymbols = null;
+
+    if (maybeFingeringAccSymbols != null) {
+        updatedSymbols = secondarySyms.concat(xenNote.orderedSymbols);
+    }
+
+    if (isNaturalFingeringAdded) {
+        updatedSymbols = [2]; // Add explicit natural symbol.
+    }
+
     return {
+        /**
+         * The MuseScore note model.
+         * @type {MSNote}
+         */
         ms: msNote,
+        /**
+         * The XenNote object.
+         * @type {XenNote}
+         */
         xen: xenNote,
+        /**
+         * The equave offset of the note relative to the tuning note.
+         * @type {number}
+         */
         equaves: equaves,
+        /**
+         * Secondary accidental symbols that were matched.
+         * @type {SymbolCode[]}
+         */
         secondaryAccSyms: secondarySyms,
+        /**
+         * The number of times each secondary accidental appears. Shares the same index as
+         * `secondaryAccSyms`.
+         * @type {number[]}
+         */
         secondaryAccMatches: secondaryAccMatches,
-        updatedSymbols: maybeFingeringAccSymbols == null ? null :
-            secondarySyms.concat(xenNote.orderedSymbols)
+        /**
+         * If a new valid accidental entry fingering text is found, these accidental symbols will
+         * override the accidental of this note.
+         * @type {SymbolCode[]?}
+         */
+        updatedSymbols: updatedSymbols
     };
 }
 
 /**
  * Parses a user-input string which converts into an array of {@link SymbolCode}s.
- * 
+ *
  * The entire user input must be matched with not a single character left over.
  * Otherwise, this is not a valid ASCII accidental input string.
- * 
+ *
  * @param {string} str Text containing ascii representation of accidentals.
  * @param {TuningConfig} tuningConfig
  * @returns {SymbolCode[]?} List of symbols, or null if the string couldn't be fully parsed.
  */
 function parseAsciiAccInput(str, tuningConfig) {
-    /** 
+    /**
      * A list of strings.
-     * 
+     *
      * Every time a match is found, the string will be split into the parts
      * before and after the match.
-     * @type {string[]} 
+     * @type {string[]}
      */
     var strParts = [str];
 
@@ -3135,28 +3194,28 @@ function parseAsciiAccInput(str, tuningConfig) {
 /**
  * Checks if user enters accidentals via using fingering text attached
  * to this note.
- * 
+ *
  * If so, returns an {@link SymbolCode[]} list containing
  * accidental symbols that should replace existing accidentals.
- * 
- * When parsing accidentals, this {@link SymbolCode}[] object, if any, 
+ *
+ * When parsing accidentals, this {@link SymbolCode}[] object, if any,
  * should be used in place of the original tokenized {@link AccidentalSymbols}
  * on the {@link MSNote}
- * 
- * Accidental fingering text could either be an {@link AccidentalVector}, 
+ *
+ * Accidental fingering text could either be an {@link AccidentalVector},
  * or ASCII-representation accidental entry.
- * 
+ *
  * For ASCII-representation accidental entry, the user must declare conversion rules
  * in the secondary accidentals section of the tuning config.
- * 
+ *
  * AccidentalVector fingering is prefixed by 'a', followed
  * by the accidental vector that is comma-separated.
- * 
- * Recap: The Nth integer of the accidental vector represents the degree 
+ *
+ * Recap: The Nth integer of the accidental vector represents the degree
  * of the Nth accidental chain to be applied to this note.
- * 
+ *
  * Unprocessed fingerings have z-index of DEFAULT_FINGERING_Z_INDEX
- * 
+ *
  * @param {MSNote} msNote
  * @param {TuningConfig} tuningConfig
  * @returns {{
@@ -3165,7 +3224,7 @@ function parseAsciiAccInput(str, tuningConfig) {
  * }?}
  * Returns `null`, if there are no fingerings that affect the accidentals of this note.
  * Otherwise, returns an object containing the `symbols` property which contains
- * a list of symbol codes that this fingering applies on to the note, and the 
+ * a list of symbol codes that this fingering applies on to the note, and the
  * `type` property which is either 'av' or 'ascii' depending on what kind of
  * fingering created the new accidental symbols.
  */
@@ -3188,7 +3247,7 @@ function readFingeringAccidentalInput(msNote, tuningConfig) {
         var maybeSymCodes = parseAsciiAccInput(text, tuningConfig);
 
         if (maybeSymCodes != null) {
-            // These new accidental symbols are converted from the 
+            // These new accidental symbols are converted from the
             // ascii-representation fingering.
             msNote.internalNote.remove(fingering);
             return {
@@ -3253,13 +3312,13 @@ function readFingeringAccidentalInput(msNote, tuningConfig) {
 
 /**
  * Parse a MuseScore Note into `NoteData`.
- * 
+ *
  * Checks for fingering-based accidental entry and adds accidental symbols/fingerings
  * if accidental vector fingerings or ascii-representation fingerings are present.
- * 
+ *
  * If fingering accidental entry is performed, the note will have its accidentals
  * replaced/updated with the new symbols.
- * 
+ *
  * @param {PluginAPINote} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
  * @param {KeySig} keySig Current key signature applied.
@@ -3288,28 +3347,28 @@ function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cur
 
 /**
 
-████████ ██    ██ ███    ██ ██ ███    ██  ██████  
-   ██    ██    ██ ████   ██ ██ ████   ██ ██       
-   ██    ██    ██ ██ ██  ██ ██ ██ ██  ██ ██   ███ 
-   ██    ██    ██ ██  ██ ██ ██ ██  ██ ██ ██    ██ 
-   ██     ██████  ██   ████ ██ ██   ████  ██████  
-                                                  
+████████ ██    ██ ███    ██ ██ ███    ██  ██████
+   ██    ██    ██ ████   ██ ██ ████   ██ ██
+   ██    ██    ██ ██ ██  ██ ██ ██ ██  ██ ██   ███
+   ██    ██    ██ ██  ██ ██ ██ ██  ██ ██ ██    ██
+   ██     ██████  ██   ████ ██ ██   ████  ██████
+
 */
 
 /**
  * Given current `NoteData` and a `TuningConfig`, calculate the
  * required note's tuning offset in cents.
- * 
+ *
  * This function also applies per-note tuning offsets denoted by
  * fingering annotations.
- * 
+ *
  * @param {NoteData} noteData The note to be tuned
  * @param {TuningConfig} tuningConfig The tuning configuration
  * @param {boolean?} absoluteFromA4
  * If `true`, returns the cents interval between the note and 440hz.
- * @returns {number} 
+ * @returns {number}
  * Returns the cents offset to apply to `Note.tuning` property,
- * 
+ *
  * or if `absoluteFromA4`, returns the absolute cents offset from 440hz.
  */
 function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
@@ -3342,15 +3401,15 @@ function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
     /*
     Different fingering tuning annotations can be applied to a note.
     (and can be applied simultaneously).
-    
+
     They are applied in this order:
-    
+
     1. The fingering JI interval/ratio tuning overrides the tuning entirely,
     tuning the note as the specified ratio against the reference note.
-    Its octave is automatically reduced/expanded to be as close as possible to 
+    Its octave is automatically reduced/expanded to be as close as possible to
     xenCentsFromA4. By default, this fingering must be suffixed by a period
     unless the REQUIRE_PERIOD_AFTER_FINGERING_RATIO flag is set to false.
-    
+
     2. The fingering cents offset simply offsets tuning by the specified
        amount of cents.
     */
@@ -3407,7 +3466,7 @@ function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
     if (fingeringJIOffset) {
         // 1. If JI ratio is present on the note, override the tuning of the note.
 
-        // We need to octave reduce/expand this until it is as close as possible to 
+        // We need to octave reduce/expand this until it is as close as possible to
         // xenCentsFromA4.
 
         xenCentsFromA4 = fingeringJIOffset - Math.round((fingeringJIOffset - xenCentsFromA4) / 1200) * 1200;
@@ -3430,48 +3489,43 @@ function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
 }
 
 /**
- * Literally just tunes the note. It's that simple!
- * 
- * If a note's cent offset is too great (especially in
- * systems with weird nominals/non-octave) we will have to use a different MIDI pitch
- * than the original `Note.pitch`, otherwise, the playback will have a very
- * weird timbre.
- * 
- * This function tunes a note by adjusting both its `.tuning` and `.playEvents`
- * properties. Make sure to always re-run the tune function when notes are
- * changed, (especially when using Shift+Alt+Up/Down diatonic transpose)
- * because it's not obvious when the `.playEvents` property is
- * tempered with, and a note may seemingly play back with the wrong pitch if
- * the tune function isn't run again.
- * 
- * **Make sure _curScore.createPlayEvents() is called** so that play events
- * are populated & modifiable from the plugin API!
- * 
- * This function also generates MIDI CSV entries for PlayEvents of the note
- * if `returnMidiCSV` is set to true.
- * 
- * **IMPORTANT: Cursor must be positioned where the msNote is before 
- * calling this function!**
- * 
- * `cursor.element` must point to the Chord of msNote, or if msNote is
- * a grace note, `cursor.element` must point to the Chord the grace note is
- * attached to.
- * 
+ * Tunes a MuseScore note. Also adds an accidental if it finds a valid accidental fingering
+ * attached.
+ *
+ * If a note's cent offset is too great (especially in systems with weird nominals/non-octave) we
+ * will have to use a different MIDI pitch than the original `Note.pitch`, otherwise, the playback
+ * will have a very weird timbre.
+ *
+ * This function tunes a note by adjusting both its `.tuning` and `.playEvents` properties. Make
+ * sure to always re-run the tune function when notes are changed, (especially when using
+ * Shift+Alt+Up/Down diatonic transpose) because it's not obvious when the `.playEvents` property is
+ * tempered with, and a note may seemingly play back with the wrong pitch if the tune function isn't
+ * run again.
+ *
+ * **Make sure _curScore.createPlayEvents() is called** so that play events are populated &
+ * modifiable from the plugin API!
+ *
+ * This function also generates MIDI CSV entries for PlayEvents of the note if `returnMidiCSV` is
+ * set to true.
+ *
+ * **IMPORTANT: Cursor must be positioned where the msNote is before calling this function!**
+ *
+ * `cursor.element` must point to the Chord of msNote, or if msNote is a grace note,
+ * `cursor.element` must point to the Chord the grace note is attached to.
+ *
  * @param {PluginAPINote} note MuseScore note object
- * @param {KeySig} keySig 
- * @param {TuningConfig} tuningConfig 
+ * @param {KeySig} keySig
+ * @param {TuningConfig} tuningConfig
  * @param {number} tickOfThisBar Tick of first segment of this bar
  * @param {number} tickOfNextBar Tick of first segment of next bar, or -1 if last bar.
  * @param {Cursor} cursor MuseScore note object
  * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
  * @param {boolean} newElement Reference to the `PluginAPI::newElement` function.
- * @param {boolean} returnMidiCSV 
- *  If true, this function will iterate play events of this note and create
- *  midi text events for each play event.
- * @param {number?} partVelocity 
- *  If `returnMidiCSV` is true, you will need to specify the velocity of
- *  the part (from Dynamic segment annotations). Individual note velocity
- *  is usually set to an offset relative to the part velocity.
+ * @param {boolean} returnMidiCSV If true, this function will iterate play events of this note and
+ *  create midi text events for each play event.
+ * @param {number?} partVelocity If `returnMidiCSV` is true, you will need to specify the velocity
+ *  of the part (from Dynamic segment annotations). Individual note velocity is usually set to an
+ *  offset relative to the part velocity.
  * @returns {string} MIDI CSV string to append to the midi csv file.
  */
 function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, cursor,
@@ -3491,7 +3545,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
         // don't affect PlayEvents.
 
         // When PlayEvent is changed, the playback of a Note when selected
-        // will not match the actual playback of the note, which can be 
+        // will not match the actual playback of the note, which can be
         // quite annoying.
 
         // This reduces the chance of that happening when the tuning
@@ -3502,20 +3556,20 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
 
     /*
      * This is a hacky quickfix for https://github.com/euwbah/musescore-xen-tuner/issues/1
-     * 
+     *
      * Two notes with the same internal MIDI pitch will be regarded as one note,
      * making it impossible to tune them differently.
-     * 
+     *
      * This solution scans the chord this note is attached to, so at least within
      * the same chord, augmented unisons et al will be played back properly.
-     * 
+     *
      * However, this doesn't solve the problem when it occurs over two voices,
      * two Staffs under the same Part, or in play events caused by ornamentation.
      */
 
     var chord = note.parent;
     /**
-     * Contains a lookup of MIDI pitches of PlayEvents of notes in this chord, 
+     * Contains a lookup of MIDI pitches of PlayEvents of notes in this chord,
      * excluding play events of this current note.
      */
     var midiPitchesInChord = {};
@@ -3536,7 +3590,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
 
 
     if (midiPitchesInChord[note.pitch + midiOffset]) {
-        // If the original midi offset won't work because another note in the same chord already has the 
+        // If the original midi offset won't work because another note in the same chord already has the
         // same midi pitch, work in a zig-zag fashion to find a 'hole' to insert the note.
 
         for (var offset = 1; offset < 80; offset++) { // god forbid someone actually having 80-note clusters in ONE chord.
@@ -3617,14 +3671,14 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
 /**
  * Finds the tick of the first segment of the bar that 'tick'
  * lives in, and also the first segment of the next bar.
- * 
+ *
  * If `tick` is within the last bar of the score,
  * returns `-1` for the next bar tick.
- * 
+ *
  * @param {number} tick The tick position to check
  * @param {number[]} bars List of tick positions of each barline. These must be sorted in increasing order.
  * @param {boolean?} returnIndices If `true`, returns indices of the bars array instead of the ticks themselves.
- * @returns {number[]} 
+ * @returns {number[]}
  * `[tickOfThisBar, tickOfNextBar]` or `[currBarIdx, nextBarIdx]`
  */
 function getBarBoundaries(tick, bars, returnIndices) {
@@ -3659,19 +3713,19 @@ function getBarBoundaries(tick, bars, returnIndices) {
 /**
  * Reads all notes & grace notes of all voices within a bar and
  * in the current staff. Represents them as a `BarState` object.
- * 
+ *
  * The current staffIdx of the cursor is used to determine which
  * staff to read from.
- * 
+ *
  * This object is useful for traversing all Notes within a bar
  * on a line-by-line (nominal) basis. Useful for checking things
  * like accidental state etc...
- * 
+ *
  * Returns cursor to original position after operation.
- * 
+ *
  * @param {number} tickOfThisBar Tick of the start of the bar
- * @param {number} tickOfNextBar 
- * @param {Cursor} cursor 
+ * @param {number} tickOfNextBar
+ * @param {Cursor} cursor
  * @returns {BarState} `BarState` object
  */
 function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
@@ -3769,46 +3823,46 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
 /**
  * Retrieve the next note up/down/enharmonic from the current {@link PluginAPINote}, and
  * returns {@link XenNote} and {@link PluginAPINote.line} offset to be applied on the note.
- * 
+ *
  * This function does not read/regard secondary accidentals. The returned {@link NextNote} will
  * not contain any secondary accidentals.
- * 
+ *
  * The returned `lineOffset` property represents change in `Note.line`.
  * This is a negated value of the change in nominal ( +pitch = -line )
- * 
+ *
  * In up/down mode, the enharmonic spelling is decided with the following rules:
- * 
+ *
  * - If the new note has an enharmonic spelling that matches prior accidental state/key signature,
  *   the new note returned will use the enharmonic spelling matching.
- * 
+ *
  * - Otherwise, the enharmonic spelling with the smallest accidental vector distance
  *   from the current note's AV (sum of squares) is to be chosen.
  *   This ensures that accidentals used will stay roughly within the same
  *   ball park.
- * 
+ *
  * - Otherwise, if two options have very similar {@link AccidentalVector} distances, choose the one with
  *   lesser accidental symbols. This ensures that ligatures will always take effect.
- * 
- * - Otherwise, we should pick the enharmonic spelling that 
+ *
+ * - Otherwise, we should pick the enharmonic spelling that
  *   minimizes nominal/line offset amount.
- * 
+ *
  * - If all else are the same, up should prefer sharp side of acc chains (simply
  *   the sum of all degrees in the vector), and down should prefer flat side.
- * 
- * 
+ *
+ *
  * A `NextNote.matchPriorAcc` flag will be returned `true` if an enharmonic
  * spelling is found that matches prior accidental state.
- * 
+ *
  * @param {number} direction `1` for upwards, `0` for enharmonic cycling, `-1` for downwards.
  * @param {number[]?} constantConstrictions
  *  An optional list of indices of accidental chains specifying the accidental chains
  *  that must maintain at the same degree.
- *  
+ *
  *  This is applied for auxiliary up/down function where certain accidental movements
  *  are skipped.
- * 
+ *
  *  (Only applicable if direction is `1`/`-1`. Not applicable for enharmonic)
- * 
+ *
  * @param {NoteData} noteData parsed note data of the note to be transposed.
  * @param {KeySig} keySig Current key signature
  * @param {TuningConfig} tuningConfig Tuning Config object
@@ -3816,7 +3870,7 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
  * @param {Cursor} cursor MuseScore cursor object
  * @param {BarState} reusedBarState
- * @returns {NextNote?} 
+ * @returns {NextNote?}
  *  `NextNote` object containing info about how to spell the newly modified note.
  *  Returns `null` if no next note can be found.
  */
@@ -3947,7 +4001,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
                     var option = enharmonicOptions[j];
 
                     // The user enters aux(0,...) to specify that the
-                    // nominal should be changed. 
+                    // nominal should be changed.
                     // If accChainIdx == -1, this means
                     // 0 was not specified by the user,
                     // so the nominal should not change.
@@ -3984,12 +4038,12 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         log('equaveSize < 0, reversing equaveOffset: ' + equaveOffset);
     }
 
-    /** 
+    /**
      * A list of next note options with pre-calculated metrics.
-     * 
+     *
      * To be sorted based on the metrics to obtain the best option.
-     * 
-     * @type {NextNoteOptions} 
+     *
+     * @type {NextNoteOptions}
      */
     var nextNoteOptions = [];
 
@@ -4087,9 +4141,9 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     /**
      * Returns true if the line offset of the next note option
      * matches the operation direction.
-     * 
+     *
      * Staying on the same line is also considered 'matching direction'.
-     * 
+     *
      * If negative equave the preferred direction is reversed.
      * @returns {boolean} `true` if matches direction
      */
@@ -4099,11 +4153,11 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     }
 
     /**
-     * 
-     * @param {NextNoteOption} a 
-     * @param {NextNoteOption} b 
+     *
+     * @param {NextNoteOption} a
+     * @param {NextNoteOption} b
      * @param {boolean} debug set to `true` to print why a note was picked over the other.
-     * @returns 
+     * @returns
      */
     var nextNoteSortFn = function (a, b, debug) {
         var dlog = debug ? function (sortDirection, str) {
@@ -4206,12 +4260,12 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
 
 /**
  * Move the cursor to a specified position.
- * 
+ *
  * If the cursor cannot move exactly to the specified position,
  * i.e. the selected `voice` does not have any element at specified
  * `tick` position, then the cursor position will be set to
  * the nearest element to the **LEFT** of specified `tick`.
- * 
+ *
  * @param {Cursor} cursor MuseScore cursor object
  * @param {number} tick Tick to move cursor to
  * @param {number} voice Voice to move cursor to
@@ -4247,7 +4301,7 @@ function setCursorToPosition(cursor, tick, voice, staffIdx) {
 
 /**
  * Returns a SavedCursorPosition to be fed into {@link restoreCursorPosition()}.
- * 
+ *
  * @returns {SavedCursorPosition}
  */
 function saveCursorPosition(cursor) {
@@ -4261,7 +4315,7 @@ function saveCursorPosition(cursor) {
 
 /**
  * Restores cursor positioned to the saved position.
- * 
+ *
  * @param {SavedCursorPosition} savedPosition SavedCursorPosition object
  */
 function restoreCursorPosition(savedPosition) {
@@ -4269,58 +4323,58 @@ function restoreCursorPosition(savedPosition) {
 }
 
 /**
- * 
+ *
  * Retrieves the effective accidental applied to the note.
- * 
+ *
  * If natural or no accidental to be applied, will return `null`.
- * 
- * If `before` is true, does not include accidentals attached to the current note 
+ *
+ * If `before` is true, does not include accidentals attached to the current note
  * in the search.
- * 
+ *
  * This function DOES NOT read MuseScore accidentals. Due to how
  * score data is exposed to the plugins API, it is not possible to
  * reliably determine accidentals when MS accidentals and SMuFL-only symbols
  * are used interchangeably.
- * 
+ *
  * Thus, only SMuFL symbols ("Symbols" category in the Master Palette)
  * are supported.
- * 
+ *
  * @param {Cursor} cursor MuseScore Cursor object
  * @param {PluginAPINote} note The note to check the accidental of.
  * @param {number} tickOfThisBar Tick of the first segment of the bar to check accidentals in
  * @param {number} tickOfNextBar Tick of first seg of next bar, or -1 if its the last bar.
  * @param {0|1|2|null} exclude
  *  If `0` or falsey, include accidentals attached to the current operating `note`.
- * 
+ *
  *  If `1` ignore accidentals attached to the current `note`
- *  and only look for accidentals that are considered to appear 
+ *  and only look for accidentals that are considered to appear
  *  'before' `note`.
- * 
+ *
  *  If `2`, ignore any accidentals from any note that belongs to the same chord
  *  as `note`.
- * 
+ *
  *  The search will still return accidentals on prior notes in the same
  *  chord, or in a prior grace chord.
- * @param {number?} lineOverride 
+ * @param {number?} lineOverride
  *  If `lineOverride` specified, reads accidentals on this line instead of
  *  the line of the `note` parameter.
- *  
+ *
  *  If `lineOverride` is different than the original `note.line`,
  *  `exclude=2` will be used, no matter what it was set to.
- * 
+ *
  *  TODO: Check if this may cause any problems.
  * @param {BarState?} reusedBarState
  *  If an empty object is provided, a shallow copy of the read bar state
  *  will be stored in this object.
- *  
+ *
  *  If the same bar is being read again, and nothing has changed in
  *  the bar, this object can be passed back to this function to reuse the bar state,
  *  so that it doesn't need to repeat `readBarState`.
- * 
- * @returns {string?} 
+ *
+ * @returns {string?}
  *  If an accidental is found, returns the accidental hash of the
- *  {@link AccidentalSymbols} object. 
- *  
+ *  {@link AccidentalSymbols} object.
+ *
  *  If no accidentals found, returns null.
  */
 function getAccidental(cursor, note, tickOfThisBar,
@@ -4329,7 +4383,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     var nTick = getTick(note);
     var nLine = lineOverride || note.line;
 
-    // log("getAccidental() tick: " + nTick + " (within " + tickOfThisBar + " - " 
+    // log("getAccidental() tick: " + nTick + " (within " + tickOfThisBar + " - "
     //     + tickOfNextBar + "), line: " + nLine);
 
     if ((tickOfNextBar != -1 && nTick > tickOfNextBar) || nTick < tickOfThisBar) {
@@ -4362,7 +4416,7 @@ function getAccidental(cursor, note, tickOfThisBar,
     }
 
     // METHOD: Traverse notes in line in reverse order.
-    // 
+    //
     // Find the first note with an explicit accidental that is
     // closest to the currentOperatingNote.
 
@@ -4386,7 +4440,7 @@ function getAccidental(cursor, note, tickOfThisBar,
         // Remember, every chord here is registered with the same tick!
         for (var voice = 3; voice >= 0; voice--) {
             if (currTick == nTick && voice > note.voice) {
-                // E.g.: Within the same tick, voice 2's accidental 
+                // E.g.: Within the same tick, voice 2's accidental
                 //       cannot carry over to voice 1
                 continue;
             }
@@ -4485,23 +4539,23 @@ function getAccidental(cursor, note, tickOfThisBar,
 /**
  * Attach given {@link SymbolCode}s to a note (clears existing accidentals),
  * clearing prior accidentals.
- * 
+ *
  * Assigns z-index (stacking order) from 1000 onwards, acting as
  * metadata which the layout algorithm will use to maintain the
  * correct right-to-left order of the accidental symbols if
  * multiple-symbol accidentals are used.
- * 
+ *
  * The higher z-index = further to the left (1000 is to the right of 1001)
- * 
+ *
  * This function does not handle layout of accidentals.
- * 
+ *
  * Layout is only done after a whole chord is processed,
  * and is performed for all 4 voices at the same time.
- * 
+ *
  * @param {PluginAPINote} note `PluginAPI::Note`
- * @param {SymbolCode[]?} orderedSymbols 
+ * @param {SymbolCode[]?} orderedSymbols
  *  A list of `SymbolCode`s representing accidental symbols in left-to-right order.
- * 
+ *
  *  `null` or `[]` to remove all accidentals.
  * @param {newElement} newElement reference to the `PluginAPI.newElement()` function
  * @param {TuningConfig} tuningConfig
@@ -4580,14 +4634,14 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
 
 /**
  * Makes a note's accidentals explicit.
- * 
- * @param {PluginAPINote} note 
- * @param {TuningConfig} tuningConfig 
- * @param {KeySig} keySig 
- * @param {number} tickOfThisBar 
- * @param {number} tickOfNextBar 
- * @param {*} newElement 
- * @param {Cursor} cursor 
+ *
+ * @param {PluginAPINote} note
+ * @param {TuningConfig} tuningConfig
+ * @param {KeySig} keySig
+ * @param {number} tickOfThisBar
+ * @param {number} tickOfNextBar
+ * @param {*} newElement
+ * @param {Cursor} cursor
  */
 function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, newElement, cursor) {
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
@@ -4603,13 +4657,13 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
 
 /**
  * Modifies accidentals & nominal on a MuseScore note.
- * 
+ *
  * @param {PluginAPINote} note `PluginAPI::Note` to set pitch, tuning & accidentals of
  * @param {number} lineOffset Nominals offset from current note's pitch
- * @param {SymbolCode[]} orderedSymbols 
+ * @param {SymbolCode[]} orderedSymbols
  * Left-to-right ordered {@link SymbolCode}s. Obtained by concatenating
  * {@link NoteData.secondaryAccSyms} and {@link XenNote.orderedSymbols}.
- * @param {*} newElement 
+ * @param {*} newElement
  * @param {TuningConfig} tuningConfig
  */
 function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) {
@@ -4629,24 +4683,24 @@ function modifyNote(note, lineOffset, orderedSymbols, newElement, tuningConfig) 
 }
 
 /**
- * Aggressively applies explicit accidental to ALL notes with the same Note.line 
+ * Aggressively applies explicit accidental to ALL notes with the same Note.line
  * as the current (old) note and the new Note.line of the modified note,
  * whose .tick values match, or come after the current note's .tick value,
- * 
+ *
  * This will include grace notes that come before the actual note.
- * 
+ *
  * The idea is to brute-force as many explicit accidentals as possible first,
  * then remove unnecessary accidentals later.
- * 
+ *
  * @param {PluginAPINote} note Current note being adjusted
  * @param {number} newLine New {@link PluginAPINote.line} of note after adjustment
  * @param {number} noteTick tick of note
- * @param {number} tickOfThisBar 
- * @param {number} tickOfNextBar 
- * @param {TuningConfig} tuningConfig 
- * @param {KeySig} keySig 
- * @param {Cursor} cursor 
- * @param {newElement} newElement 
+ * @param {number} tickOfThisBar
+ * @param {number} tickOfNextBar
+ * @param {TuningConfig} tuningConfig
+ * @param {KeySig} keySig
+ * @param {Cursor} cursor
+ * @param {newElement} newElement
  */
 function forceExplicitAccidentalsAfterNote(
     note, newLine, noteTick, tickOfThisBar, tickOfNextBar,
@@ -4705,14 +4759,14 @@ function forceExplicitAccidentalsAfterNote(
 
 /**
  * Executes up/down/enharmonic on a note.
- * 
+ *
  * **IMPORTANT:**
  * - **The cursor must currently be at the note position**
  * - **In a sequence of tied notes, this function should only be called on
  *   the {@link PluginAPINote.firstTiedNote firstTiedNote}**
- * 
+ *
  * <br/>
- * 
+ *
  * What it does:
  * - Finds next pitch to transpose to
  * - Aggresively apply explicit accidentals on notes that may be affected by the
@@ -4721,27 +4775,27 @@ function forceExplicitAccidentalsAfterNote(
  * - If tuningConfig has {@link TuningConfig.alwaysExplicitAccidental} `true`, then
  *   sets all tied notes to have the updated explicit accidental.
  * - Tunes the note.
- * 
+ *
  * <br/>
- * 
+ *
  * This function will create some unnecessary accidentals that should be
  * removed after this bar is processed.
- * 
+ *
  * @param {PluginAPINote} note `PluginAPI::Note` object to modify
  * @param {number} direction 1 for up, -1 for down, 0 for enharmonic cycle
- * @param {number?} aux 
+ * @param {number?} aux
  *  The Nth auxiliary operation for up/down operations. If 0/null, defaults
  *  to normal stepwise up/down. Otherwise, the Nth auxiliary operation will
  *  be performed.
- * 
+ *
  * @param {Parms} parms Reference to `parms` object.
  * @param {*} newElement Reference to `PluginAPI.newElement()` function
  * @param {Cursor} cursor Cursor object.
- * 
+ *
  * @returns {BarState}
  *  Returns an updated `BarState` object which includes changes made to
  *  the newly modified note.
- *  
+ *
  *  Use this for layout & formatting purposes so that `BarState` does not
  *  need to be recalculated so often.
  */
@@ -4789,7 +4843,9 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     );
 
     //
-    // STEP 3
+    // STEP 3:
+    //  - Carry over secondary accidentals if KEEP_SECONDARY_ACCIDENTALS_XXX is configured.
+    //  - Always add explicit accidental if configured.
     //
     //
 
@@ -4850,25 +4906,25 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
 
 /**
  * Remove unnecessary accidentals within a staff in selected range of bars.
- * 
+ *
  * This function assumes that the accidental state is always valid.
- * 
+ *
  * Valid as in: {@link getAccidental()} will always return the correct effective
  * accidental on every single note in this bar.
- * 
+ *
  * **IMPORTANT:** {@link Cursor.staffIdx} must be set to the staff to operate on.
- * 
+ *
  * @param {number} startBarTick Any tick position within the starting bar (or start of selection)
- * @param {number} endBarTick 
+ * @param {number} endBarTick
  *  Any tick pos within ending bar (or end of selection).
  *  If -1, performs the operation till the end of the score.
  * @param {Parms} parms Global `parms` object.
  * @param {Cursor} cursor Cursor object
  * @param {newElement} newElement Reference to the `PluginAPI.newElement()` function
- * @param {number?} firstBarTickIndex 
+ * @param {number?} firstBarTickIndex
  * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
  * If provided, {@link startBarTick} will be ignored.
- * @param {number?} lastBarTickIndex 
+ * @param {number?} lastBarTickIndex
  * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
  * If provided, {@link endBarTick} will be ignored.
  */
@@ -4895,13 +4951,13 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
         Procedure for each bar:
 
         1. Generate BarState
-        
+
         2. Iterate the notes of each staff line in order that they should appear
            (remember to sort Object.keys by tick first)
 
            As it iterates, keep track of accidentals. If no accidental has occured
-           yet, defer to the key signature. 
-           
+           yet, defer to the key signature.
+
            If any accidental is found redundant remove it.
         */
 
@@ -4968,9 +5024,9 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                     // go from leftmost to rightmost chord
                     for (var chdIdx = 0; chdIdx < chds.length; chdIdx++) {
-                        /** 
+                        /**
                          * All these notes are on the same line => all have the same nominal.
-                         * @type {MSNote[]} 
+                         * @type {MSNote[]}
                          */
                         var msNotes = chds[chdIdx].map(
                             function (note) {
@@ -4980,12 +5036,12 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                         // All these notes have the same nominal.
                         var nominal = getNominal(msNotes[0], tuningConfig);
 
-                        // Before we proceed, make sure that all explicit accidentals 
+                        // Before we proceed, make sure that all explicit accidentals
                         // attached to notes within this same chord & line
                         // are exactly the same.
 
                         // Note that it is fine for these notes to be
-                        // a mix of implicit and explicit accidentals, 
+                        // a mix of implicit and explicit accidentals,
                         // as long as the accidentals are all the same.
                         // In that situation, it is clear that all the notes
                         // are the exact same note.
@@ -5037,11 +5093,11 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     // if the exact same accidental hash is found on the
                                     // accidental state and this note, this note's
                                     // accidental is redundant. Remove it.
-
+                                    log('Removed redundant acc (state): ' + accHash)
                                     setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                     continue;
-                                } 
-                                
+                                }
+
                                 if (!prevExplicitAccHash && keySig) {
                                     // If no prior accidentals before this note, and
                                     // this note matches KeySig, this note's acc
@@ -5050,15 +5106,16 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                     var realKeySig = removeUnusedSymbols(keySig[nominal], tuningConfig) || '';
                                     log('realKeySig: ' + realKeySig);
                                     if (realKeySig == accHash) {
+                                        log('Removed redundant acc (keysig): ' + accHash)
                                         setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                         continue;
                                     }
-                                } 
-                                
+                                }
+
                                 if (isNatural && !prevExplicitAccHash && (!keySig || !keySig[nominal])) {
                                     // This note has a natural accidental, but it is not
                                     // needed, since the prior accidental state/key sig is natural.
-
+                                    log('Removed redundant acc (nat): ' + accHash)
                                     setAccidental(msNote.internalNote, null, newElement, tuningConfig);
                                     continue;
                                 }
@@ -5067,7 +5124,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                 // that is necessary, update the accidental state.
 
                                 accidentalState[lineNum] = accHash;
-                                
+
                             }
                         }
                     }
@@ -5084,9 +5141,9 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 /**
  * Checks if two intervals on a number line overlap/touch
  * each other.
- * 
+ *
  * E.g. [1, 3] and [2, 4] overlap, but [1, 2] and [2, 3] do not.
- * 
+ *
  * @param {number} a1 Start of first interval
  * @param {number} a2 End of first interval
  * @param {number} b1 Start of second interval
@@ -5101,15 +5158,15 @@ function intervalOverlap(a1, a2, b1, b2) {
 
 /**
  * Reads notes in a Bar according to {@link Chords} structure.
- * 
+ *
  * Each {@link Chords} object represents the chords (+ grace chords) available
  * at a given tick for all voices.
- * 
+ *
  * @param {number} tickOfThisBar
  * @param {number | -1 | null} tickOfNextBar
  * @param {Cursor} cursor MuseScore cursor object
- * 
- * @returns {Object.<number, Chords>} 
+ *
+ * @returns {Object.<number, Chords>}
  *  A mapping of `Chords` objects indexed by tick position.
  */
 function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
@@ -5174,28 +5231,28 @@ function partitionChords(tickOfThisBar, tickOfNextBar, cursor) {
 /**
  * Retrieves custom position & size offsets (according to {@link Lookup.SYMBOL_LAYOUT}
  * or {@link Lookup.ASCII_LAYOUT}) of an accidental symbol/fingering element respectively.
- * 
+ *
  * @param {PluginAPIElement} elem Symbol or fingering element
- * 
+ *
  * @param {boolean} staffLineIntersectsNote
  * `true` if the note is a 'line note' (EGBDF treble clef).
- * 
+ *
  * `false` if the note is a 'space note' (FACE treble clef).
- * 
+ *
  * @returns {{
  *  additionalXOffset: number,
  *  additionalYOffset: number,
  *  halfAddWidth: number,
  *  halfAddHeight: number
  * }}
- * 
+ *
  * `additionalXOffset` and `additionalYOffset` are X and Y position offsets,
  * (X offset will affect push-back of further-left symbols)
- * 
+ *
  * `halfAddWidth` and `halfAddHeight` are half the additional width and height
  * specified to apply to the {@link PluginAPIElement.bbox} property, such that
  * the rectangular bounds are expanded centrally (half the additional width/height each).
- * 
+ *
  * If no custom offsets are found, all values are 0, signifying no deviation from
  * standard auto-positioning.
  */
@@ -5237,19 +5294,19 @@ function retrieveCustomOffsets(elem, staffLineIntersectsNote) {
 /**
  * Positions accidental symbols for all voices' chords that are to be
  * vertically-aligned.
- * 
+ *
  * Uses the [zig-zag algorithm](https://musescore.org/en/node/25055) to auto-position symbols.
- * 
+ *
  * Also positions text-based accidentals to the left of any other accidental symbols, treating it
  * as if it were an accidental symbol.
- * 
- * returns the largest (negative) distance between the left-most symbol the notehead 
+ *
+ * returns the largest (negative) distance between the left-most symbol the notehead
  * it is attached to. This returned value will decide how much should
  * grace chords be pushed back.
- * 
+ *
  * **IMPORTANT**: `chord` is NOT the wrapped {@link PluginAPIChord} plugin object.
  * It is a list of unwrapped {@link PluginAPINote} objects!
- * 
+ *
  * @param {PluginAPINote[]} chord Notes from all voices at a single tick & vertical-chord position.
  * @param {TuningConfig} tuningConfig
  * @returns {number} most negative distance between left-most symbol and left-most notehead.
@@ -5376,8 +5433,8 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
                     // whether it will vertically collide with said note.
                     // Instead, we use the Y positions of the notehead as a guideline.
 
-                    // We assume that the tallest symbol will protrude the notehead height by 
-                    // +/- 0.5sp. (pipe symbol |). 
+                    // We assume that the tallest symbol will protrude the notehead height by
+                    // +/- 0.5sp. (pipe symbol |).
                     // This is a very conservative estimate and may cause wasted space.
 
                     absTopPos = note.pagePos.y + note.bbox.top - 0.5;
@@ -5406,7 +5463,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
         if (accSymbolsRTL.length != 0) {
             // Found acc symbols to position on this note.
 
-            // Now that we have the list of symbols to add to this notehead, 
+            // Now that we have the list of symbols to add to this notehead,
             // we need to find holes in the positionedElemsBbox list to insert them.
 
             var prevElemLeft = null;
@@ -5536,16 +5593,16 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
 /**
  * Automatically positions accidentals in a staff within specified
  * selection range.
- * 
+ *
  * @param {number} startTick Tick inside first bar of selection
  * @param {number} endTick Tick inside last bar of selection. If -1, performs operation
  *  till the end of the score.
  * @param {number[]} bars List of ticks of bars.
  * @param {Cursor} cursor MuseScore cursor object
- * @param {number?} firstBarTickIndex 
+ * @param {number?} firstBarTickIndex
  * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
  * If provided, {@link startTick} will be ignored.
- * @param {number?} lastBarTickIndex 
+ * @param {number?} lastBarTickIndex
  * Pre-calculated {@link getBarBoundaries} output to reduce repeated computation.
  * If provided, {@link endTick} will be ignored.
  */
@@ -5682,16 +5739,16 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
 }
 
 /**
- * 
+ *
  * @param {boolean} isSteps `true` to display steps info, `false` to display cents data
- * @param {PluginAPINote} note 
- * @param {KeySig} keySig 
- * @param {TuningConfig} tuningConfig 
- * @param {number} tickOfThisBar 
- * @param {number} tickOfNextBar 
- * @param {Cursor} cursor 
- * @param {BarState?} reusedBarState 
- * @param {newElement} newElement 
+ * @param {PluginAPINote} note
+ * @param {KeySig} keySig
+ * @param {TuningConfig} tuningConfig
+ * @param {number} tickOfThisBar
+ * @param {number} tickOfNextBar
+ * @param {Cursor} cursor
+ * @param {BarState?} reusedBarState
+ * @param {newElement} newElement
  */
 function addStepsCentsFingering(
     isSteps, note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar,
@@ -5823,9 +5880,9 @@ function addStepsCentsFingering(
 
 /**
  * Set whether or not to allow up/down fallthrough.
- * 
+ *
  * If Element.STAFF_TEXT or Element.SYSTEM_TEXT is selected
- * 
+ *
  * @param {boolean} allowFallthrough Whether or not `cmd('pitch-up/down')` should be sent
  */
 function setUpDownFallthrough(allowFallthrough) {
@@ -5843,8 +5900,8 @@ function setUpDownFallthrough(allowFallthrough) {
 ██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██║╚██╗██║██║  ██║╚════██║
 ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║██████╔╝███████║
  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝
-                                                                         
-                                                                        
+
+
 The main plugin functions are moved here.
 
 Instead of having one plugin per operation, the plugin is now one single dockable window
@@ -5855,17 +5912,17 @@ settings in xen tuner.qml.
 */
 
 /**
- * Tunes selected notes or entire score. 
- * 
+ * Tunes selected notes or entire score.
+ *
  * Optionally, will create fingerings that display the current cents or steps offset
  * of tuned notes.
- * 
+ *
  * @param {1|2|null} display
  * If `1`, create fingerings to display the cent offsets of notes according
  * to the `displaycents()` settings specified in the tuning config.
  * If `2`, create fingerings to display step indices of notes according
  * to `displaysteps()` settings specified in the tuning config.
- * @returns 
+ * @returns
  */
 function operationTune(display) {
     log('Running Xen Tune');
@@ -5989,7 +6046,7 @@ function operationTune(display) {
         _curScore.startCmd();
 
         for (var voice = 0; voice < 4; voice++) {
-            // After each voice & rewind, 
+            // After each voice & rewind,
             // reset all configs back to default
             resetParms(parms);
 
@@ -6076,7 +6133,7 @@ function operationTune(display) {
         _curScore.endCmd();
 
         _curScore.startCmd();
-        
+
         removeUnnecessaryAccidentals(
             startTick, endTick, parms, cursor, newElement, startBarIdx, endBarIdx
         );
@@ -6084,7 +6141,7 @@ function operationTune(display) {
         autoPositionAccidentals(
             startTick, endTick, parms, cursor, startBarIdx, endBarIdx
         );
-    
+
 
         _curScore.endCmd();
     }
@@ -6092,7 +6149,7 @@ function operationTune(display) {
 
 /**
  * Operation to transpose according to specified direction & aux
- * 
+ *
  * @param {number} stepwiseDirection
  *  1: up
  *  0: cycle enharmonics
@@ -6100,9 +6157,9 @@ function operationTune(display) {
  * @param {number} stepwiseAux
  *  This number represents the 1-index Nth user-declared auxiliary operation.
  *  0 represents no aux, step through all notes.
- *  
+ *
  *  Auxiliary operations allow the user to declare whether
- *  the nominals, or specified accidental chains, should maintain 
+ *  the nominals, or specified accidental chains, should maintain
  *  the same nominal/degree during the transpose up/down operation.
  */
 function operationTranspose(stepwiseDirection, stepwiseAux) {
@@ -6402,7 +6459,7 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                     cursor.next();
                 }
 
-                // Don't forget to remove unnecessary accidentals for the last bit of 
+                // Don't forget to remove unnecessary accidentals for the last bit of
                 // the selection that wasn't included in the loop above.
 
                 if (tickOfLastModified != -1) {
@@ -6417,17 +6474,17 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
             _curScore.endCmd();
 
             _curScore.startCmd();
-            
+
             removeUnnecessaryAccidentals(
                 startTick, endTick, parms, cursor, newElement, startBarIdx, endBarIdx
             );
 
-            // After processing all voices in a staff, 
+            // After processing all voices in a staff,
             // auto position accidentals in this staff in the selection range
             autoPositionAccidentals(
                 startTick, endTick, parms, cursor, startBarIdx, endBarIdx
             );
-            
+
             _curScore.endCmd();
         }
     }
