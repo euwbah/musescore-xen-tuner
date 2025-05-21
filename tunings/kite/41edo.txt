@@ -1,0 +1,25 @@
+A4: 440
+0c 1200*7/41c 1200*10/41c 1200*17/41c 1200*24/41c 1200*27/41c 1200*34/41c 2/1
+bb b (1200*4/41c) # x
+'ᴠᴠ' 'ᴠ' (1200*1/41c) 'ʌ' 'ʌʌ' // these are small capital V and IPA's inverted V
+
+sec()
+'bb' bb -1200*8/41c
+'b' b -1200*4/41c
+'##' x 1200*8/41c
+'x' x 1200*8/41c
+'#' # 1200*4/41c
+'^' 'ʌ' 1200*1/41c // inverted V
+'v' 'ᴠ' -1200*1/41c // small capital V
+
+
+// Here we declare 4 auxiliary up/down operations.
+// These will be accessible as the aux1, aux2, aux3, aux4 up/down operations
+// respectively. You can look up/modify the keyboard shortcuts to these
+// operations in the "xen tuner.qml" file.
+aux(0) // aux1 will modify nominals only, without modifying accidentals
+aux(1) // aux2 will modify flats/sharps only, without modifying nominals or other accs
+aux(2) // aux3 will modify syntonic comas only
+aux(0,1) // aux4 will modify both nominals and flats/sharps.
+
+displaysteps(41, below)
