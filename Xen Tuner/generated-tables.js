@@ -377,6 +377,7 @@ var CODE_TO_LABELS = [
 
 
 var TEXT_TO_CODE = {
+    'n': 2,
     '#x': 3,
     'x': 4,
     '#': 5,
