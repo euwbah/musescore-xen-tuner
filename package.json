@@ -1,0 +1,16 @@
+{
+  "name": "musescore-xen-tuner",
+  "version": "0.3.6",
+  "description": "First-class microtonal support for MuseScore",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.27.0",
+    "eslint": "^9.27.0",
+    "globals": "^16.2.0"
+  }
+}

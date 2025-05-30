@@ -4,6 +4,9 @@
 
 - Use an editor/IDE with JSDoc support. Makes autocomplete much better and reduces the chances of typos/null pointers. (VSCode was used)
 
+- Preferably, get npm and install eslint to get linting on this project.
+  - eslint is configured on ecmaVersion: 5 which is essentially what this version of Qt supports.
+
 - Update `types.js` if there are any changes to the data structures of objects.
 
 - Almost everything is in one file: `fns.js`
@@ -13,6 +16,30 @@
 - ECMA 5 only. Maybe even older.
 - `char` is **not** a valid variable name.
 - Semicolons are **compulsory**
+- **`let` is not valid syntax, only use `var`!**
+
+## Help! TypeError: Property 'init' of object [object Object] is not a function
+
+If the plugin doesn't work and the Plugin Creator logs looks like this:
+
+```
+Running…
+Plugin Details:
+  Menu Path: Plugins.Xen Tuner.Start Xen Tuner
+  Version: 0.3.6
+  Description: Starts the XenTuner plugin.
+
+This will open a small docked panel to the side.
+
+IMPORTANT: Do not close the window.
+Make sure you only have 1 instance of this plugin running at a time.
+  Requires Score
+Debug: Started Xen Tuner
+53:-1: TypeError: Property 'init' of object [object Object] is not a function
+Warning: file:///D:/OneDrive/Thumb Drive/Documents/MuseScore3/Plugins/musescore-xen-tuner/Xen Tuner/xen tuner.qml:53: TypeError: Property 'init' of object [object Object] is not a function
+```
+
+That means you have a syntax error in whatever code you just modified: see [Important quirks of QJSEngine](#important-quirks-of-qjsengine)
 
 ----
 
@@ -42,7 +69,7 @@ sec()
 '+' + 33/32
 
 // sec with different tunings depending on the nominal:
-// As many tunings as nominals must be defined otherwise 
+// As many tunings as nominals must be defined otherwise
 // the tuning config will be invalid.
 
 // This will set the secondary acc '-' as 32/33 for all
@@ -548,12 +575,12 @@ This produces the following `TuningConfig`:
     {
       // Accidental chain of bb.bb, bbb, bb, b, etc...
       degreesSymbols: [
-        [7,7], [8], [7], [6], null, 
+        [7,7], [8], [7], [6], null,
         [5], [4], [3], [4,4]
       ],
       symbolsUsed: [7,8,6,5,4,3],
       tunings: [
-        -454.74, -341.055, -227.37, -113.685, 0, 
+        -454.74, -341.055, -227.37, -113.685, 0,
         113.685, ...
       ],
       centralIdx: 4
@@ -804,7 +831,7 @@ function calcCentsOffset(noteData, tuningConfig) {
   xenCentsFromRef += noteData.equaves * tuningConfig.equaveSize;
 
   // calculate 12 edo interval from reference
-  var standardCentsFromRef = 
+  var standardCentsFromRef =
     (noteData.ms.midiNote - tuningConfig.tuningNote) * 100;
 
   // the final tuning calculation is the difference between the two
@@ -1060,9 +1087,9 @@ Tempo changes are denoted by having `-2` staff index. Tempo is given in BPM, and
 
 ## Data Structures
 
-> ⚠️ **IMPORTANT** 
+> ⚠️ **IMPORTANT**
 > This documentation is deprecated.
-> 
+>
 > Refer to `types.js` instead.
 
 #### `SymbolCode`
@@ -1520,8 +1547,8 @@ Return value of `chooseNextNote()` function. Contains info about what the plugin
       []
     ],
     // at tick 2000
-    { 
-      etc... 
+    {
+      etc...
     }
   },
   // On staff line -1
