@@ -1,4 +1,4 @@
-// Copyright (C) 2023 euwbah
+// Copyright (C) 2025 euwbah
 //
 // This file is part of Xen Tuner.
 //
@@ -27,6 +27,7 @@ var isMS4; // init sets this to true if MuseScore 4 is detected.
  */
 var Accidental = null;
 var NoteType = null;
+// eslint-disable-next-line no-redeclare
 var Element = null;
 var SymId = null; // WARNING: SymId has a long loading time.
 /** @type {FileIO} */
@@ -930,6 +931,33 @@ function accidentalSymbolsFromHash(accHash) {
 }
 
 /**
+ * Check if two accidental symbols objects are equal. Returns false if either is null/undefined.
+ *
+ * @param {AccidentalSymbols} a
+ * @param {AccidentalSymbols} b
+ * @returns {boolean}
+ */
+function isAccidentalSymbolsEqual(a, b) {
+    // log('isAccidentalSymbolsEqual(' + JSON.stringify(a) + ', ' + JSON.stringify(b) + ')');
+
+    if (!a || !b) return false;
+
+    if (a === b) return true;
+
+    var aKeys = Object.keys(a);
+    var bKeys = Object.keys(b);
+
+    if (aKeys.length !== bKeys.length) return false;
+
+    for (var i = 0; i < aKeys.length; i++) {
+        var key = aKeys[i];
+        if (a[key] !== b[key]) return false;
+    }
+
+    return true;
+}
+
+/**
  * Calculate a {@link XenNote.hash} string from its nominal and accidentals.
  *
  * @param {number} nominal
@@ -977,21 +1005,21 @@ function clearTuningConfigCaches() {
 /**
  * Parses a string that declares {@link SymbolCode}s in a Tuning Config.
  *
- * E.g. '\\\'+.'.'$'.# represents 3 symbols. Left to right, they are
+ * E.g. `'\\\'+.'.'$'.#` represents 3 symbols. Left to right, they are
  *
- * 1. ASCII symbol consisting of \'+. (quote, plus, period).\
+ * 1. ASCII symbol with 4 characters `\'+.` (backslash, quote, plus, period).\
  *    \\ escapes into backslash\
- *    \' escapes into quote.
- * 2. ASCII symbol consisting of $ (dollar sign)
+ *    \\' escapes into quote.
+ * 2. ASCII symbol with 1 character `$` (dollar sign)
  * 3. Standard-issue SMuFL sharp symbol.
  *
  * Backslash escapes must be used both inside and outside quotes.
  *
  * The valid escapes are:
  *
- * - \\  - backslash
- * - \' - quote
- * - \/ - forward slash.
+ * - `\\`  - backslash
+ * - `\'` - quote
+ * - `\/` - forward slash.
  *
  * 'abc'# is invalid syntax. A dot must separate distinct symbols,
  * and ASCII symbols are distinct from SMuFL symbols.
@@ -1360,10 +1388,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         originalTuningFreq: null,
         // lookup of symbols used in tuning config.
         // anything not included should be ignored.
-        usedSymbols: {
-            // Natural symbol should always be included.
-            2: true
-        },
+        usedSymbols: {},
         usedSecondarySymbols: {},
         secondaryAccList: [],
         secondaryAccIndexTable: {},
@@ -1378,6 +1403,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         displayCentsPrecision: 0,
         displaySteps: null,
         displayStepsPosition: 'below',
+        independentSymbolGroups: [],
+        symbolGroupLookup: {},
+        symbolGroupNaturalizingLookup: [],
+        symbolGroupNaturalizingLookupIdx: {},
     };
 
     var lines = text.split('\n').map(function (x) { return x.trim() });
@@ -1564,7 +1593,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
      *
      * If state is `'lig'`, the second value is a {@link Ligature} object.
      *
-     * @type {[''|'lig'|'sec'|'override', Ligature?]}
+     * @type {[''|'lig'|'sec'|'override'|'independent', Ligature?]}
      */
     var state = [];
 
@@ -1589,12 +1618,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     for (; i < lines.length; i++) {
         var line = lines[i].trim();
-        var ligMa = line.match(/^lig\(([0-9,\s]+)\)([\?!]*)/);
+        var ligMa = line.match(/^lig\(([0-9,\s]+)\)([?!]*)/);
         var auxMa = line.match(/^aux\(([0-9,\s]+)\)/);
-        var secMa = line == 'sec()';
-        var noBold = line == 'nobold()';
-        var explicit = line == 'explicit()';
-        var override = line == 'override()';
         var displayCentsMa = line.match(/^displaycents\(([0-9,\sa-zA-Z]+)\)/);
         var displayStepsMa = line.match(/^displaysteps\(([0-9,\sa-zA-Z]+)\)/);
 
@@ -1679,21 +1704,21 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 }
             ];
             continue;
-        } else if (secMa) {
+        } else if (line == 'sec()') {
             commitParsedSection();
             state = ['sec'];
             continue;
-        } else if (noBold) {
+        } else if (line == 'nobold()') {
             commitParsedSection();
             tuningConfig.nonBoldTextAccidental = true;
             state = [];
             continue;
-        } else if (explicit) {
+        } else if (line == 'explicit()') {
             commitParsedSection();
             tuningConfig.alwaysExplicitAccidental = true;
             state = [];
             continue;
-        } else if (override) {
+        } else if (line == 'override()') {
             commitParsedSection();
             state = ['override'];
             continue;
@@ -1755,6 +1780,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             tuningConfig.displayCentsReference = centType;
             tuningConfig.displayCentsPrecision = precision;
             tuningConfig.displayCentsPosition = position;
+            continue;
+        } else if (line == 'independent()') {
+            commitParsedSection();
+            state = ['independent'];
             continue;
         }
 
@@ -1885,11 +1914,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 // remove the preceding quote from the ascii SymbolCode
                 var asciiFrom = firstWordSymCodes[0].slice(1);
                 var accHashTo = accidentalsHash(symCodesTo);
+                log('accHashTo:' + accHashTo);
 
                 tuningConfig.secondaryAccList.push(accHashTo);
                 tuningConfig.secondaryAccIndexTable[accHashTo] = tuningConfig.secondaryAccList.length - 1;
                 tuningConfig.secondaryAccTable[accHashTo] = symCodesTo;
                 tuningConfig.secondaryTunings[accHashTo] = cents.length == 1 ? cents[0] : cents;
+                log('secondaryTunings: ' + tuningConfig.secondaryTunings[accHashTo])
                 tuningConfig.asciiToSmuflConv[asciiFrom] = symCodesTo;
                 tuningConfig.asciiToSmuflConvList.push(asciiFrom);
 
@@ -1958,6 +1989,40 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             }
 
             tuningConfig.tuningOverrideTable[[nominal].concat(av)] = overrideCents;
+        } else if (state[0] == 'independent') {
+            // parse independent symbol groups. Each line contains space separated symbols belonging
+            // in a single group. No compound symbols allowed.
+            //
+            // The first symbol is a naturalizing symbol, which denotes the accidental that will
+            // reset the symbol group.
+            //
+            // By default the if no symbol groups are specified, the natural sign is the
+            // naturalizing symbol
+
+            var words = line.split(' ').map(function (x) { return x.trim() });
+
+            var symbolGroupIdx = tuningConfig.independentSymbolGroups.length;
+            var symbols = [];
+
+            for (var j = 0; j < words.length; j++) {
+                var symCodes = parseSymbolsDeclaration(words[j]);
+                if (symCodes == null) {
+                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid independent symbol declaration: ' + line
+                        + '\n"' + words[j] + '" is not a valid symbol code combination.');
+                    return null;
+                }
+                if (symCodes.length != 1) {
+                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Symbol group declaration must contain individual symbols only: ' + line
+                        + '\n"' + words[j] + '" is not a single symbol code.');
+                    return null;
+                }
+                symbols.push(symCodes[0]);
+                tuningConfig.symbolGroupLookup[symCodes[0]] = symbolGroupIdx;
+            }
+
+            tuningConfig.independentSymbolGroups.push(symbols);
+            tuningConfig.symbolGroupNaturalizingLookup.push(symbols[0]);
+            tuningConfig.symbolGroupNaturalizingLookupIdx[symbols[0]] = symbolGroupIdx;
         }
     }
 
@@ -1969,10 +2034,52 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     //
     //
 
-    // Always use ascii 'n' for adding natural accidental symbol for fingerings
 
-    tuningConfig.asciiToSmuflConv['n'] = 2; // 2 is the symbol code for natural sign
+    // Set ascii 'n' for adding naturalizing accidentals symbol for fingerings
+    //
+    // Also, register naturalizing symbols in usedSymbols.
     tuningConfig.asciiToSmuflConvList.push('n');
+    if (tuningConfig.symbolGroupNaturalizingLookup.length == 0) {
+        // By default, if no independent symbol groups, the natural accidental is the default
+        // naturalizing accidental.
+        tuningConfig.asciiToSmuflConv['n'] = [2]; // 2 is the symbol code for natural sign
+
+        tuningConfig.usedSymbols[2] = true;
+    } else {
+        // Otherwise, the default naturalizing accidentals are as specified
+        tuningConfig.asciiToSmuflConv['n'] = tuningConfig.symbolGroupNaturalizingLookup;
+
+        for (var i = 0; i < tuningConfig.symbolGroupNaturalizingLookup.length; i++) {
+            tuningConfig.usedSymbols[tuningConfig.symbolGroupNaturalizingLookup[i]] = true;
+        }
+    }
+
+    // If no symbol groups were defined, define the default single symbol group where the standard
+    // natural sign is the usual naturalizing accidental.
+    //
+    // Note that if a used symbol is not in the symbol group lookup, it will be assumed to be in
+    // group 0 (first group), hence it suffices to just include the natural sign.
+    if (tuningConfig.independentSymbolGroups.length == 0) {
+        tuningConfig.independentSymbolGroups.push([2]);
+        tuningConfig.symbolGroupLookup[2] = 0;
+        tuningConfig.symbolGroupNaturalizingLookup.push(2);
+        tuningConfig.symbolGroupNaturalizingLookupIdx[2] = 0;
+    }
+
+    // Independent symbol groups update:
+    // All naturalizing symbols should have secondary accidental status
+
+    for (var i = 0; i < tuningConfig.symbolGroupNaturalizingLookup.length; i++) {
+        var natSym = tuningConfig.symbolGroupNaturalizingLookup[i];
+        var natSymHash = accidentalsHash([natSym]);
+        console.log('natSymHash: ' + natSymHash);
+        if (tuningConfig.secondaryTunings[natSymHash] == undefined) {
+            tuningConfig.secondaryAccList.push(natSymHash);
+            tuningConfig.secondaryAccIndexTable[natSymHash] = tuningConfig.secondaryAccList.length - 1;
+            tuningConfig.secondaryTunings[natSymHash] = 0; // 0 cent default for naturalizing acc
+            tuningConfig.secondaryAccTable[natSymHash] = [natSym];
+        }
+    }
 
     //
     //
@@ -2849,10 +2956,197 @@ function getNominal(msNote, tuningConfig) {
 }
 
 /**
+ * Merges two {@link AccidentalSymbols} groups (each group of accidental symbols act independently
+ * within the bar, see {@link TuningConfig.independentSymbolGroups})
+ *
+ * E.g., let pythagorean accidentals (sharp/flat) be in one group, and up/down arrows be in the
+ * other. If `priorSymGroups` has a sharp and up arrrow, and `currSymGroups` has a flat, then the
+ * flat overrides the sharp but the up arrow persists, so the function will return flat + up arrow.
+ *
+ * @param {?AccidentalSymbols[]} priorSymGroups The existing symbol groups from the previous notes'
+ * explicit accidentals or the key signature. If null, ignore and only return symbols in
+ * `currSymGroups`.
+ *
+ * @param {?AccidentalSymbols[]} currSymGroups The current symbol groups from the current note which
+ * will override symbols of the same group in `priorSymGroups` if explicit accidental symbols are
+ * found in that group. If null, ignore and only return symbols in `priorSymGroups`.
+ *
+ * @param {boolean} outputGroups If true, the function will return groups (a list of
+ * {@link AccidentalSymbols} objects) (same group indexing as inputs), instead of a single
+ * {@link AccidentalSymbols} object.
+ *
+ * @returns {?AccidentalSymbols | AccidentalSymbols[]} The merged {@link AccidentalSymbols} of both
+ * groups where `currSymGroups` takes precedence over `priorSymGroups`. If `outputGroups` is true,
+ * returns a list of {@link AccidentalSymbols} indexed by groups. Returns `null` if no accidental
+ * symbols are found in either group.
+ */
+function mergeAccidentalSymbolGroups(priorSymGroups, currSymGroups, outputGroups) {
+    /**
+     * If `outputGroups` is true, this will be a list of {@link AccidentalSymbols} objects, one for each group,
+     * otherwise, it will be a single {@link AccidentalSymbols} object.
+     *
+     * @type {AccidentalSymbols[] | AccidentalSymbols}
+     */
+    var newAccSyms = outputGroups ? [] : {};
+
+    if (priorSymGroups != null && currSymGroups != null && priorSymGroups.length != currSymGroups.length) {
+        log('ERROR: mergeAccidentalSymbolGroups: priorSymGroups and currSymGroups have different lengths. This should not happen.')
+    }
+    var numGroups = 0;
+    if (priorSymGroups != null) {
+        numGroups = priorSymGroups.length;
+    } else if (currSymGroups != null) {
+        numGroups = currSymGroups.length;
+    }
+
+    if (outputGroups) {
+        for (var grpIdx = 0; grpIdx < numGroups; grpIdx++) {
+            newAccSyms.push({});
+        }
+    }
+
+    for (var grpIdx = 0; grpIdx < numGroups; grpIdx++) {
+        var priorGroup = priorSymGroups != null ? priorSymGroups[grpIdx] : null;
+        var currGroup = currSymGroups != null ? currSymGroups[grpIdx] : null;
+
+        if (currGroup != null && Object.keys(currGroup).length > 0) {
+            // Accidental symbol groups on note take priority.
+            if (outputGroups) {
+                newAccSyms[grpIdx] = currGroup;
+            } else {
+                for (var noteSym in currGroup) {
+                    if (newAccSyms[noteSym] == undefined) {
+                        newAccSyms[noteSym] = currGroup[noteSym];
+                    } else {
+                        // NOTE: this code block shouldn't execute, since each group must have
+                        // mutually exclusive symbols. However, just in case, we impl this.
+                        newAccSyms[noteSym] += currGroup[noteSym];
+                    }
+                }
+            }
+        } else if (priorGroup != null && Object.keys(priorGroup).length > 0) {
+            // If no accidental symbols in this group in the bar, take group from key sig.
+            if (outputGroups) {
+                newAccSyms[grpIdx] = priorGroup;
+            } else {
+                for (var keySym in priorGroup) {
+                    if (newAccSyms[keySym] == undefined) {
+                        newAccSyms[keySym] = priorGroup[keySym];
+                    } else {
+                        newAccSyms[keySym] += priorGroup[keySym];
+                    }
+                }
+            }
+        }
+    }
+
+    if (!outputGroups && Object.keys(newAccSyms).length == 0) {
+        return null;
+    }
+
+    return newAccSyms;
+}
+
+/**
+ * Check if the given accidental symbols are exclusively naturalizing symbols and nonempty/non-null.
+ *
+ * @param {AccidentalSymbols | SymbolCode[]} syms Either an {@link AccidentalSymbols} object or an array of {@link SymbolCode}s.
+ * @param {TuningConfig} tuningConfig The current tuning config applied.
+ * @return {boolean} True if the symbols are only naturalizing symbols, false otherwise. If no symbols/null, returns `false`.
+ */
+function containsOnlyNaturalizingSymbols(syms, tuningConfig) {
+    if (syms == null) {
+        return false;
+    }
+    if (syms.length != undefined) {
+        // syms is an array of SymbolCodes
+        if (syms.length == 0) {
+            return false;
+        }
+
+        var onlyNaturalizingSymbols = tuningConfig.independentSymbolGroups.length == 0
+            && syms.length == 1 && syms[0] == '2'; // Default natural symbol.
+
+        if (tuningConfig.independentSymbolGroups.length > 0) {
+            // For independent symbol groups with custom naturalizing accidentals
+            onlyNaturalizingSymbols = true;
+            for (var symIdx = 0; symIdx < syms.length; symIdx++) {
+                var symCode = syms[symIdx];
+                if (tuningConfig.symbolGroupNaturalizingLookupIdx[symCode] == undefined) {
+                    onlyNaturalizingSymbols = false;
+                    break;
+                }
+            }
+        }
+        return onlyNaturalizingSymbols;
+    } else {
+        // syms is an AccidentalSymbols object
+
+        var symsKeys = Object.keys(syms);
+        if (symsKeys.length == 0) {
+            return false;
+        }
+
+        var onlyNaturalizingSymbols = tuningConfig.independentSymbolGroups.length == 0
+            && symsKeys.length == 1 && symsKeys[0] == '2'; // Default natural symbol.
+
+        if (tuningConfig.independentSymbolGroups.length > 0) {
+            // For independent symbol groups with custom naturalizing accidentals
+            onlyNaturalizingSymbols = true;
+            for (var symIdx = 0; symIdx < symsKeys.length; symIdx++) {
+                var symCode = symsKeys[symIdx];
+                if (tuningConfig.symbolGroupNaturalizingLookupIdx[symCode] == undefined) {
+                    onlyNaturalizingSymbols = false;
+                    break;
+                }
+            }
+        }
+
+        return onlyNaturalizingSymbols;
+    }
+}
+
+/**
+ * Obtains a list of {@link SymbolCode}s (left-to-right) with naturalizing accidentals added
+ * whenever a group has no symbols.
+ *
+ * The returned list will sort symbols in original order within each group, and the first declared
+ * group will be on the right (closest to the note) (this implementation may reorder symbols if
+ * groups do not agree with accidental chains!)
+ *
+ * @param {SymbolCode[][]} symCodeGroups a list of accidental symbols deconstructed into groups,
+ * obtained by passing a `SymbolCode[]` array through {@link deconstructSymbolGroups}
+ * @param {TuningConfig} tuningConfig
+ *
+ * @returns {SymbolCode[]} A list of {@link SymbolCode}s with naturalizing accidentals added.
+ */
+function addNaturalizingSymbols(symCodeGroups, tuningConfig) {
+    var result = [];
+
+    if (symCodeGroups.length != tuningConfig.independentSymbolGroups.length) {
+        log('ERROR: addNaturalizingSymbols: symCodeGroups do not match number of groups defined in tuningConfig.independentSymbolGroups!');
+        return result;
+    }
+    for (var i = symCodeGroups.length - 1; i >= 0; i--) {
+        var group = symCodeGroups[i];
+        if (group.length == 0) {
+            // No symbols in this group, add naturalizing symbol.
+            result.push(tuningConfig.independentSymbolGroups[i][0]);
+        } else {
+            // Add all symbols in this group.
+            result = result.concat(group);
+        }
+    }
+    return result;
+}
+
+/**
  *
  * 1. Uses TuningConfig and cursor to read XenNote data from a tokenized musescore note.
  *
- * 2. Checks for new accidentals added via fingerings (and resolves ligatures if any)
+ * 2. Checks for new accidentals added via fingerings (and resolves ligatures if any).
+ *
+ *    **If new accidentals were created, `reusedBarState` will be cleared.**
  *
  * Uses cursor & getAccidental() to find the effective accidental being applied on `msNote`,
  * including accidentals on `msNote` itself.
@@ -2867,14 +3161,15 @@ function getNominal(msNote, tuningConfig) {
  * @param {number} tickOfThisBar Tick of first segment of this bar
  * @param {number} tickOfNextBar Tick of first seg of the next bar, or -1 if last bar
  * @param {Cursor} MuseScore Cursor object
- * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}.
+ * @param {BarState?} reusedBarState See parm description of {@link getAccidental()}. The bar state
+ * cache will be cleared for reevaluation if a new accidental is created from fingering.
  * @returns {NoteData?} The parsed note data. If the note's accidentals are not valid within the
  *      declared TuningConfig, returns `null`.
  */
 function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState) {
     // Convert nominalsFromA4 to nominals from tuning note.
 
-    var debugStr = ''; // to be printed during error
+    var debugStr = ''; // to be printed during error or if debug logging is enabled
 
     var nominalsFromTuningNote = msNote.nominalsFromA4 - tuningConfig.tuningNominal;
     var equaves = Math.floor(nominalsFromTuningNote / tuningConfig.numNominals);
@@ -2882,7 +3177,8 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var nominal = mod(nominalsFromTuningNote, tuningConfig.numNominals);
 
     var currAccStateHash = getAccidental(
-        cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar, 0, null, reusedBarState);
+        cursor, msNote.internalNote, tickOfThisBar, tickOfNextBar,
+        0, null, reusedBarState, tuningConfig);
 
     var accSyms = accidentalSymbolsFromHash(currAccStateHash);
     accSyms = removeUnusedSymbols(accSyms, tuningConfig);
@@ -2892,40 +3188,55 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     if (maybeFingeringAccSymbols != null) {
         // log('found fingering acc input: ' + JSON.stringify(maybeFingeringAccSymbols.symCodes));
         if (!CLEAR_ACCIDENTALS_AFTER_ASCII_ENTRY &&
-            maybeFingeringAccSymbols.type == "ascii" && retrievedAccHash != null) {
+            maybeFingeringAccSymbols.type == "ascii" && accSyms != null) {
             // We need to combine existing accidentals and newly created ones
             accSyms = addAccSym(accSyms, maybeFingeringAccSymbols.symCodes);
         } else {
             // Simply replace existing accidentals with newly created ones
             accSyms = accidentalSymbolsFromList(maybeFingeringAccSymbols.symCodes);
         }
+        // We need to explicitly add naturalizing accidentals for groups with no accidentals.
         debugStr += '\nCreated symbols from fingering: ' + JSON.stringify(accSyms);
     }
 
-    // If no accidental found, check key signature
-    if (accSyms == null && keySig && keySig[nominal] != null
-        // Check if KeySig has a valid number of nominals.
-        && keySig.length == tuningConfig.numNominals) {
-        accSyms = accidentalSymbolsFromHash(keySig[nominal]);
-        debugStr += '\nCreated symbols from key sig: ' + JSON.stringify(accSyms);
+    // If no accidental found, check key signature.
+    // Check that key sig is valid for this tuning config by checking number of nominals.
+    if (keySig && keySig.length == tuningConfig.numNominals && keySig[nominal] != null) {
+        var keySigSyms = accidentalSymbolsFromHash(keySig[nominal]);
+        if (accSyms == null) {
+            // No explicit accidentals found within the bar. Directly use key sig on note.
+            accSyms = keySigSyms;
+            debugStr += '\nCreated symbols from key sig: ' + JSON.stringify(accSyms);
+        } else {
+            // Apply symbol groups of key sig only if they are not on the note.
+
+            /** @type {AccidentalSymbols[]} */
+            var keySigSymGroups = deconstructSymbolGroups(keySigSyms, tuningConfig);
+            /** @type {AccidentalSymbols[]} */
+            var noteAccSymGroups = deconstructSymbolGroups(accSyms, tuningConfig);
+
+            accSyms = mergeAccidentalSymbolGroups(keySigSymGroups, noteAccSymGroups, false);
+        }
     }
 
-    var isNaturalFingeringAdded = false;
+    // No longer needed.
+    // var isNaturalFingeringAdded = false;
 
-    if (accSyms != null) {
+    if (accSyms != null && false) { // TODO this is commented out.
         // make sure that if the only symbol present is the natural symbol, we make accSyms null
         // since the natural symbol will be leftover/unmatched after the matching process.
         var syms = Object.keys(accSyms);
-        if (syms.length == 1 && syms[0] == '2') {
+
+        if (containsOnlyNaturalizingSymbols(syms, tuningConfig)) {
             accSyms = null;
             debugStr += '\nOnly natural symbols found, setting accSyms to null.';
 
             // However, if the natural symbol was added because of the fingering, we need to
             // explicitly create a natural accidental symbol manually. We set a flag for setting
             // updatedSymbols later.
-            if (maybeFingeringAccSymbols != null && maybeFingeringAccSymbols.type == "ascii") {
-                isNaturalFingeringAdded = true;
-            }
+            // if (maybeFingeringAccSymbols != null && maybeFingeringAccSymbols.type == "ascii") {
+            //     isNaturalFingeringAdded = true;
+            // }
         }
     }
 
@@ -3040,7 +3351,25 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
                 secondaryAccMatches[secAccIndex] = numTimesMatched;
 
                 debugStr += '\nMatched secondary accidental: ' + JSON.stringify(syms) +
-                    ' (no. ' + (i + 1) + ')' + numTimesMatched + ' times';
+                    ' (no. ' + (i + 1) + ') ' + numTimesMatched + ' times';
+            }
+        }
+
+        // All naturalizing accidentals count as secondary accidentals. Don't worry if the user
+        // already explictly declared them as secondary accidentals (e.g. to get a text
+        // representation), the user defined one will be caught in the above loop anyways.
+
+        var remainingSyms = Object.keys(accSyms);
+        for (var symIdx = 0; symIdx < remainingSyms.length; symIdx++) {
+            var symCode = remainingSyms[symIdx];
+            if (tuningConfig.symbolGroupNaturalizingLookupIdx[symCode] != undefined) {
+                // This is a naturalizing symbol, so it counts as a secondary accidental.
+                secondarySyms.push(symCode);
+                if (secondaryAccMatches[symCode] == undefined) {
+                    secondaryAccMatches[symCode] = 0;
+                }
+                secondaryAccMatches[symCode]++;
+                debugStr += '\nMatched naturalizing accidental: ' + symCode;
             }
         }
     }
@@ -3087,13 +3416,18 @@ function readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar
     var updatedSymbols = null;
 
     if (maybeFingeringAccSymbols != null) {
+        // Once accidental order is figured out, if fingering added new accidental symbols, we need
+        // to explicitly add naturalizing accidentals.
         updatedSymbols = secondarySyms.concat(xenNote.orderedSymbols);
+        updatedSymbols = addNaturalizingSymbols(
+            deconstructSymbolGroups(updatedSymbols, tuningConfig), tuningConfig
+        );
+        // Clear reusedBarState cache since we've modified the bar state.
+        Object.keys(reusedBarState).forEach(function(key) {delete reusedBarState[key];});
     }
 
-    if (isNaturalFingeringAdded) {
-        updatedSymbols = [2]; // Add explicit natural symbol.
-    }
-
+    // NOTE: If the full docs is not loading for the return type of this function, open ./types.js
+    // and try again.
     return {
         /**
          * The MuseScore note model.
@@ -3313,11 +3647,11 @@ function readFingeringAccidentalInput(msNote, tuningConfig) {
 /**
  * Parse a MuseScore Note into `NoteData`.
  *
- * Checks for fingering-based accidental entry and adds accidental symbols/fingerings
- * if accidental vector fingerings or ascii-representation fingerings are present.
+ * Checks for fingering-based accidental entry and adds accidental symbols/fingerings if accidental
+ * vector fingerings or ascii-representation fingerings are present.
  *
- * If fingering accidental entry is performed, the note will have its accidentals
- * replaced/updated with the new symbols.
+ * If fingering accidental entry is performed, the note will have its accidentals replaced/updated
+ * with the new symbols. **`reusedBarState` cache will be cleared if so.**
  *
  * @param {PluginAPINote} note MuseScore Note object
  * @param {TuningConfig} tuningConfig Current tuning config applied.
@@ -3331,7 +3665,9 @@ function readFingeringAccidentalInput(msNote, tuningConfig) {
  */
 function parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement, reusedBarState) {
     var msNote = tokenizeNote(note);
-    var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor);
+    // TODO: Check if using reusedBarState introduces a bug.
+    // reusedBarState cache will be cleared in this call if noteData.updatedSymbols is non-null.
+    var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, reusedBarState);
 
     if (noteData && noteData.updatedSymbols) {
         forceExplicitAccidentalsAfterNote(
@@ -3536,7 +3872,7 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
 
     var centsOffset = calcCentsOffset(noteData, tuningConfig);
 
-    // log("Found note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
+    log("Tune note: " + noteData.xen.hash + ", equave: " + noteData.equaves);
 
     var midiOffset = Math.round(centsOffset / 100);
 
@@ -3617,6 +3953,8 @@ function tuneNote(note, keySig, tuningConfig, tickOfThisBar, tickOfNextBar, curs
     centsOffset -= midiOffset * 100;
 
     note.tuning = centsOffset;
+
+    log("midi offset: " + midiOffset + ", centsOffset: " + centsOffset);
 
     // Update midi offset as well.
 
@@ -4074,7 +4412,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
         // enharmonics based on prior existing accidentals are disallowed.
 
         var priorAcc = getAccidental(
-            cursor, note, tickOfThisBar, tickOfNextBar, 2, note.line - nominalOffset);
+            cursor, note, tickOfThisBar, tickOfNextBar, 2, note.line - nominalOffset, tuningConfig);
 
         if (priorAcc == null && keySig) {
             var keySigAcc = keySig[newXenNote.nominal];
@@ -4323,62 +4661,110 @@ function restoreCursorPosition(savedPosition) {
 }
 
 /**
+ * Deconstructs a list of accidental symbols into groups of independent symbols. If passed in an
+ * array of {@link SymbolCode}s, each group preserves the relative left-to-right order.
  *
- * Retrieves the effective accidental applied to the note.
+ * If tuning config does not specify independent symbol groups, assumes a single symbol group.
  *
- * If natural or no accidental to be applied, will return `null`.
+ * @param {SymbolCode[] | AccidentalSymbols} symbols list of {@link SymbolCode}s or
+ * {@link AccidentalSymbols} object
+ * @param {TuningConfig} tuningConfig
+ * @return {SymbolCode[][] | AccidentalSymbols[]} If `symbols` is a list of {@link SymbolCode}s, a
+ * list of symbol groups, each group is a list of {@link SymbolCode}s. Otherwise, if `symbols` is an
+ * {@link AccidentalSymbols} object, a list of {@link AccidentalSymbols} objects, each representing
+ * a group of symbols. Groups are indexed according to symbol groups defined in
+ * {@link TuningConfig.independentSymbolGroups}.
+ */
+function deconstructSymbolGroups(symbols, tuningConfig) {
+    if (tuningConfig.independentSymbolGroups.length == 0) {
+        return [symbols];
+    }
+
+    var groups = [];
+    if (symbols.length != undefined) {
+        // Symbols is an array of SymbolCodes.
+        for (var i = 0; i < tuningConfig.independentSymbolGroups.length; i++) {
+            groups.push([]);
+        }
+        for (var i = 0; i < symbols.length; i++) {
+            var symCode = symbols[i];
+            var groupIdx = tuningConfig.symbolGroupLookup[symCode];
+            if (groupIdx == undefined) {
+                groupIdx = 0; // default group is the first group if symbol is not specified.
+            }
+            groups[groupIdx].push(symCode);
+        }
+    } else {
+        // Symbols is an AccidentalSymbols object.
+        for (var i = 0; i < tuningConfig.independentSymbolGroups.length; i++) {
+            groups.push({});
+        }
+        /** @type {SymbolCode[]} */
+        var symKeys = Object.keys(symbols);
+        for (var i = 0; i < symKeys.length; i++) {
+            var symCode = symKeys[i];
+            var groupIdx = tuningConfig.symbolGroupLookup[symCode];
+            if (groupIdx == undefined) {
+                groupIdx = 0; // default group is the first group if symbol is not specified.
+            }
+            groups[groupIdx][symCode] = symbols[symCode];
+        }
+    }
+
+    return groups;
+}
+
+/**
  *
- * If `before` is true, does not include accidentals attached to the current note
- * in the search.
+ * Retrieves the effective accidentals applied to the note.
  *
- * This function DOES NOT read MuseScore accidentals. Due to how
- * score data is exposed to the plugins API, it is not possible to
- * reliably determine accidentals when MS accidentals and SMuFL-only symbols
- * are used interchangeably.
+ * If no explicit accidentals found on/before this note within the bar, will return `null`. Explicit
+ * naturalizing accidentals will still be returned.
  *
- * Thus, only SMuFL symbols ("Symbols" category in the Master Palette)
- * are supported.
+ * If `before` is true, does not include accidentals attached to the current note in the search.
+ *
+ * **Only SMuFL symbols from the "Symbols" category in the Master Palette (shortcut `Z`) are
+ * supported**. This function DOES NOT read MuseScore's default accidentals. Due to how score data
+ * is exposed to the plugins API, it is not possible to reliably determine accidentals when MS
+ * accidentals and SMuFL-only symbols are used interchangeably.
  *
  * @param {Cursor} cursor MuseScore Cursor object
  * @param {PluginAPINote} note The note to check the accidental of.
  * @param {number} tickOfThisBar Tick of the first segment of the bar to check accidentals in
  * @param {number} tickOfNextBar Tick of first seg of next bar, or -1 if its the last bar.
- * @param {0|1|2|null} exclude
- *  If `0` or falsey, include accidentals attached to the current operating `note`.
+ * @param {0|1|2|null} exclude If `0` or falsey, include accidentals attached to the current
+ *  operating `note`.
  *
- *  If `1` ignore accidentals attached to the current `note`
- *  and only look for accidentals that are considered to appear
- *  'before' `note`.
+ *  If `1` ignore accidentals attached to the current `note` and only look for accidentals that are
+ *  considered to appear 'before' `note`.
  *
- *  If `2`, ignore any accidentals from any note that belongs to the same chord
- *  as `note`.
+ *  If `2`, ignore any accidentals from any note that belongs to the same chord as `note`.
  *
- *  The search will still return accidentals on prior notes in the same
- *  chord, or in a prior grace chord.
- * @param {number?} lineOverride
- *  If `lineOverride` specified, reads accidentals on this line instead of
- *  the line of the `note` parameter.
+ *  The search will still return accidentals on prior notes in the same chord, or in a prior grace
+ *  chord.
+ * @param {number?} lineOverride If `lineOverride` specified, reads accidentals on this line instead
+ *  of the line of the `note` parameter.
  *
- *  If `lineOverride` is different than the original `note.line`,
- *  `exclude=2` will be used, no matter what it was set to.
+ *  If `lineOverride` is different than the original `note.line`, `exclude=2` will be used, no
+ *  matter what it was set to.
  *
  *  TODO: Check if this may cause any problems.
- * @param {BarState?} reusedBarState
- *  If an empty object is provided, a shallow copy of the read bar state
- *  will be stored in this object.
+ * @param {BarState?} reusedBarState If an empty object is provided, a shallow copy of the read bar
+ *  state will be stored in this object.
  *
- *  If the same bar is being read again, and nothing has changed in
- *  the bar, this object can be passed back to this function to reuse the bar state,
- *  so that it doesn't need to repeat `readBarState`.
+ *  If the same bar is being read again, and nothing has changed in the bar, this object can be
+ *  passed back to this function to reuse the bar state, so that it doesn't need to repeat
+ *  `readBarState`.
  *
- * @returns {string?}
- *  If an accidental is found, returns the accidental hash of the
+ * @param {TuningConfig} tuningConfig {@link TuningConfig} object
+ *
+ * @returns {string?|string[]} If an accidental is found, returns the accidental hash of the
  *  {@link AccidentalSymbols} object.
  *
  *  If no accidentals found, returns null.
  */
 function getAccidental(cursor, note, tickOfThisBar,
-    tickOfNextBar, exclude, lineOverride, reusedBarState) {
+    tickOfNextBar, exclude, lineOverride, reusedBarState, tuningConfig) {
 
     var nTick = getTick(note);
     var nLine = lineOverride || note.line;
@@ -4392,6 +4778,7 @@ function getAccidental(cursor, note, tickOfThisBar,
         return null;
     }
 
+    /** @type {BarState} */
     var barState;
     if (reusedBarState && Object.keys(reusedBarState).length != 0) {
         barState = reusedBarState;
@@ -4426,6 +4813,15 @@ function getAccidental(cursor, note, tickOfThisBar,
             return parseInt(b) - parseInt(a);
         }
     );
+
+    /** @type {(AccidentalSymbols | null)[]} */
+    var groupSymbols = [];
+    /** @type {AccidentalSymbols} */
+    var accidentals = {};
+
+    for (var grpIdx = 0; grpIdx < tuningConfig.independentSymbolGroups.length; grpIdx++) {
+        groupSymbols.push(null); // init empty group
+    }
 
     for (var tIdx = 0; tIdx < lineTicks.length; tIdx++) {
         var currTick = lineTicks[tIdx];
@@ -4518,17 +4914,51 @@ function getAccidental(cursor, note, tickOfThisBar,
                     var msNote = tokenizeNote(currNote);
 
                     if (msNote.accidentals) {
-                        // we found the first explicit accidental! return it!
-                        var accHash = accidentalsHash(msNote.accidentals);
-                        log('Found accidental (' + accHash + ') at: t: ' +
-                            currTick + ', v: ' + voice + ', chd: ' + chdIdx + ', n: ' + nIdx);
+                        // found explicit accidental - check groups
+                        log(JSON.stringify(msNote.accidentals));
+                        var earlyReturn = true;
+                        var deconSymGroups = deconstructSymbolGroups(msNote.accidentals, tuningConfig);
+                        for (var grpIdx = 0; grpIdx < deconSymGroups.length; grpIdx ++) {
+                            var symKeys = Object.keys(deconSymGroups[grpIdx]);
+                            if (groupSymbols[grpIdx] == null) {
+                                if (symKeys.length > 0) {
+                                    groupSymbols[grpIdx] = deconSymGroups[grpIdx];
+                                    for (var i = 0; i < symKeys.length; i++) {
+                                        accidentals[symKeys[i]] = deconSymGroups[grpIdx][symKeys[i]];
+                                        log("set accidentals[" + symKeys[i] + "] to " +
+                                            deconSymGroups[grpIdx][symKeys[i]]);
+                                    }
+                                } else {
+                                    earlyReturn = false;
+                                }
+                            }
+                        }
 
-                        return accHash;
+                        if (earlyReturn) {
+                            // Every independent symbol group has at least one symbol, so no more
+                            // prior symbols can affect accidental of this note.
+                            var accHash = accidentalsHash(accidentals);
+                            log('Found accidental earlyReturn (' + accHash + ') at: t: ' +
+                                currTick + ', v: ' + voice + ', chd: ' + chdIdx + ', n: ' + nIdx);
+
+                            return accHash;
+                        }
+
                     }
                 } // end of note loop
             }// end of chord loop
         }// end of voice loop
     }// end of ticks loop
+
+    // Reached start of bar.
+
+    if (Object.keys(accidentals).length > 0) {
+        var accHash = accidentalsHash(accidentals);
+        log('Found accidental (' + accHash + ') at: t: ' +
+            currTick + ', v: ' + voice + ', chd: ' + chdIdx + ', n: ' + nIdx);
+
+        return accHash;
+    }
 
     // By the end of everything, if we still haven't found any explicit accidental,
     // return nothing.
@@ -4605,6 +5035,19 @@ function setAccidental(note, orderedSymbols, newElement, tuningConfig) {
             elem.text = escapeHTML(symCode.slice(1));
             /*  Autoplace is required for this accidental to push back prior
                 segments. */
+
+            // Default Fingering text style has its own automatic positionings
+            // e.g.
+            //  - X position is w.r.t. stem instead of notehead,
+            //  - Y position w.r.t. voice instead of notehead.
+            //
+            // We need to set to User-1 style to position fingering text w.r.t. notehead.
+            // But doing this will reset fontsize, horizontal and vertical alignment.
+
+            elem.subStyle = 45; // Change Fingering text Style to "User-1" instead of "Fingering"
+            // TODO: When updating to MuseScore 4, this enum constant is different.
+            // E.g. refer to latest version of https://github.com/musescore/MuseScore/blob/b8862e94a919bea496db40769ba7a575dabdafd8/src/inspector/types/texttypes.h#L114
+
             elem.autoplace = true;
             elem.align = Align.LEFT | Align.VCENTER;
             elem.fontStyle = tuningConfig.nonBoldTextAccidental ?
@@ -4647,11 +5090,31 @@ function makeAccidentalsExplicit(note, tuningConfig, keySig, tickOfThisBar, tick
     var noteData = parseNote(note, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, newElement);
     var symbols = noteData.secondaryAccSyms.concat(noteData.xen.orderedSymbols);
     log('makeAccidentalsExplicit: ' + JSON.stringify(symbols));
-    if (symbols.length != 0) {
-        setAccidental(note, symbols, newElement, tuningConfig);
+    if (tuningConfig.independentSymbolGroups.length == 0) {
+        // If there are no independentSymbolGroups, assume the usual natural symbol (symbol code 2)
+        // is the naturalizing symbol.
+        if (symbols.length != 0) {
+            setAccidental(note, symbols, newElement, tuningConfig);
+        } else {
+            // If no accidentals, also make the natural accidentals explicit.
+            setAccidental(note, [2], newElement, tuningConfig);
+        }
     } else {
-        // If no accidentals, also make the natural accidental explicit.
-        setAccidental(note, [2], newElement, tuningConfig);
+        var groups = deconstructSymbolGroups(symbols, tuningConfig);
+        var newSymbols = [];
+        // The first declared symbol group will be rendered on the right, closest to the note.
+        for (var grpIdx = groups.length - 1; grpIdx >= 0; grpIdx--) {
+            if (groups[grpIdx].length == 0) {
+                // If no accidentals in this group, add naturalizing accidental to left of existing
+                // accidental symbols.
+                newSymbols.push(tuningConfig.symbolGroupNaturalizingLookup[grpIdx]);
+            } else {
+                // Otherwise, add all accidentals in this group, preserving same left-to-right order.
+                newSymbols = newSymbols.concat(groups[grpIdx]);
+            }
+        }
+        log("explicit newSymbols: " + newSymbols);
+        setAccidental(note, newSymbols, newElement, tuningConfig);
     }
 }
 
@@ -4849,14 +5312,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     //
     //
 
-    var accSymbols = nextNote.xen.orderedSymbols;
-
-    if (!accSymbols || accSymbols.length == 0) {
-        // If the nextNote is a nominal, use explicit natural symbol.
-
-        // The new note added should always use explicit accidentals.
-        accSymbols = [2];
-    }
+    var accSymbols = addNaturalizingSymbols(deconstructSymbolGroups(nextNote.xen.orderedSymbols, tuningConfig), tuningConfig);
 
     // Here we need to check whether or not to include prior secondary
     // accidentals in the new note depending on the operation.
@@ -4870,11 +5326,19 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         KEEP_SECONDARY_ACCIDENTALS_AFTER_ENHARMONIC && isEnharmonic ||
         KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE && isNonDiatonicTranspose) {
 
-        // We need to keep secondary accidentals.
-        // Carry forward secondary symbols and prepend them
-        accSymbols = noteData.secondaryAccSyms.concat(accSymbols);
+        // We need to keep secondary accidentals. Carry forward secondary symbols and prepend them
+        // We already added naturalizing symbols to the current note above, so no need to add
+        // multiple copies of naturalizing symbols.
+        var secondaryAccSymsWithoutNaturalizing = [];
+        for (var secIdx = 0; secIdx < noteData.secondaryAccSyms.length; secIdx++) {
+            var secSym = noteData.secondaryAccSyms[secIdx];
+            if (tuningConfig.symbolGroupNaturalizingLookupIdx[secSym] == undefined) {
+                secondaryAccSymsWithoutNaturalizing.push(secSym);
+            }
+        }
+        accSymbols = secondaryAccSymsWithoutNaturalizing.concat(accSymbols);
         log('keeping acc symbols: ' + JSON.stringify(accSymbols));
-        log('secondary: ' + JSON.stringify(noteData.secondaryAccSyms));
+        log('secondary (without nats): ' + JSON.stringify(secondaryAccSymsWithoutNaturalizing));
     }
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
@@ -4912,7 +5376,7 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
  * Valid as in: {@link getAccidental()} will always return the correct effective
  * accidental on every single note in this bar.
  *
- * **IMPORTANT:** {@link Cursor.staffIdx} must be set to the staff to operate on.
+ * **IMPORTANT: {@link Cursor.staffIdx} must be set to the staff to operate on.**
  *
  * @param {number} startBarTick Any tick position within the starting bar (or start of selection)
  * @param {number} endBarTick
@@ -5007,7 +5471,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
             // Sort ticks in increasing order.
             var ticks = Object.keys(barState[lineNum]).sort(
                 function (a, b) {
-                    return parseInt(a) - parseInt(b)
+                    return parseInt(a) - parseInt(b);
                 }
             );
 
@@ -5036,9 +5500,18 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                         // All these notes have the same nominal.
                         var nominal = getNominal(msNotes[0], tuningConfig);
 
+                        /** @type {?AccidentalSymbols[]} */
+                        var keySigSymGroups = null;
+                        if (keySig && keySig[nominal]) {
+                            var keySigSyms = removeUnusedSymbols(accidentalSymbolsFromHash(keySig[nominal]), tuningConfig);
+                            if (keySigSyms != null) {
+                                keySigSymGroups = deconstructSymbolGroups(keySigSyms, tuningConfig);
+                            }
+                        }
+
                         // Before we proceed, make sure that all explicit accidentals
                         // attached to notes within this same chord & line
-                        // are exactly the same.
+                        // are exactly the same (with respect to independent accidental groups).
 
                         // Note that it is fine for these notes to be
                         // a mix of implicit and explicit accidentals,
@@ -5051,21 +5524,32 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                         // that such a scenario is reached, and the plugin should
                         // be able to smoothly handle it.
 
-                        var prevExplicitAcc = null;
+                        /** @type {AccidentalSymbols?} */
+                        var prevExplicitAccSyms = null;
                         var proceed = true;
                         for (var noteIdx = 0; noteIdx < msNotes.length; noteIdx++) {
-                            var accHash = accidentalsHash(msNotes[noteIdx].accidentals);
-                            accHash = removeUnusedSymbols(accHash, tuningConfig) || '';
+                            var accSyms = removeUnusedSymbols(
+                                msNotes[noteIdx].accidentals, tuningConfig
+                            );
 
-                            if (accHash != '') {
-                                if (prevExplicitAcc == null) {
-                                    prevExplicitAcc = accHash;
-                                } else if (prevExplicitAcc != accHash) {
-                                    // this chord contains notes on the same line
-                                    // with different explicit accidentals.
-                                    // We should not remove these accidentals.
-                                    proceed = false;
-                                    break;
+                            if (accSyms != null) {
+                                if (prevExplicitAccSyms == null) {
+                                    if (keySigSymGroups != null) {
+                                        var noteAccSymGroups = deconstructSymbolGroups(accSyms, tuningConfig);
+                                        prevExplicitAccSyms = mergeAccidentalSymbolGroups(keySigSymGroups, noteAccSymGroups, false);
+                                    } else {
+                                        prevExplicitAccSyms = accSyms;
+                                    }
+                                } else {
+                                    var currNoteAccSymGroups = deconstructSymbolGroups(accSyms, tuningConfig);
+                                    var prevExplicitAccSymsGroups = deconstructSymbolGroups(prevExplicitAccSyms, tuningConfig);
+                                    var effectiveCurrAccSyms = mergeAccidentalSymbolGroups(
+                                        prevExplicitAccSymsGroups, currNoteAccSymGroups, false);
+
+                                    if (!isAccidentalSymbolsEqual(prevExplicitAccSyms, effectiveCurrAccSyms)) {
+                                        proceed = false;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -5074,58 +5558,184 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
 
                         for (var noteIdx = 0; noteIdx < msNotes.length; noteIdx++) {
                             var msNote = msNotes[noteIdx];
+                            var accSyms = removeUnusedSymbols(msNote.accidentals, tuningConfig);
 
-                            var accHash = accidentalsHash(msNote.accidentals);
-                            accHash = removeUnusedSymbols(accHash, tuningConfig) || '';
-                            var accHashWords = accHash.split(' ');
-                            var isNatural = accHashWords.length == 2 && accHashWords[0] == '2';
+                            if (accSyms == null) {
+                                continue; // No accidental symbols to remove on this note.
+                            }
 
-                            if (accHash != '') {
-                                // we found an explicit accidental on this note.
-                                // check if we really need it or not.
+                            /*
+                                STRATEGY: For each independent symbol group, if:
 
-                                var prevExplicitAccHash = accidentalState[lineNum];
+                                1. The current note's symbol group contains symbols.
+                                2. The effective prior accidental state for this group contains the
+                                   exact same symbols as current note's group.
 
-                                log('currAccState: ' + prevExplicitAccHash + ', accHash: ' + accHash
-                                    + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
+                                Then, we ignore this group's symbols by adding it to a blacklist.
 
-                                if (prevExplicitAccHash && prevExplicitAccHash == accHash) {
-                                    // if the exact same accidental hash is found on the
-                                    // accidental state and this note, this note's
-                                    // accidental is redundant. Remove it.
-                                    log('Removed redundant acc (state): ' + accHash)
-                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig);
-                                    continue;
+                                If no groups are ignored, all symbol groups are necessary and we
+                                continue without removing symbols.
+
+                                Otherwise, we have to re-call readNoteData (TODO: optimize so that
+                                we don't have to do this twice per operation!) to obtain the correct
+                                order of all SymbolCodes (NoteData.secondaryAccSyms on the left, and
+                                NoteData.xen.orderedSymbols on the right), then reconstruct the
+                                updated list based on blacklisted symbols.
+
+                                TODO: Right now we are making use of reusedBarState when calling
+                                readNoteData, but I'm not sure if it is possible even when deleting
+                                accidental symbols (though they were deemed redundant anyways). It
+                                would be super inefficient to recompute bar when parsing every note.
+
+                                At the end, update accidentalState to match the merge of
+                                effectivePriorAccSymGroups with currAccSymGroups.
+                             */
+
+                            var prevExplicitAccSyms = accidentalState[lineNum];
+                            var prevExplicitAccSyms = accidentalSymbolsFromHash(prevExplicitAccSyms);
+                            /** @type {?AccidentalSymbols[]} */
+                            var effectivePriorAccSymGroups = null;
+
+                            if (prevExplicitAccSyms == null) {
+                                effectivePriorAccSymGroups = keySigSymGroups;
+                            } else if (keySigSymGroups == null) {
+                                effectivePriorAccSymGroups = deconstructSymbolGroups(prevExplicitAccSyms, tuningConfig);
+                            } else {
+                                var prevExplicitAccSymGroups = deconstructSymbolGroups(prevExplicitAccSyms, tuningConfig);
+                                effectivePriorAccSymGroups = mergeAccidentalSymbolGroups(
+                                    keySigSymGroups, prevExplicitAccSymGroups, true
+                                );
+                            }
+
+                            /** @type {AccidentalSymbols[]} */
+                            log('current accSyms: ' + JSON.stringify(accSyms));
+                            var currAccSymGroups = deconstructSymbolGroups(accSyms, tuningConfig);
+
+                            // If prior symbol groups array is null or contains empty symbol groups,
+                            // we populate it the groups' respective naturalizing symbols.
+                            //
+                            // If current symbol group is empty but prior is not, the prior group's
+                            // symbols carries over to the current symbol group, (or naturalizing
+                            // symbol if prior has no symbols)
+
+                            if (effectivePriorAccSymGroups == null) {
+                                effectivePriorAccSymGroups = []; // now it is non-null.
+                                for (var grpIdx = 0; grpIdx < tuningConfig.independentSymbolGroups.length; grpIdx++) {
+                                    effectivePriorAccSymGroups.push({});
                                 }
+                            }
 
-                                if (!prevExplicitAccHash && keySig) {
-                                    // If no prior accidentals before this note, and
-                                    // this note matches KeySig, this note's acc
-                                    // is also redundant. Remove.
-
-                                    var realKeySig = removeUnusedSymbols(keySig[nominal], tuningConfig) || '';
-                                    log('realKeySig: ' + realKeySig);
-                                    if (realKeySig == accHash) {
-                                        log('Removed redundant acc (keysig): ' + accHash)
-                                        setAccidental(msNote.internalNote, null, newElement, tuningConfig);
-                                        continue;
+                            for (var grpIdx = 0; grpIdx < currAccSymGroups.length; grpIdx++) {
+                                var effectivePriorGroup = effectivePriorAccSymGroups[grpIdx];
+                                var grpNaturalizingSym = tuningConfig.symbolGroupNaturalizingLookup[grpIdx];
+                                if (Object.keys(effectivePriorGroup).length == 0) {
+                                    effectivePriorGroup[grpNaturalizingSym] = 1;
+                                }
+                                var currSymKeys = Object.keys(currAccSymGroups[grpIdx]);
+                                if (currSymKeys.length == 0) {
+                                    currAccSymGroups[grpIdx] = effectivePriorGroup;
+                                }
+                                for (var symIdx = 0; symIdx < currSymKeys.length; symIdx++) {
+                                    var symKey = currSymKeys[symIdx];
+                                    if (tuningConfig.symbolGroupNaturalizingLookupIdx[symKey] != undefined) {
+                                        // If multiple naturalizing symbols exist, treat them as one
+                                        // symbol.
+                                        currAccSymGroups[grpIdx][symKey] = 1;
                                     }
                                 }
-
-                                if (isNatural && !prevExplicitAccHash && (!keySig || !keySig[nominal])) {
-                                    // This note has a natural accidental, but it is not
-                                    // needed, since the prior accidental state/key sig is natural.
-                                    log('Removed redundant acc (nat): ' + accHash)
-                                    setAccidental(msNote.internalNote, null, newElement, tuningConfig);
-                                    continue;
-                                }
-
-                                // Otherwise, if we find an explicit accidental
-                                // that is necessary, update the accidental state.
-
-                                accidentalState[lineNum] = accHash;
-
                             }
+
+                            log('effectivePriorAccSymGroups: ' + JSON.stringify(effectivePriorAccSymGroups)
+                                + ', currAccSymGroups: ' + JSON.stringify(currAccSymGroups)
+                                + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
+
+                            var blacklistSymbols = {};
+                            var hasBlacklist = false;
+                            for (var grpIdx = 0; grpIdx < tuningConfig.independentSymbolGroups.length; grpIdx++) {
+                                var priorGroup = effectivePriorAccSymGroups ? effectivePriorAccSymGroups[grpIdx] : null;
+
+                                if (Object.keys(currAccSymGroups[grpIdx]).length > 0
+                                    && isAccidentalSymbolsEqual(priorGroup, currAccSymGroups[grpIdx])) {
+                                    // Redundant symbol group found.
+                                    log('Blacklisted accidental group: ' + grpIdx + ', symbols: ' + JSON.stringify(currAccSymGroups[grpIdx]));
+                                    var symKeys = Object.keys(currAccSymGroups[grpIdx]);
+                                    for (var symIdx = 0; symIdx < symKeys.length; symIdx++) {
+                                        blacklistSymbols[symKeys[symIdx]] = true;
+                                        hasBlacklist = true;
+                                    }
+                                    /*
+                                        Don't worry if we blacklist a naturalizing symbol that's not
+                                        actually on the note, nothing bad will happen as long as we
+                                        don't use the blacklist as a whitelist.
+                                     */
+                                }
+                            }
+
+                            if (hasBlacklist) {
+                                log('Has blacklistSymbols: ' + JSON.stringify(blacklistSymbols));
+                                // Reconstruct accidental symbols. TODO: Check if reusing barState
+                                // is ok, even though we are deleting some symbols.
+                                var noteData = readNoteData(msNote, tuningConfig, keySig, tickOfThisBar, tickOfNextBar, cursor, barState);
+                                var newAccSyms = [];
+                                log('secondaryAccSyms: ' + JSON.stringify(noteData.secondaryAccSyms));
+                                for (var symIdx = 0; symIdx < noteData.secondaryAccSyms.length; symIdx++) {
+                                    if (!blacklistSymbols[noteData.secondaryAccSyms[symIdx]]) {
+                                        newAccSyms.push(noteData.secondaryAccSyms[symIdx]);
+                                    }
+                                }
+                                for (var symIdx = 0; symIdx < noteData.xen.orderedSymbols.length; symIdx++) {
+                                    if (!blacklistSymbols[noteData.xen.orderedSymbols[symIdx]]) {
+                                        newAccSyms.push(noteData.xen.orderedSymbols[symIdx]);
+                                    }
+                                }
+                                log('Reconstructed accidental symbols: ' + JSON.stringify(newAccSyms));
+                                setAccidental(msNote.internalNote, newAccSyms, newElement, tuningConfig);
+                            }
+
+                            // LEGACY impl before symbol groups:
+
+                            // var accHash = accidentalsHash(accSyms);
+                            // var isNatural = containsOnlyNaturalizingSymbols(accSyms, tuningConfig);
+
+                            // // we found an explicit accidental on this note.
+                            // // check if we really need it or not.
+
+                            // if (prevExplicitAccSyms && prevExplicitAccSyms == accHash) {
+                            //     // if the exact same accidental hash is found on the
+                            //     // accidental state and this note, this note's
+                            //     // accidental is redundant. Remove it.
+                            //     log('Removed redundant acc (state): ' + accHash);
+                            //     setAccidental(msNote.internalNote, null, newElement, tuningConfig);
+                            //     continue;
+                            // }
+
+                            // if (!prevExplicitAccSyms && keySig) {
+                            //     // If no prior accidentals before this note, and
+                            //     // this note matches KeySig, this note's acc
+                            //     // is also redundant. Remove.
+
+                            //     var realKeySig = removeUnusedSymbols(keySig[nominal], tuningConfig) || '';
+                            //     log('realKeySig: ' + realKeySig);
+                            //     if (realKeySig == accHash) {
+                            //         log('Removed redundant acc (keysig): ' + accHash);
+                            //         setAccidental(msNote.internalNote, null, newElement, tuningConfig);
+                            //         continue;
+                            //     }
+                            // }
+
+                            // if (isNatural && !prevExplicitAccSyms && (!keySig || !keySig[nominal])) {
+                            //     // This note has a natural accidental, but it is not
+                            //     // needed, since the prior accidental state/key sig is natural.
+                            //     log('Removed redundant acc (nat): ' + accHash);
+                            //     setAccidental(msNote.internalNote, null, newElement, tuningConfig);
+                            //     continue;
+                            // }
+
+                            // Update accidentalState based on merging symbol groups
+
+                            var currEffectiveAccSymGroups = mergeAccidentalSymbolGroups(effectivePriorAccSymGroups, currAccSymGroups, false);
+
+                            accidentalState[lineNum] = accidentalsHash(currEffectiveAccSymGroups);
                         }
                     }
                 }
@@ -5484,7 +6094,7 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
                 prevElemLeft = bbox.left; // absolute x left pos of positioned bbox.
 
                 if (gapWidth >= symbolsWidth && prevElemLeft <= note.pagePos.x) {
-                    // log('gapWidth: ' + gapWidth + ', symbolsWidth: ' + symbolsWidth + ', prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x)
+                    // log('gapWidth: ' + gapWidth + ', symbolsWidth: ' + symbolsWidth + ', prevElemLeft: ' + prevElemLeft + ', note.pagePos.x: ' + note.pagePos.x);
                     // the symbols can be added in this gap.
                     // exit loop. prevElemLeft now contains the absolute position
                     // to put the right most symbol.
@@ -5580,7 +6190,11 @@ function positionAccSymbolsOfChord(chord, tuningConfig) {
             // the offsetX needs to be further left.
             // TODO: Check if there's some kind of Score Formatting rules that
             //       affects this offset. It can't possibly be alright to hardcode this.
-            symOff.elem.offsetX = symOff.x - 0.65;
+
+            // LEGACY: "Fingering" subStyle (33) is offset weirdly. Use User-1 (45)
+            // symOff.elem.offsetX = symOff.x - 0.65;
+
+            symOff.elem.offsetX = symOff.x;
         } else {
             symOff.elem.offsetX = symOff.x;
         }
@@ -5613,8 +6227,9 @@ function autoPositionAccidentals(startTick, endTick, parms, cursor, firstBarTick
     var lastBarTickIndex = lastBarTickIndex || getBarBoundaries(endTick, bars, true)[1]; // if -1, means its the last bar of score
     var firstBarTickIndex = firstBarTickIndex || getBarBoundaries(startTick, bars, true)[0];
 
-    if (lastBarTickIndex == -1)
+    if (lastBarTickIndex == -1) {
         lastBarTickIndex = bars.length - 1;
+    }
 
     var tickOfThisBar = bars[firstBarTickIndex];
 
@@ -6132,16 +6747,23 @@ function operationTune(display) {
 
         _curScore.endCmd();
 
+        // -----------------------------
+
         _curScore.startCmd();
 
         removeUnnecessaryAccidentals(
             startTick, endTick, parms, cursor, newElement, startBarIdx, endBarIdx
         );
 
+        _curScore.endCmd();
+
+        // -----------------------------
+
+        _curScore.startCmd();
+
         autoPositionAccidentals(
             startTick, endTick, parms, cursor, startBarIdx, endBarIdx
         );
-
 
         _curScore.endCmd();
     }
@@ -6278,14 +6900,14 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
         //   without losing any of the other functions that the up or down arrow keys originally provides.
         // - If selection contains individual notes, transpose them.
 
-        if (curScore.selection.elements.length == 0) {
+        if (_curScore.selection.elements.length == 0) {
             log('no individual selection. quitting.');
             return;
         } else {
             /** @type {PluginAPINote[]} */
             var selectedNotes = [];
             for (var i = 0; i < _curScore.selection.elements.length; i++) {
-                if (curScore.selection.elements[i].type == Element.NOTE) {
+                if (_curScore.selection.elements[i].type == Element.NOTE) {
                     selectedNotes.push(curScore.selection.elements[i]);
                 }
             }

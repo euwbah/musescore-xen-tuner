@@ -24,7 +24,3 @@ aux(2) // aux3 will modify syntonic comas only
 aux(0,1) // aux4 will modify both nominals and flats/sharps.
 
 displaysteps(41, below)
-
-independent()
-n bb b # x
-'◇' 'ᴠᴠ' 'ᴠ' 'ʌ' 'ʌʌ'

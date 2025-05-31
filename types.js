@@ -820,6 +820,9 @@ class TuningConfig {
      * Lookup table for which symbol group in {@link independentSymbolGroups} uses which
      * naturalizing accidental symbols.
      *
+     * - Key/index: symbol group index
+     * - Value: The {@link SymbolCode} of the naturalizing accidental for the above indexed group.
+     *
      * NOTE: Naturalizing accidental symbol cannot be a compound/complex symbol containing multiple
      * symbols. Only a single SMuFL symbol or a single ASCII/UTF string is allowed (no multiple
      * symbols, no combinations of SMuFL and ASCII/UTF fingering text)
@@ -827,6 +830,16 @@ class TuningConfig {
      * @type {SymbolCode[]}
      */
     symbolGroupNaturalizingLookup;
+
+    /**
+     * Inverse lookup table of {@link symbolGroupNaturalizingLookup}.
+     *
+     * - Key: {@link SymbolCode} of the naturalizing accidental symbol.
+     * - Value: The index of its associated symbol group in {@link independentSymbolGroups}
+     *
+     * @type {Object.<SymbolCode, number>}
+     */
+    symbolGroupNaturalizingLookupIdx;
 }
 
 /**
@@ -1434,6 +1447,18 @@ class PluginAPIElement {
      * @type {boolean?}
      */
     autoplace;
+
+    /**
+     * The "Style" attribute of a text/fingering element.
+     *
+     * TODO: In MuseScore 3.6, these enum constants are different than in MuseScore 4.
+     *
+     * - 33 = Fingering
+     * - 45 = User-1
+     *
+     * @type {number|33|45}
+     */
+    subStyle;
 
     /**
      * Checks if two element wrapper objects point to the same element in the score.
