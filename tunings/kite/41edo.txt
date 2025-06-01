@@ -1,7 +1,7 @@
 A4: 440
 0c 1200*7/41c 1200*10/41c 1200*17/41c 1200*24/41c 1200*27/41c 1200*34/41c 2/1
 bb b (1200*4/41c) # x
-'ᴠᴠ' 'ᴠ' (1200*1/41c) 'ʌ' 'ʌʌ' // these are small capital V and IPA's inverted V
+'ᴠ'.'v' 'ᴠ' (1200*1/41c) 'ʌ' 'ʌ'.'ʌ' // these are small capital V and IPA's inverted V
 
 sec()
 'bb' bb -1200*8/41c
@@ -27,4 +27,4 @@ displaysteps(41, below)
 
 independent()
 n bb b # x
-'◇' 'ᴠᴠ' 'ᴠ' 'ʌ' 'ʌʌ'
+'◇' 'ᴠ' 'ᴠ' 'ʌ' 'ʌ'
