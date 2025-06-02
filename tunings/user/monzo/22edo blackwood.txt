@@ -1,0 +1,105 @@
+A4: 440
+0c 1200*3/22c 1200*5/22c 1200*9/22c 1200*13/22c 1200*14/22c 1200*18/22c 2/1
+bb b (1200*2/22c) # x
+\\ (1200*1/22c) /
+
+displaysteps(22, below)
+
+lig(1,2)!
+-2 -2 bbv2
+-2 -1 bbv
+-2  0 bb
+-2  1 bb^
+-2  2 bb^2
+-1 -2 bv2
+-1 -1 bv
+-1  0 b
+-1  1 b^
+-1  2 b^2
+ 0 -2 v2    // Because this ligature is declared as important,
+ 0 -1 \\    // we have to duplicate these default symbols as ligatures
+ 0  1 /     // so that they will show up in enharmonic cycles.
+ 0  2 ^2
+ 1 -2 #v2
+ 1 -1 #v
+ 1  0 #
+ 1  1 #^
+ 1  2 #^2
+ 2 -2 xv2
+ 2 -1 xv
+ 2  0 x
+ 2  1 x^
+ 2  2 x^2
+
+
+
+// Specify per-nominal tuning adjustments for secondary accidentals.
+// These are just for show and given as an example of how to implement
+// per-nominal tunings for secondary accidentals.
+//
+// Since we expect most notes to match xen notes in the primary tuning space,
+// these tunings for secondary accidentals won't actually be invoked, unless
+// there are leftover symbols after consuming all symbols in the primary
+// accidental chains.
+//
+// For notes in the primary tuning space, the plugin will make use of the
+// override() section below this.
+
+sec()
+
+// Starts from A since given reference pitch is A4: 440
+//            A           B           C           D           E           F           G
+'bb' bb  -1200*4/22c -1200*3/22c -1200*4/22c -1200*4/22c -1200*4/22c -1200*3/22c -1200*4/22c
+'b'  b   -1200*2/22c -1200*2/22c -1200*2/22c -1200*2/22c -1200*2/22c -1200*1/22c -1200*2/22c
+'##' x    1200*3/22c  1200*4/22c  1200*4/22c  1200*4/22c  1200*3/22c  1200*4/22c  1200*4/22c
+'x'  x    1200*3/22c  1200*4/22c  1200*4/22c  1200*4/22c  1200*3/22c  1200*4/22c  1200*4/22c
+'#'  #    1200*1/22c  1200*2/22c  1200*2/22c  1200*2/22c  1200*1/22c  1200*2/22c  1200*2/22c
+'v'  \\  -1200*1/22c -1200*1/22c -1200*1/22c -1200*1/22c -1200*1/22c -1200*1/22c -1200*1/22c
+'^'  /    1200*1/22c  1200*1/22c  1200*1/22c  1200*1/22c  1200*1/22c  1200*1/22c  1200*1/22c
+
+// This section contains overriden tunings that do not follow the pattern specified by
+// nominals & accidental chains.
+
+//  First column: nominal pitch class, 0 = A, 1 = B, etc.,
+//                starts at A because the reference pitch is A4: 440, the 0-th nominal
+//                depends on the note chosen for the reference pitch.
+//
+// Second column: sharp/flats accidental chain, -2 = double flat, -1 = flat, etc...
+//  Third column: up/down accidental chain, -1 = down, 0 = natural, 1 = up
+// Fourth column: tuning relative to A (nominal 0) within the equave.
+
+// Not all notes have to be overriden, most of them are the usual.
+
+override()
+
+0  1 -1  1200*0/22c // A#v  =  0\22 instead of 1\22
+0  1  0  1200*1/22c // A#   =  1\22 instead of 2\22
+0  1  1  1200*2/22c // A#^  =  2\22 instead of 3\22
+
+0  2 -1  1200*2/22c // Axv  =  2\22
+0  2  0  1200*3/22c // Ax   =  3\22 instead of 4\22
+0  2  1  1200*4/22c // Ax^  =  4\22
+
+1 -2 -1 -1200*4/22c // Bbbv = -4\22
+1 -2  0 -1200*3/22c // Bbb  = -3\22 instead of -4\22
+1 -2  1 -1200*2/22c // Bbb^ = -2\22
+
+4  1 -1  1200*0/22c // E#v  =  0\22
+4  1  0  1200*1/22c // E#   =  1\22 instead of 2\22
+4  1  1  1200*2/22c // E#^  =  2\22
+
+4  2 -1  1200*2/22c // Exv  =  2\22
+4  2  0  1200*3/22c // Ex   =  3\22 instead of 4\22
+4  2  1  1200*4/22c // Ex^  =  4\22
+
+5 -1 -1 -1200*2/22c // Fbv  = -2\22
+5 -1  0 -1200*1/22c // Fb   = -1\22 instead of -2\22
+5 -1  1 -1200*0/22c // Fb^  =  0\22
+
+5 -2 -1 -1200*4/22c // Fbbv = -4\22
+5 -2  0 -1200*3/22c // Fbb  = -3\22 instead of -4\22
+5 -2  1 -1200*2/22c // Fbb^ = -2\22
+
+aux(0)
+aux(1)
+aux(2)
