@@ -417,7 +417,7 @@ In this plugin, there are two ways accidentals can be declared. The primary acci
 
 Notes with accidentals declared via accidental chains form the **primary tuning space**, which is the 'fully supported' set of notes that the plugin recognizes. You can think of these fully supported notes as '[Tonal Pitch Classes](https://en.wikipedia.org/wiki/Pitch_class_space)', but for **XenNotes** instead of normal 12edo notes.
 
-In large tunings like high-limit JIs and very large edos, it's common to use notes that are outside primary tuning space, as it wouldn't be feasible to declare as many accidental chains as there are [ranks](https://en.xen.wiki/w/Rank_and_codimension) in the tuning, otherwise it would take forever to press the up/down arrow keys to obtain the desired tuning.
+In large tunings like high-limit JIs and very large edos, it's common to use notes that are outside primary tuning space, as it wouldn't be feasible to declare as many accidental chains as there are [ranks](https://en.xen.wiki/w/Rank_and_codimension) in the tuning, otherwise it would take forever to press the up/down arrow keys until the desired note shows up.
 
 The caveat is that these notes will not be accessible via the up/down arrow keys, and will also not be supported by the [Display Steps](#8-display-steps--display-cents) feature.
 
