@@ -282,7 +282,9 @@ This is still a work in progress. Free for all to edit, and [in need of communit
   - [Advanced: Declaring text representations of accidentals](#advanced-declaring-text-representations-of-accidentals)
     - [Elided text representations](#elided-text-representations)
   - [Advanced: Independent accidental symbols](#advanced-independent-accidental-symbols)
-  - [Advanced: Override tunings, Near-equal Just Intonation (NEJI)](#advanced-override-tunings-near-equal-just-intonation-neji)
+  - [Advanced: Override Tunings, Near-Equal Just Intonation (NEJI), Irregular Accidental Sizes](#advanced-override-tunings-near-equal-just-intonation-neji-irregular-accidental-sizes)
+    - [Irregular accidental sizes: `override()` for primary accidentals](#irregular-accidental-sizes-override-for-primary-accidentals)
+    - [Irregular accidental sizes: secondary accidentals](#irregular-accidental-sizes-secondary-accidentals)
   - [Advanced: Other configurations](#advanced-other-configurations)
     - [`nobold()`](#nobold)
     - [`explicit()`](#explicit)
@@ -1202,9 +1204,15 @@ The first symbol on the left of each line denotes the naturalizing symbol for th
 >
 > Within each symbol group, the above order is preserved, but the first symbol group always appears to the right of the second symbol group, and so on.
 
-### Advanced: Override tunings, Near-equal Just Intonation (NEJI)
+### Advanced: Override Tunings, Near-Equal Just Intonation (NEJI), Irregular Accidental Sizes
 
-Example: look at the [neji/12ji test](tunings/neji/12ji%20test.txt) tuning config.
+#### Irregular accidental sizes: `override()` for primary accidentals
+
+Tuning of notes in the [primary tuning space](#primary-tuning-space) can be overriden using the `override()` declaration.
+
+Examples:
+- [neji/12ji test](tunings/neji/12ji%20test.txt)
+- [user/monzo/22edo blackwood](tunings/user/monzo/22edo%20blackwood.txt)
 
 At the bottom of the tuning config, there is a section like:
 
@@ -1241,6 +1249,34 @@ Each line denotes a tuning override for each note in the [primary tuning space](
 
 > [!TIP]
 > It's not necessary to override every note in the [primary tuning space](#primary-tuning-space), only specified notes will be overriden and the rest will default to the usual as specified by the primary accidental chains & nominal declarations.
+
+#### Irregular accidental sizes: secondary accidentals
+
+The accidental sizes of secondary accidentals can be configured on a per-nominal basis.
+
+Instead of specifying only one [relative interval](#relative-tuning-interval-syntax) for the tuning of a secondary accidental, you may also choose to **specify exactly as many tunings as there are nominals** (not more, not less, otherwise the plugin will not read the tuning config).
+
+For example, in [user/monzo/22edo blackwood](tunings/user/monzo/22edo%20blackwood.txt), the secondary accidental section declaration looks like this:
+
+```txt
+sec()
+
+//            A           B           C           D           E           F           G
+'bb' bb  -1200*4/22c -1200*3/22c -1200*4/22c -1200*4/22c -1200*4/22c -1200*3/22c -1200*4/22c
+'b'  b   -1200*2/22c -1200*2/22c -1200*2/22c -1200*2/22c -1200*2/22c -1200*1/22c -1200*2/22c
+'##' x    1200*3/22c  1200*4/22c  1200*4/22c  1200*4/22c  1200*3/22c  1200*4/22c  1200*4/22c
+'x'  x    1200*3/22c  1200*4/22c  1200*4/22c  1200*4/22c  1200*3/22c  1200*4/22c  1200*4/22c
+'#'  #    1200*1/22c  1200*2/22c  1200*2/22c  1200*2/22c  1200*1/22c  1200*2/22c  1200*2/22c
+
+// Constant-sized accidentals
+'v'  \\  -1200*1/22c
+'^'  /    1200*1/22c
+```
+
+You can mix and match specifying a single tuning and specifying tunings per-nominal, as the above example demonstrates.
+
+> [!WARNING]
+> The per-nominal tuning of secondary accidentals only applies when the **accidental symbols are parsed as secondary accidentals** (which are not accessible from up/down pitch operations alone). If the symbols on a note are parsed as primary accidentals, then modifying these will not change how the note is tuned. Instead, use [`override()` for notes in the primary tuning space](#irregular-accidental-sizes-override-for-primary-accidentals).
 
 ### Advanced: Other configurations
 
