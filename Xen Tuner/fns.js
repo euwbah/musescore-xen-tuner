@@ -4933,7 +4933,7 @@ function getAccidental(cursor, note, tickOfThisBar,
 
                     if (msNote.accidentals) {
                         // found explicit accidental - check groups
-                        log(JSON.stringify(msNote.accidentals));
+                        // log(JSON.stringify(msNote.accidentals));
                         var earlyReturn = true;
                         var deconSymGroups = deconstructSymbolGroups(msNote.accidentals, tuningConfig);
                         for (var grpIdx = 0; grpIdx < deconSymGroups.length; grpIdx ++) {
@@ -4943,8 +4943,8 @@ function getAccidental(cursor, note, tickOfThisBar,
                                     groupSymbols[grpIdx] = deconSymGroups[grpIdx];
                                     for (var i = 0; i < symKeys.length; i++) {
                                         accidentals[symKeys[i]] = deconSymGroups[grpIdx][symKeys[i]];
-                                        log("set accidentals[" + symKeys[i] + "] to " +
-                                            deconSymGroups[grpIdx][symKeys[i]]);
+                                        // log("set accidentals[" + symKeys[i] + "] to " +
+                                        //     deconSymGroups[grpIdx][symKeys[i]]);
                                     }
                                 } else {
                                     earlyReturn = false;
@@ -4956,8 +4956,8 @@ function getAccidental(cursor, note, tickOfThisBar,
                             // Every independent symbol group has at least one symbol, so no more
                             // prior symbols can affect accidental of this note.
                             var accHash = accidentalsHash(accidentals);
-                            log('Found accidental earlyReturn (' + accHash + ') at: t: ' +
-                                currTick + ', v: ' + voice + ', chd: ' + chdIdx + ', n: ' + nIdx);
+                            // log('Found accidental earlyReturn (' + accHash + ') at: t: ' +
+                            //     currTick + ', v: ' + voice + ', chd: ' + chdIdx + ', n: ' + nIdx);
 
                             return accHash;
                         }
@@ -5626,7 +5626,7 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                             }
 
                             /** @type {AccidentalSymbols[]} */
-                            log('current accSyms: ' + JSON.stringify(accSyms));
+                            // log('current accSyms: ' + JSON.stringify(accSyms));
                             var currAccSymGroups = deconstructSymbolGroups(accSyms, tuningConfig);
 
                             // If prior symbol groups array is null or contains empty symbol groups,
@@ -5663,9 +5663,9 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                 }
                             }
 
-                            log('effectivePriorAccSymGroups: ' + JSON.stringify(effectivePriorAccSymGroups)
-                                + ', currAccSymGroups: ' + JSON.stringify(currAccSymGroups)
-                                + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
+                            // log('effectivePriorAccSymGroups: ' + JSON.stringify(effectivePriorAccSymGroups)
+                            //     + ', currAccSymGroups: ' + JSON.stringify(currAccSymGroups)
+                            //     + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
 
                             var blacklistSymbols = {};
                             var hasBlacklist = false;
