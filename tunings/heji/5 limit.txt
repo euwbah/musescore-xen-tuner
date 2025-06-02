@@ -35,7 +35,7 @@ v3 v2 v (81/80) ^ ^2 ^3
 // enharmonics that we declared at deg. -4 and 4 of the 1st chain
 //
 // - We declare it as important (!) so that it is still accessible via the
-// enharmonic cycle operation, 
+// enharmonic cycle operation,
 // - We declare it as weak (?) so that during
 // up/down operations, the plugin will prefer to use standard sharps and flats
 // rather than the schisma-enharmonic variants.
@@ -43,7 +43,7 @@ v3 v2 v (81/80) ^ ^2 ^3
 // ⚠️ We must declare this ligature before the one below, as this ligature
 // contains shares similar symbols as the one below.
 //
-// If we flip the order of declaration, the 'b^' and '#v' symbols will be 
+// If we flip the order of declaration, the 'b^' and '#v' symbols will be
 // parsed & eaten up by the other ligature, leaving a stray '~' symbol, which
 // is not parseable.
 lig(1,2)!?
@@ -108,6 +108,9 @@ aux(1) // aux2 will modify flats/sharps only, without modifying nominals or othe
 aux(2) // aux3 will modify syntonic comas only
 aux(0,1) // aux4 will modify both nominals and flats/sharps.
 
+// Display cent offsets relative to the note nominal to 1 decimal place.
+// Cent offsets are shown above the staff.
+displaycents(nominal, 1, above)
 
 // Now we declare secondary accidentals & text representations
 
@@ -179,7 +182,7 @@ sec()
                 // accidental, use \13, not \\13
 
 // When referring to SMuFL symbols or text-based accidentals,
-// the backslash (\), two slashes (//), and quote (') symbols 
+// the backslash (\), two slashes (//), and quote (') symbols
 // need to be escaped with a backslash like so:
 // \\, \/\/, \'
 
