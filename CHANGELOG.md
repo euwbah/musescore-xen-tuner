@@ -5,10 +5,13 @@
 - #13: Support `independent()` declarations for independently acting accidental symbols.
   - Each independent symbol group will persist until end of bar, and other symbols in other groups will not affect accidental state for those symbols in the group.
   - Declaring symbol groups will re-configure left-to-right order of symbols in the group. Originally, the accidental chains determine order, first accidental chain is on the right, closest to the notehead, and secondary accidentals are on the left of the last declared accidental chain. However, when symbol groups are declared, the first declared symbol group will be on the right, and the last declared symbol group will be on the left, regardless of accidental chain order. Symbols not declared as part of any symbol group will be assumed to be in the first symbol group, placing them on the right. Within a single symbol group, the symbols will follow order according to order of declaration of accidental chains.
+
 - Fix fingering formatting issue when two noteheads on adjacent staff lines in the same chord or when multiple voices are present.
   - The default fingering text uses "Fingering" Style (`subStyle`) which in MuseScore 3.6.2 is assigned to the enum constant 33 (**but this changes depending on MuseScore version, so it has to be kept updated especially when porting to MS4**).
   - However, this subStyle uses chord stem as X position anchor instead of notehead, and has special vertical alignment rules when multiple voices are present.
   - To attach the fingering text directly to the notehead with no extra formatting rules, we change `subStyle = 45` which is the "User-1" style in MS 3.6.2 (**also needs to be kept updated**)
+
+- Space-separated data in the tuning config can now have arbitrarily many spaces/tabs between each entry to allow better readability (e.g., aligning vertical columns in tabular format).
 
 ## 0.3.6
 

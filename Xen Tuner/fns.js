@@ -1233,6 +1233,19 @@ function parseSymbolOffsetPair(str) {
 }
 
 /**
+ * Convert a space/tabular separated string into an array of strings, removing empty whitespace.
+ *
+ * @param {string} str Space/tabular separated string
+ * @returns {string[]} Array of non-empty strings
+ */
+function spaceSeparated(str) {
+    return str
+        .split(' ')
+        .map(function (x) { return x.trim() })
+        .filter(function(x) { return x.length != 0; });
+}
+
+/**
  * Tests if a certain text/tuning file is a tuning config.
  *
  * First it will look up cached TuningConfigs so it won't
@@ -1361,7 +1374,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     // remove comments from tuning config text.
     // comments start with two slashes
     text = text.replace(/^(.*?)\/\/.*$/gm, '$1')
-        // remove empty lines
+        // remove empty lines after removing comments
         .replace(/^(?:[\t ]*(?:\r?\n|\r))+/gm, '')
         .trim();
 
@@ -1459,14 +1472,18 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     //
 
     var hasInvalid = false;
-    var nominals = lines[1].split(' ').map(function (x) {
-        var f = parseCentsOrRatio(x);
-        if (f == null) hasInvalid = true;
-        return f
-    });
+    var invalidNominals = [];
+    var nominals = spaceSeparated(lines[1]).map(function (x) {
+            var f = parseCentsOrRatio(x);
+            if (f == null) {
+                hasInvalid = true;
+                invalidNominals.push(x);
+            }
+            return f;
+        });
 
     if (hasInvalid) {
-        log('Invalid nominal decl: ' + lines[1]);
+        log('Invalid nominal tunings: ' + invalidNominals.join(', '));
         return null;
     }
 
@@ -1495,7 +1512,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             break;
         }
 
-        var accChainWords = line.split(' ').map(function (x) { return x.trim(); });
+        var accChainWords = spaceSeparated(line);
 
         var increment = null;
         var symbolsLookup = {}; // contains all unique symbols used.
@@ -1798,7 +1815,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
         if (state[0] == 'lig') {
             // parse ligature entry.
-            var words = line.split(' ').map(function (x) { return x.trim() });
+            var words = spaceSeparated(line);
             var ligAv = words.slice(0, words.length - 1).map(function (x) { return parseInt(x) });
 
             var ligatureSymbols = parseSymbolsDeclaration(words[words.length - 1]);
@@ -1816,7 +1833,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             // parse secondary accidental declaration.
             // directly modifies the tuning config.
 
-            var words = line.split(' ').map(function (x) { return x.trim() });
+            var words = spaceSeparated(line);
             var numNomsMin1 = tuningConfig.numNominals - 1;
             var firstWordSymCodes = parseSymbolsDeclaration(words[0]);
 
@@ -1937,7 +1954,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         } else if (state[0] == 'override') {
             // parse override() declarations.
 
-            var words = line.split(' ').map(function (x) { return x.trim() });
+            var words = spaceSeparated(line);
 
             /*
             format of each override decl:
@@ -1999,7 +2016,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             // By default the if no symbol groups are specified, the natural sign is the
             // naturalizing symbol
 
-            var words = line.split(' ').map(function (x) { return x.trim() });
+            var words = spaceSeparated(line);
 
             var symbolGroupIdx = tuningConfig.independentSymbolGroups.length;
             var symbols = [];
@@ -2636,7 +2653,7 @@ function parseKeySig(text) {
         return null;
     }
 
-    var nomSymbols = text.trim().split(' ').slice(1);
+    var nomSymbols = spaceSeparated(text).slice(1);
 
     var keySig = [];
 
@@ -4386,6 +4403,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     var nextNoteOptions = [];
 
     for (var i = 0; i < validOptions.length; i++) {
+        /** @type {AccidentalHash} */
         var option = validOptions[i]; // contains XenNote hash of enharmonic option.
 
         var newXenNote = tuningConfig.notesTable[option];
