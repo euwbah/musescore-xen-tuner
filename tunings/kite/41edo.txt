@@ -27,4 +27,4 @@ displaysteps(41, below)
 
 independent()
 n bb b # x
-'◇' 'ᴠ' 'ᴠ' 'ʌ' 'ʌ'
+'◇' 'ᴠ' 'ʌ'
