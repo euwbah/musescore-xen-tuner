@@ -258,6 +258,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
   - [Tuning configuration syntax overview](#tuning-configuration-syntax-overview)
   - [Full example](#full-example)
   - [Simple example](#simple-example)
+  - [Relative tuning interval syntax](#relative-tuning-interval-syntax)
   - [Adding accidentals](#adding-accidentals)
   - [Adding too many accidentals](#adding-too-many-accidentals)
   - [Just Intonation (JI)](#just-intonation-ji)
@@ -277,9 +278,11 @@ This is still a work in progress. Free for all to edit, and [in need of communit
   - [Advanced: Text based accidentals](#advanced-text-based-accidentals)
   - [Advanced: Secondary accidentals](#advanced-secondary-accidentals)
     - [Secondary accidental declaration order matters](#secondary-accidental-declaration-order-matters)
+    - [Secondary accidentals automatically repeat](#secondary-accidentals-automatically-repeat)
   - [Advanced: Declaring text representations of accidentals](#advanced-declaring-text-representations-of-accidentals)
     - [Elided text representations](#elided-text-representations)
   - [Advanced: Independent accidental symbols](#advanced-independent-accidental-symbols)
+  - [Advanced: Override tunings, Near-equal Just Intonation (NEJI)](#advanced-override-tunings-near-equal-just-intonation-neji)
   - [Advanced: Other configurations](#advanced-other-configurations)
     - [`nobold()`](#nobold)
     - [`explicit()`](#explicit)
@@ -410,9 +413,11 @@ The degrees of each accidental chain forms a list of numbers called the **accide
 
 In this plugin, there are two ways accidentals can be declared. The primary accidentals are declared using [Accidental Chains](#accidental-chains--degrees), but there are also [secondary accidentals](#advanced-secondary-accidentals) which allow you to declare how non-primary symbols are interpreted.
 
-Notes with accidentals declared via accidental chains form the **main tuning space**, which is the 'fully supported' set of notes that the plugin recognizes. You can think of these fully supported notes as '[Tonal Pitch Classes](https://en.wikipedia.org/wiki/Pitch_class_space)', but for **XenNotes** instead of normal 12edo notes.
+Notes with accidentals declared via accidental chains form the **primary tuning space**, which is the 'fully supported' set of notes that the plugin recognizes. You can think of these fully supported notes as '[Tonal Pitch Classes](https://en.wikipedia.org/wiki/Pitch_class_space)', but for **XenNotes** instead of normal 12edo notes.
 
-In large tunings like high-limit JIs and very large edos, it's common to use notes that are not in the main tuning space, as it wouldn't be feasible to declare as many accidental chains as there are [ranks](https://en.xen.wiki/w/Rank_and_codimension) in the tuning. However, these notes will not be accessible via the up/down arrow keys, and also not supported by the [Display Steps](#8-display-steps--display-cents) feature.
+In large tunings like high-limit JIs and very large edos, it's common to use notes that are outside primary tuning space, as it wouldn't be feasible to declare as many accidental chains as there are [ranks](https://en.xen.wiki/w/Rank_and_codimension) in the tuning, otherwise it would take forever to press the up/down arrow keys to obtain the desired tuning.
+
+The caveat is that these notes will not be accessible via the up/down arrow keys, and will also not be supported by the [Display Steps](#8-display-steps--display-cents) feature.
 
 -----
 
@@ -445,14 +450,15 @@ A tuning/notation system configuration is specified in plaintext, and consists o
 2. [Nominals](#simple-example) & equave size
 3. [Accidental chains](#adding-accidentals) (optional)
 4. Optional declarations:
-   - [Ligatures](#accidental-ligatures-real-heji) allow you to declare how different symbols combine into other symbols. [Advanced ligatures](#advanced-advanced-ligature-use-weak--important-ligatures) can control which enharmonic spellings/accidentals are present in a tuning.
-   - [Auxiliary operations](#auxiliary-operations) define what the other keyboard shortcuts (e.g. `Alt+Up/Down`) do. You can control which accidental chains will be affected, and whether or not the nominal is allowed to change when using those auxiliary up/down operations.
-   - [Secondary accidentals](#advanced-secondary-accidentals) define additional symbols that are not part of the main set of notes accessible by up/down operations, but will still act like accidentals. You can access these by declaring [text representations](#advanced-declaring-text-representations-of-accidentals) of the accidentals and [entering the accidentals as fingerings](#entering-accidentals-directly-using-fingerings).
+   - [Ligatures `lig(x,y,z,...)`](#accidental-ligatures-real-heji) allow you to declare how different symbols combine into other symbols. [Advanced ligatures](#advanced-advanced-ligature-use-weak--important-ligatures) can control which enharmonic spellings/accidentals are present in a tuning.
+   - [Auxiliary operations `aux(x,y,z,...)`](#auxiliary-operations) define what the other keyboard shortcuts (e.g. `Alt+Up/Down`) do. You can control which accidental chains will be affected, and whether the nominal is allowed to change when using those auxiliary up/down operations.
+   - [Secondary accidentals `sec()`](#advanced-secondary-accidentals) define additional symbols that are not part of the main set of notes accessible by up/down operations, but will still act like accidentals. You can access these by declaring [text representations](#advanced-declaring-text-representations-of-accidentals) of the accidentals and [entering the accidentals as fingerings](#entering-accidentals-directly-using-fingerings).
 5. Preference settings:
    - [nobold()](#nobold) - text accidentals will not be bolded by default
    - [explicit()](#explicit) - display accidentals on every note, even if not necessary
    - [displaysteps()](#configuring-display-steps) - enables & configures the [steps display](#8-display-steps--display-cents) plugin
    - [displaycents()](#configuring-display-cents) - configures the [cents display](#8-display-steps--display-cents) plugin.
+   - [independent()](#advanced-independent-accidental-symbols) - declare groups of symbols that act independently of other groups.
 
 ### Tuning configuration syntax overview
 
@@ -631,6 +637,24 @@ A4: 440
 
 The last interval size, `1200c`, specifies the equave size. The equaves are referenced in terms of the nominals defined, rather than the standard 12edo octave. E.g., if you only declare 2 nominals, then the next equave up from A4 will start at C5 instead of A5.
 
+Instead of specifying cents directly, any time an interval size is to be specified, we can use any supported [relative tuning interval](#relative-tuning-interval-syntax), as follows:
+
+### Relative tuning interval syntax
+
+Whenever a tuning config expects a relative interval size, we can either specify
+
+- **Cents**: e.g. `100c` for 100 cents, or `-200c` for -200 cents.
+- **Ratios**: e.g. `2` or `2/1` for an octave (= 1200 cents), `3/2` for JI perfect fifth.
+  - If a **negative ratio** is specified, instead of playing back a negative frequency (which doesn't make sense), the plugin interprets it negation of ratios as **reciprocal**, so instead of `3/4` we can also write `-4/3` to specify "down a perfect fourth".
+
+> [!NOTE]
+> For advanced users, you can use any valid JavaScript expression (up to ECMAScript version 5) that evaluates to a number. This works for both cents and ratios, e.g.:
+> - `Math.pow(2, 1/12)` is a ratio that represents a 100 cent interval (12th root of 2), and is equivalent to stating `100c`
+> - `(Math.PI)c` is exactly 3.1415926... cents
+> - `Math.sqrt(4/3)` is exactly half the size of a just perfect fourth
+>
+> If for whatever reason, a JavaScript expression ends with 'c' but you don't want it to be interpreted as cents, you can just define and evaluate a variable in one line so it doesn't end with `c`, e.g., `var blah = 2 * magic; blah`.
+
 ### Adding accidentals
 
 Now let's add the usual 12edo accidentals to complete the 12edo tuning system.
@@ -670,11 +694,11 @@ bbb bb b (2187/2048) # x #x
 > [!TIP]
 > Every ratio/cents interval can be specified as a math/JavaScript expression.
 >
-> **To differentiate ratios from cents, cents must end with a 'c'.**
+> Remember that to differentiate ratios from cents when specifying [relative intervals](#relative-tuning-interval-syntax), cents must end with a 'c'.
 
-We're now setting the reference note C4 to a just-intonated 3-limit major sixth below A4. Because of that, we can now specify our nominals starting from C, which makes it a little easier to calculate the ratios.
+We're now setting the reference note C4 to a just-intonated 3-limit major sixth below A4. Because of that, we now specify our nominals starting from C.
 
-Our nominals are now all 3-limit ratios built off a chain of pure fifths from F to B, which are the standard nominals used in JI notations (unless you're writing in Ben Johnston's system).
+Our nominals are now all 3-limit ratios built off a chain of pure fifths from F to B, which are the standard nominals used in almost all JI notations (unless you're writing in Ben Johnston's system).
 
 ### More accidental chains: 5-limit JI
 
@@ -1066,11 +1090,21 @@ b -50c // extra flats are -50c
 / 10c // single up is +10c
 ```
 
-In this example, there is only one accidental chain declared consisting of -1 to 1 degrees of flats/sharps. If there are any extra flat or sharp symbols, they will match as secondary accidentals, contributing +/- 50c each.
+In this example, there is only one accidental chain declared consisting of -1 to 1 degrees of flats/sharps. If there are any extra flat or sharp symbols, they will match as secondary accidentals, contributing +/- 50c each. Any [relative interval](#relative-tuning-interval-syntax) (cents or ratio) can be specified for each secondary accidental.
 
-**Secondary accidentals can stack**, and you don't need to declare a new secondary accidental for every unique number of times the symbol is repeated (unless the tuning is irregular and depends on the number of times the accidental appears). Only declare secondary accidentals for uniquely tuned symbols.
+Note that the up/down arrows are declared in a **specific order** such that if there are double up/down arrows adjacent to each other, they will contribute +/- 30c instead of +/-(10 + 10)c, because the two-symbol accidentals are declared before the one-symbol ones. [The order that secondary accidentals are declarared matters](#secondary-accidental-declaration-order-matters).
 
-For example, there are 4 HEJI 7-limit accidentals, so we declare only 4 secondary accidentals:
+#### Secondary accidental declaration order matters
+
+🔴 The **declaration order of secondary accidentals has to be carefully chosen** so that certain combinations of symbols that overlap are matched with the correct precedence.
+
+E.g. if `\\` was declared before `\\.\\`, then the `\\.\\` secondary accidental would never be matched, because the `\\` symbol would always match first.
+
+#### Secondary accidentals automatically repeat
+
+**Secondary accidentals can be stacked multiple times**, and you don't need to declare a new secondary accidental for every unique number of times the symbol is repeated (unless the tuning is irregular and depends on the number of times the accidental appears). Only declare secondary accidentals for uniquely tuned symbols.
+
+✅ For example, there are 4 HEJI 7-limit accidentals, and their tunings don't change depending on how many times each symbol is repeated, so we only declare 4 secondary accidentals:
 
 ```txt
 sec()
@@ -1080,21 +1114,24 @@ d77 63/64 * 63/64
 d7 64/63
 ```
 
-Any repetitions of these symbols found on a note will stack.
+❌ Don't do this:
 
-The up/down arrows are declared in a specific order such that if there are double up/down arrows adjacent to each other, they will contribute +/- 30c instead of +/-(10 + 10)c.
-
-#### Secondary accidental declaration order matters
-
-🔴 The **declaration order of secondary accidentals has to be carefully chosen** so that certain combinations of symbols that overlap are matched with the correct precedence.
-
-E.g. if `\\` was declared before `\\.\\`, then the `\\.\\` secondary accidental would never be matched, because the `\\` symbol would always match first.
-
-Secondary accidental declaration is almost never done on its own, and instead you would want to declare [textual representations of the symbols](#advanced-declaring-text-representations-of-accidentals) at the same time.
+```txt
+sec()
+u7 64/63
+u77 64/63 * 64/63
+u7.u77 Math.pow(64/63, 3)
+u77.u77 Math.pow(64/63, 4)
+u7.u77.u77 Math.pow(64/63, 5)
+...not like this...
+```
 
 ### Advanced: Declaring text representations of accidentals
 
-Declaring textual representations allows you to input accidentals (both SMuFL and text-based) by attaching fingering text on the note. These declarations are done together with [secondary accidental declarations](#advanced-secondary-accidentals) and work the same way, except you provide a quoted text string that represents the accidental.
+Declaring textual representations allows you to input accidentals (both SMuFL and text-based) by attaching fingering text on the note (you should remap `Ctrl + F` to "Add Fingering" instead of "Find" if you're using this feature). These declarations are done together with [secondary accidental declarations](#advanced-secondary-accidentals) and work the same way, except you provide a quoted text string that represents how you would type out the accidental in fingerings.
+
+> [!NOTE]
+> Even though these text representations are declared with secondary accidentals, the plugin will first try to match accidentals added via fingerings as primary accidentals first, and only fall back to secondary accidentals if no xen note in the [Primary tuning space](#primary-tuning-space) matches the fingering text.
 
 ```txt
 ...
@@ -1103,7 +1140,7 @@ sec()
 'up7' u7 64/63
 ```
 
-The above example declares two secondary accidentals, `u77` and `u7`. To input them effeciently, you can attach a fingering and enter `up77` or `up7` respectively. After any plugin operation is applied to that note, the note will be regarded as if it has the symbols attached to it.
+The above example declares two secondary accidentals, `u77` and `u7`. To input them effeciently, you can attach a fingering and enter `up77` or `up7` respectively. After any plugin operation is applied to any note in that bar, the desired accidentals will be attached and the fingering used to enter the accidental will be removed.
 
 > [!NOTE]
 > **By default the ASCII text `n` is used to refer to the natural accidental (or a combination of all naturalizing symbols, if [multiple independent symbol groups are declared](#advanced-independent-accidental-symbols)), and for adding the natural accidental using fingerings**. If you want, this can be overriden by declaring a secondary accidental with text representation 'n' (e.g. `'n' 152 0c`), but you won't be able to enter the usual natural symbol with fingerings if so.
@@ -1120,8 +1157,8 @@ If the secondary accidental itself is a single-element text accidental, then you
 
 ```txt
 sec()
-'^' '^' 81/80 // this is unnecessary
-'^' 81/80 // this does the same thing
+'^' '^' 81/80 // repeating '^' is unnecessary
+'^' 81/80 // this does the same thing as above
 
 // ⚠️ You can't do this. This is not a
 // single-element text accidental!
@@ -1141,7 +1178,7 @@ n bb b # x
 '◇' 'ᴠ' 'ʌ'
 ```
 
-Each line declares a group of independently acting accidental symbols, separated by spaces, which affects both accidentals and key signature. For example,
+Each line declares a group of independently acting accidental symbols, separated by spaces, **which affects both accidentals and key signature**. For example,
 
 ![key sig example](imgs/keysig-example.png)
 
@@ -1165,6 +1202,45 @@ The first symbol on the left of each line denotes the naturalizing symbol for th
 >
 > Within each symbol group, the above order is preserved, but the first symbol group always appears to the right of the second symbol group, and so on.
 
+### Advanced: Override tunings, Near-equal Just Intonation (NEJI)
+
+Example: look at the [neji/12ji test](tunings/neji/12ji%20test.txt) tuning config.
+
+At the bottom of the tuning config, there is a section like:
+
+```txt
+A4: 440
+
+// the nominal & accidental chain tunings don't matter because all of them
+// will be overriden by override() section
+
+0 0 0 0 0 0 0 2/1 // equave tuning needs to be specified
+
+bb b (0) # x // only one accidental chain, tuning doesn't matter
+
+override()
+0 -2 9/5/(2)  // Abb = 9/10
+0 -1 15/8/(2) // Ab  = 15/16
+0 0 1/1       // A   = 1/1
+0 1 25/24     // A#  = 25/24
+0 2 9/8       // Ax  = 9/8
+1 -2 1/1      // Bbb = 1/1
+1 -1 25/24    // Bb  = 25/24
+// etc...
+```
+
+Each line denotes a tuning override for each note in the [primary tuning space](#primary-tuning-space) (i.e., a [nominal](#nominals--equave) + [primary accidentals](#accidental-chains--degrees)).
+
+- First number: the n-th nominal starting where 0 is the reference note's pitch class
+  - E.g., since `A4: 440` is the reference note frequency, `0` is `A`, `1` is `B`, `2` is `C`, etc...
+- Middle numbers: the [accidental vector/accidental chain degrees](#accidental-vectors), space-separated if there are multiple numbers. Accidental chain degrees are written in the same order that accidental chains are declared in.
+- Last number: the [relative interval](#relative-tuning-interval-syntax) for the note, relative to the reference pitch (`A4: 440`) and equave.
+
+> [!CAUTION]
+> The tuning of the overrides are specified **relative to the reference pitch**, not relative to original tuning of the note before the tuning overrides.
+
+> [!TIP]
+> It's not necessary to override every note in the [primary tuning space](#primary-tuning-space), only specified notes will be overriden and the rest will default to the usual as specified by the primary accidental chains & nominal declarations.
 
 ### Advanced: Other configurations
 
