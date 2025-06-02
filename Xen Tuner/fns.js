@@ -7101,6 +7101,10 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
                 startTick, endTick, parms, cursor, newElement, startBarIdx, endBarIdx
             );
 
+            _curScore.endCmd();
+
+            _curScore.startCmd();
+
             // After processing all voices in a staff,
             // auto position accidentals in this staff in the selection range
             autoPositionAccidentals(
