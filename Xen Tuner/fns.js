@@ -5324,11 +5324,10 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
     //
     // STEP 3:
     //  - Carry over secondary accidentals if KEEP_SECONDARY_ACCIDENTALS_XXX is configured.
-    //  - Always add explicit accidental if configured.
-    //
-    //
+    //  - Always add explicit accidental if `explicit()` is set
+    //  - Always add naturalizing accidentals, which will be removed in removeUnnecessaryAccidentals
 
-    var accSymbols = addNaturalizingSymbols(deconstructSymbolGroups(nextNote.xen.orderedSymbols, tuningConfig), tuningConfig);
+    var accSymbols = nextNote.xen.orderedSymbols;
 
     // Here we need to check whether or not to include prior secondary
     // accidentals in the new note depending on the operation.
@@ -5356,6 +5355,11 @@ function executeTranspose(note, direction, aux, parms, newElement, cursor) {
         log('keeping acc symbols: ' + JSON.stringify(accSymbols));
         log('secondary (without nats): ' + JSON.stringify(secondaryAccSymsWithoutNaturalizing));
     }
+
+    // Only add naturalizing symbols after adding secondary symbols, otherwise there may be
+    // naturalizing symbols on notes with secondary symbols for independent symbol groups containing
+    // (only) those secondary symbols.
+    accSymbols = addNaturalizingSymbols(deconstructSymbolGroups(accSymbols, tuningConfig), tuningConfig);
 
     modifyNote(note, nextNote.lineOffset, accSymbols, newElement, tuningConfig);
 
@@ -5654,16 +5658,17 @@ function removeUnnecessaryAccidentals(startBarTick, endBarTick, parms, cursor, n
                                 for (var symIdx = 0; symIdx < currSymKeys.length; symIdx++) {
                                     var symKey = currSymKeys[symIdx];
                                     if (tuningConfig.symbolGroupNaturalizingLookupIdx[symKey] != undefined) {
-                                        // If multiple naturalizing symbols exist, treat them as one
-                                        // symbol.
+                                        // Even if multiple naturalizing symbols are registered on
+                                        // the note, only accept one symbol --- naturalizing
+                                        // accidentals should not be stacked.
                                         currAccSymGroups[grpIdx][symKey] = 1;
                                     }
                                 }
                             }
 
-                            // log('effectivePriorAccSymGroups: ' + JSON.stringify(effectivePriorAccSymGroups)
-                            //     + ', currAccSymGroups: ' + JSON.stringify(currAccSymGroups)
-                            //     + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
+                            log('effectivePriorAccSymGroups: ' + JSON.stringify(effectivePriorAccSymGroups)
+                                + ', currAccSymGroups: ' + JSON.stringify(currAccSymGroups)
+                                + ', keySig: ' + JSON.stringify(keySig) + ', nominal: ' + nominal);
 
                             var blacklistSymbols = {};
                             var hasBlacklist = false;
