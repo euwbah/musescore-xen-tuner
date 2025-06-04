@@ -210,7 +210,7 @@ var KEEP_SECONDARY_ACCIDENTALS_AFTER_TRANSPOSE = false;
 var KEEP_SECONDARY_ACCIDENTALS_AFTER_DIATONIC = true;
 /**
  * If `false`, the plugin will delete secondary accidentals after a
- * enharmonic cycle operation is performed.
+ * enharmonic cycle operation (Shortcut `J`) is performed.
  *
  * This defaults to `true` to keep in line with the expectation that
  * enharmonic notes should have the same pitch. Thus, any secondary
@@ -4282,9 +4282,7 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
             nominal: enhXenNote.nominal,
             equaves: noteData.equaves + equaveOffset,
             lineOffset: -nominalsOffset, // negative line = higher pitch.
-            matchPriorAcc: false, // always false, doesn't matter.
-            // The enharmonic plugin should check for the need of explicit accidentals
-            // on its own.
+            matchPriorAcc: false, // always false, doesn't matter
         }
     }
 
