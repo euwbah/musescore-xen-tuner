@@ -13,6 +13,8 @@
 
 - Space-separated data in the tuning config can now have arbitrarily many spaces/tabs between each entry to allow better readability (e.g., aligning vertical columns in tabular format).
 
+- Added support for Functional Just System (thanks to @Aumuse for the inspiration & initial implementation)
+
 ## 0.3.6
 
 - Fix not able to enter natural accidental as a fingering.
