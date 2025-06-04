@@ -460,7 +460,7 @@ A tuning/notation system configuration is specified in plaintext, and consists o
    - [explicit()](#explicit) - display accidentals on every note, even if not necessary
    - [displaysteps()](#configuring-display-steps) - enables & configures the [steps display](#8-display-steps--display-cents) plugin
    - [displaycents()](#configuring-display-cents) - configures the [cents display](#8-display-steps--display-cents) plugin.
-   - [independent()](#advanced-independent-accidental-symbols) - declare groups of symbols that act independently of other groups.
+   - [independent()](#advanced-independent-accidental-symbols) - declare groups of symbols that propagate independently of other groups.
 
 ### Tuning configuration syntax overview
 
@@ -583,10 +583,10 @@ displaycents(absolute, 2, above)
 // just for example) below the staff.
 displaysteps(1337, below)
 
-// 4g. Independent groups of symbols: each symbol group will act independently
-//     e.g., since flat and '+' are in different groups, then a flat symbol
-//     will not override a '+' symbol if a flat note comes after a plus note
-//     within the same bar.
+// 4g. Independent groups of symbols: each symbol group will propagate
+//     independently, e.g., since flat and '+' are in different groups,
+//     then a flat symbol will not override a '+' symbol if a flat note
+//     comes after a plus note within the same bar.
 //
 //     The first (leftmost) symbol in each group is the naturalizing accidental
 //     for the symbol group. Every indepedent group needs its own unique
@@ -1180,13 +1180,13 @@ n bb b # x
 '◇' 'ᴠ' 'ʌ'
 ```
 
-Each line declares a group of independently acting accidental symbols, separated by spaces, **which affects both accidentals and key signature**. For example,
+Each line declares a group of independent accidental symbols, separated by spaces. An independent symbol group propagates independently of other groups, **which applies to both accidentals and key signature**. For example,
 
 ![key sig example](imgs/keysig-example.png)
 
-Even though the notes F and C appear with only a single down arrow `ᴠ`, these notes still have the `♯` symbol applied from the key signature because the up and down arrows act independently from the sharps and flats, which means they are read and played back as `F♯ᴠ` & `C♯ᴠ`, instead of `Fᴠ` & `Cᴠ`.
+Even though the notes F and C appear with only a single down arrow `ᴠ`, these notes still have the `♯` symbol carrying over from the key signature &mdash; the up and down arrows act independently of the sharps and flats, so they are read and played back as `F♯ᴠ` & `C♯ᴠ`, instead of `Fᴠ` & `Cᴠ`.
 
-The first symbol on the left of each line denotes the naturalizing symbol for the group. I.e., the natural symbol resets a sharp/flat back to default, and the diamond `◇` resets up/down arrows.
+In each line declaring an independent symbol group, the first, leftmost, symbol denotes the naturalizing symbol for the group. In the above example, the natural symbol &natural; resets a sharp/flat back to default, and the diamond `◇` resets up/down arrows.
 
 > [!WARNING]
 > ⚠️ **Only single individual accidental symbols can be declared in a symbol group**, you cannot use the period `.` to declare multi-symbol accidentals to act independently as a compound symbol.
