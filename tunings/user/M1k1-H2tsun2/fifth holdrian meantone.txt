@@ -1,0 +1,16 @@
+// 1/5 holdrian comma meantone
+C4: 220*Math.pow(2,1/4)
+1/1 Math.pow(2,43/265) Math.pow(2,86/265) Math.pow(2,111/265) Math.pow(2,154/265) Math.pow(2,197/265) Math.pow(2,240/265) 2/1
+bbb bb b (Math.pow(2,18/265)) # x #x
+
+aux(0)
+aux(1)
+
+sec()
+'bbb' bbb Math.pow(2,54/265)
+'bb' bb Math.pow(1/2,36/265)
+'b' b Math.pow(1/2,18/265)
+'#x' #x Math.pow(2,54/265)
+'##' x Math.pow(2,36/265)
+'x' x Math.pow(2,36/265)
+'#' # Math.pow(2,18/265)
