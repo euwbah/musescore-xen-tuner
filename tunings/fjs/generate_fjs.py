@@ -42,7 +42,7 @@ which is one apotome wide.
 Following @Aumuse's suggestion I use the latter.
 """
 
-ODD_LIMIT = 255
+ODD_LIMIT = 1023
 """
 This tells the script how many secondary FJS accidentals to generate. Generates a FJS comma shift
 for every odd integer that is not a multiple of 3 up to `ODD_LIMIT`.
