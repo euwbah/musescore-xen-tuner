@@ -124,8 +124,8 @@ These Staff/System Texts don't have to be visible (use the default MuseScore key
 
 Use `Alt`/`Ctrl`/`Shift` modifiers to control the pitch modification performed by arrow keys:
 
-- `Up/Down`: Move note up/down to the next nearest step
-- `J`: Cycle through enharmonics of the note
+- `Up`/`Down`: Move note up/down to the next nearest step
+- `J`/`Shift+J`: Cycle through enharmonics of the note (use shift for reverse order)
 - `Alt+Up/Down`: **auxiliary operation 1** (usually for moving up/down diatonically)
 - `Ctrl+Alt+Up/Down`: **auxiliary operation 2** (usually for sharps/flats - first accidental chain)
 - `Alt+Shift+Up/Down`: **auxiliary operation 3** (usually 5-limit accidentals - or second accidental chain)
