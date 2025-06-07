@@ -1388,6 +1388,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         stepsList: [],
         stepsLookup: {},
         enharmonics: {},
+        enharmonicsReversed: {},
         nominals: [],
         ligatures: [],
         accChains: [],
@@ -2597,6 +2598,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var nextHash = enhEquivNotes[(j + 1) % enhEquivNotes.length];
                 tuningConfig.enharmonics[hash] = nextHash;
             }
+            for (var j = enhEquivNotes.length - 1; j >= 0; j--) {
+                var hash = enhEquivNotes[j];
+                var prevHash = enhEquivNotes[(j - 1 + enhEquivNotes.length) % enhEquivNotes.length];
+                tuningConfig.enharmonicsReversed[hash] = prevHash;
+            }
         }
     }
 
@@ -2867,8 +2873,13 @@ function parsePossibleConfigs(text, tick) {
             config: function (parms) {
                 if (!maybeConfig.preserveNominalsMode && !maybeConfig.changeRelativeNominalOnly) {
                     // Changes mode of the nominals.
+
                     // When the user declares "!C4: 440", the nominals will start
                     // from C4 instead of whatever it was.
+
+                    // E.g., if the original TuningConfig was A4: 440 with aeolian mode LsLLsLL
+                    // then declaring !C4: 440 will keep the same aeolian mode over C4 tuned to 440Hz
+                    // so that C4, D4, E4, ..., C5 will still sound like a minor scale over 440 Hz.
 
                     parms.currTuning.tuningNominal = maybeConfig.tuningNominal;
                     parms.currTuning.relativeTuningNominal = 0;
@@ -2903,6 +2914,10 @@ function parsePossibleConfigs(text, tick) {
 
                     parms.currTuning.tuningFreq = newHz / oldHz * parms.currTuning.originalTuningFreq;
                 } else {
+                    // Only change relative tuning nominal without changing tuning or mode of any note.
+
+                    // This should only affect JI ratio fingering annotations and displaycents/steps,
+                    // and otherwise have no effect on the actual behavior or playback of notes.
                     parms.currTuning.relativeTuningNominal = maybeConfig.tuningNominal - parms.currTuning.tuningNominal;
                 }
             }
@@ -4176,45 +4191,42 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
 }
 
 /**
- * Retrieve the next note up/down/enharmonic from the current {@link PluginAPINote}, and
- * returns {@link XenNote} and {@link PluginAPINote.line} offset to be applied on the note.
+ * Retrieve the next note up/down/enharmonic from the current {@link PluginAPINote}, and returns
+ * {@link XenNote} and {@link PluginAPINote.line} offset to be applied on the note.
  *
- * This function does not read/regard secondary accidentals. The returned {@link NextNote} will
- * not contain any secondary accidentals.
+ * This function does not read/regard secondary accidentals. The returned {@link NextNote} will not
+ * contain any secondary accidentals.
  *
- * The returned `lineOffset` property represents change in `Note.line`.
- * This is a negated value of the change in nominal ( +pitch = -line )
+ * The returned `lineOffset` property represents change in `Note.line`. This is a negated value of
+ * the change in nominal ( +pitch = -line )
  *
  * In up/down mode, the enharmonic spelling is decided with the following rules:
  *
  * - If the new note has an enharmonic spelling that matches prior accidental state/key signature,
  *   the new note returned will use the enharmonic spelling matching.
  *
- * - Otherwise, the enharmonic spelling with the smallest accidental vector distance
- *   from the current note's AV (sum of squares) is to be chosen.
- *   This ensures that accidentals used will stay roughly within the same
- *   ball park.
+ * - Otherwise, the enharmonic spelling with the smallest accidental vector distance from the
+ *   current note's AV (sum of squares) is to be chosen. This ensures that accidentals used will
+ *   stay roughly within the same ball park.
  *
- * - Otherwise, if two options have very similar {@link AccidentalVector} distances, choose the one with
- *   lesser accidental symbols. This ensures that ligatures will always take effect.
+ * - Otherwise, if two options have very similar {@link AccidentalVector} distances, choose the one
+ *   with lesser accidental symbols. This ensures that ligatures will always take effect.
  *
- * - Otherwise, we should pick the enharmonic spelling that
- *   minimizes nominal/line offset amount.
+ * - Otherwise, we should pick the enharmonic spelling that minimizes nominal/line offset amount.
  *
- * - If all else are the same, up should prefer sharp side of acc chains (simply
- *   the sum of all degrees in the vector), and down should prefer flat side.
+ * - If all else are the same, up should prefer sharp side of acc chains (simply the sum of all
+ *   degrees in the vector), and down should prefer flat side.
  *
  *
- * A `NextNote.matchPriorAcc` flag will be returned `true` if an enharmonic
- * spelling is found that matches prior accidental state.
+ * A `NextNote.matchPriorAcc` flag will be returned `true` if an enharmonic spelling is found that
+ * matches prior accidental state.
  *
- * @param {number} direction `1` for upwards, `0` for enharmonic cycling, `-1` for downwards.
- * @param {number[]?} constantConstrictions
- *  An optional list of indices of accidental chains specifying the accidental chains
- *  that must maintain at the same degree.
+ * @param {number} direction `-1` for downwards, `0` for enharmonic cycling, `1` for upwards, `2`
+ * for reverse enharmonic cycling.
+ * @param {number[]?} constantConstrictions An optional list of indices of accidental chains
+ *  specifying the accidental chains that must maintain at the same degree.
  *
- *  This is applied for auxiliary up/down function where certain accidental movements
- *  are skipped.
+ *  This is applied for auxiliary up/down function where certain accidental movements are skipped.
  *
  *  (Only applicable if direction is `1`/`-1`. Not applicable for enharmonic)
  *
@@ -4225,9 +4237,8 @@ function readBarState(tickOfThisBar, tickOfNextBar, cursor) {
  * @param {number} tickOfNextBar Tick of first segment of the next bar, or -1 if last bar.
  * @param {Cursor} cursor MuseScore cursor object
  * @param {BarState} reusedBarState
- * @returns {NextNote?}
- *  `NextNote` object containing info about how to spell the newly modified note.
- *  Returns `null` if no next note can be found.
+ * @returns {NextNote?} `NextNote` object containing info about how to spell the newly modified
+ *  note. Returns `null` if no next note can be found.
  */
 function chooseNextNote(direction, constantConstrictions, noteData, keySig,
     tuningConfig, tickOfThisBar, tickOfNextBar, cursor) {
@@ -4236,9 +4247,10 @@ function chooseNextNote(direction, constantConstrictions, noteData, keySig,
 
     log('Choosing next note for (' + noteData.xen.hash + ', eqv: ' + noteData.equaves + ')');
 
-    if (direction === 0) {
+    if (direction === 0 || direction === 2) {
         // enharmonic cycling
-        var enharmonicNoteHash = tuningConfig.enharmonics[noteData.xen.hash];
+        var isReverse = direction === 2;
+        var enharmonicNoteHash = isReverse ? tuningConfig.enharmonicsReversed[noteData.xen.hash] : tuningConfig.enharmonics[noteData.xen.hash];
 
         log('retrieved enharmonicNoteHash: ' + enharmonicNoteHash);
 
@@ -5261,7 +5273,7 @@ function forceExplicitAccidentalsAfterNote(
  * removed after this bar is processed.
  *
  * @param {PluginAPINote} note `PluginAPI::Note` object to modify
- * @param {number} direction 1 for up, -1 for down, 0 for enharmonic cycle
+ * @param {number} direction 1 for up, -1 for down, 0 for enharmonic cycle, 2 for reverse enharmonic cycle.
  * @param {number?} aux
  *  The Nth auxiliary operation for up/down operations. If 0/null, defaults
  *  to normal stepwise up/down. Otherwise, the Nth auxiliary operation will

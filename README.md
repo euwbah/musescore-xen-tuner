@@ -43,10 +43,11 @@ Extract files to plugins folder and **activate all the following plugins** (see 
 
 ### 2. Remove MuseScore default shortcuts
 
-⚠️ **The following default keyboard shortcuts in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts) must be removed/remapped**. This plugin is designed to **replace these default shortcuts**:
+⚠️ **The following default keyboard shortcuts in [MuseScore's shortcut preferences](https://musescore.org/en/handbook/3/preferences#shortcuts) must be removed/remapped**. This plugin is designed to *replace/add these default shortcuts**:
 
 - `Up/Down` arrow keys: Pitch up/down or move text/articulation up/down
-- `J`: Change enharmonic spelling
+- `J`: Cycle through enharmonically equivalent spellings
+  - `Shift+J`: Cycle enharmonics in reverse order
 - `Shift+Alt+Up/Down`: Diatonic up/down
 - `Alt+Up/Down`: Go to higher/lower pitched note in chord
   - Remap this to Page Up/Down, it's a useful shortcut to have still.

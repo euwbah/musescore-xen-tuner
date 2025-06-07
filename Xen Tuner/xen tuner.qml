@@ -112,6 +112,17 @@ MuseScore {
         }
       }
       Shortcut {
+        sequence: "Shift+J"
+        context: Qt.ApplicationShortcut
+        id: enharmonicReversedShortcut
+        onActivated: {
+            Fns.preAction();
+            infoText.text = "Cycling enharmonics (reverse)";
+            Fns.operationTranspose(2, 0);
+            afterOperation();
+        }
+      }
+      Shortcut {
         sequence: "Up"
         context: Qt.ApplicationShortcut
         id: upShortcut
@@ -284,12 +295,14 @@ MuseScore {
                 upShortcut.enabled = false;
                 downShortcut.enabled = false;
                 enharmonicShortcut.enabled = false;
+                enharmonicReversedShortcut.enabled = false;
             } else {
                 // If no notes are selected, allow up/down arrow keys to move elements.
                 Fns.setUpDownFallthrough(true);
                 upShortcut.enabled = true;
                 downShortcut.enabled = true;
                 enharmonicShortcut.enabled = true;
+                enharmonicReversedShortcut.enabled = true;
             }
         }
       }
@@ -303,8 +316,8 @@ MuseScore {
       function handleClose() {
         console.log('Quitting');
         var shortcuts = [
-          tuneShortcut, enharmonicShortcut, upShortcut, up1Shortcut,
-          up2Shortcut, up3Shortcut, up4Shortcut, up5Shortcut, up6Shortcut,
+          tuneShortcut, enharmonicShortcut, enharmonicReversedShortcut, upShortcut,
+          up1Shortcut, up2Shortcut, up3Shortcut, up4Shortcut, up5Shortcut, up6Shortcut,
           downShortcut, down1Shortcut, down2Shortcut, down3Shortcut,
           down4Shortcut, down5Shortcut, down6Shortcut
         ];

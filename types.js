@@ -537,8 +537,19 @@ class TuningConfig {
     stepsList;
     /** @type {StepwiseLookup} */
     stepsLookup;
-    /** @type {EnharmonicGraph} */
+    /**
+     * enharmonics[{@link XenNote.hash}] gives the next enharmonic equivalent of the note.
+     *
+     * Reversed order is in {@link enharmonicsReversed}.
+     * @type {EnharmonicGraph} */
     enharmonics;
+    /**
+     * enharmonics[{@link XenNote.hash}] gives the previous enharmonic equivalent of the note.
+     *
+     * Reversed order is in {@link enharmonics}.
+     * @type {EnharmonicGraph}
+     */
+    enharmonicsReversed;
     /** @type {AccidentalChain[]} */
     accChains;
     /** @type {Ligature[]} */

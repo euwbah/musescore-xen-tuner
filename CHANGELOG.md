@@ -15,6 +15,8 @@
 
 - Added support for Functional Just System (thanks to @Aumuse for the inspiration & initial implementation)
 
+- Added `Shift + J` shortcut for enharmonic cycling in reverse (opposite order of `J` cycling)
+
 ## 0.3.6
 
 - Fix not able to enter natural accidental as a fingering.
