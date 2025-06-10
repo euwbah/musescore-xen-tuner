@@ -346,7 +346,7 @@ Normally there are only 7 nominals (letters A to G), and the distance between tw
 
 However, in Xen Tuner, you're free to declare as many nominals as you want, tuned to whatever you want, as long as you have at least 2 nominals. The distance between two adjacent equivalent nominals (e.g., `C4` and `C5`) is called an **equave**, which is a generalization of the octave. You can set the equave to whatever interval you want.
 
-This means, you can construct notation systems like the [chromatic staff](https://www.youtube.com/watch?v=U7l7s1Vr6lQ&ab_channel=FabioCostaMusic), where all nominals are the same size, or [Bohlen-Pierce](https://www.youtube.com/watch?v=sd1b9Lh8iFA&t=89s&ab_channel=KjellHansen) with 9 nominals. For whatever reason, you can even write using the negative treble clef (negative harmony) by setting the equave to negative `-1200c`. Then, notes that are visually going up will sound like they're going down.
+This means you can implement a tuning conifguration for notation systems like the [chromatic staff](https://www.youtube.com/watch?v=U7l7s1Vr6lQ&ab_channel=FabioCostaMusic), where all nominals are the same size, or [Bohlen-Pierce](https://www.youtube.com/watch?v=sd1b9Lh8iFA&t=89s&ab_channel=KjellHansen) with 9 nominals. For whatever reason, you can even write using the negative treble clef (negative harmony) by setting the equave to negative `-1200c`. Then, notes that are visually going up will sound like they're going down.
 
 ### Symbol codes, text codes, text-based accidental symbols
 
@@ -365,7 +365,7 @@ To refer to a SMuFL symbol when setting up a tuning/key signature, either use th
 >
 > Symbol Code `100` doesn't have a Text Code attributed to it (at this time of writing), so you can only refer to it by entering `100`.
 
-Specify UTF/ASCII text-based accidentals by referring to them in single quotes, as long as the text does not contain a space. These symbols will be displayed as fingering text beside the notehead and will be formatted like an accidental symbol.
+**UTF/ASCII text-based accidentals are specified using single quotes**. All UTF characters are supported except spaces, tabs, or newlines. These symbols will be displayed as fingering text beside the notehead and will be formatted like an accidental symbol.
 
 > [!NOTE]
 > **E.g.** `'abc'` represents the literal text "abc" as a single accidental symbol.
@@ -384,10 +384,10 @@ For example, the down arrow symbol (SymbolCode 43) must be referred to as `\\` e
 
 ### Constructing an accidental
 
-Multiple symbols can combine to form a single logical accidental that represents a single pitch adjustment in an accidental chain. Separate each symbol code/quoted text with a period to combine them.
+Multiple symbols can combine to form a single logical accidental that represents a single pitch adjustment. Separate each symbol code/quoted text with a period to combine them.
 
 > [!NOTE]
-> **E.g.** `x./.'hi'` refers to a single accidental comprised of the double sharp symbol, up arrow symbol and the text 'hi', left to right order.
+> **E.g.** `x./.'hi'` refers to a single accidental consisting of the double sharp symbol, up arrow symbol and the text 'hi', in left to right order.
 
 ### Accidental chains & degrees
 
@@ -395,20 +395,20 @@ Now, when we say "sharps and flats", these accidentals represents a chain of acc
 
 In 12edo, each degree along the sharps/flats chain represents a 100 cent increment, so degree -2 would be -200 cents. We can theoretically extend this chain indefinitely to include as many sharps and flats as we want.
 
-You can't attach two accidental degrees from the same accidental chain on to a single note (like how it wouldn't make sense to call a note "C-sharp-double-flat-triple-natural").
+A note can only have one accidental degree per accidental chain. E.g., it wouldn't make sense to call a note "C-sharp-double-flat-triple-natural", we would just sum up the degrees (+1 - 1 - 1 + 0 + 0 + 0 = -1) and call it "C-flat".
 
-To combine and permute different accidentals, declare multiple accidental chains. E.g. `C#/` can signify +1 degree sharp, and +1 degree syntonic comma.
+To combine different accidentals together, declare multiple accidental chains. E.g. `C#/` can mean +1 degree sharp, and +1 degree of the syntonic comma.
 
 ### Accidental vectors
 
-The degrees of each accidental chain forms a list of numbers called the **accidental vector**. This is a unique representation of all the accidentals attached to one notehead.
+The degrees of each accidental chain form a list of numbers called the **accidental vector**. This is a unique representation of the [primary accidentals](#primary-tuning-space) (excludes [secondary accidentals](#advanced-secondary-accidentals)) attached to a note.
 
 > [!NOTE]
 > **E.g.** in 5-limit Helmholtz-Ellis Just Intonation (HEJI) notation, we need to define two **accidental chains**.
 >
 > First, the chain of sharps and flats, where each step in the 'sharp' direction corresponds to the apotome interval (2187/2048). These accidentals allow us to access 3-limit just intonation.
 >
-> Next, the chain of syntonic commas, where each step up is equal to the syntonic comma (81/80). These accidentals give access to 5-limit just intonation.
+> Next, the chain of syntonic commas, where each step up is equal to the syntonic comma (81/80). These accidentals unlock 5-limit just intonation.
 >
 > Now, we can notate the classic major third (5/4) of `D` as `F#v` (F-sharp-down). `F#v` is 1 step up in the 'sharp' direction, and 1 step down in the 'syntonic comma' direction. Thus, we can represent this note as having the accidental vector of `1, -1` if the first accidental chain contains sharps/flats and the second contains the syntonic commas `^`/`v`.
 
@@ -1244,6 +1244,8 @@ Each line denotes a tuning override for each note in the [primary tuning space](
   - E.g., since `A4: 440` is the reference note frequency, `0` is `A`, `1` is `B`, `2` is `C`, etc...
 - Middle numbers: the [accidental vector/accidental chain degrees](#accidental-vectors), space-separated if there are multiple numbers. Accidental chain degrees are written in the same order that accidental chains are declared in.
 - Last number: the [relative interval](#relative-tuning-interval-syntax) for the note, relative to the reference pitch (`A4: 440`) and equave.
+
+For example, the line `1 -1 25/24` means that the note with nominal `B` (which is `1` relative to `A` = 0) and accidental vector `-1` (which is a single &flat;) should be tuned to `25/24` relative to the reference of `A` within that equave/octave. Simply put, that sets B&flat;4 = 25/24 of A4. Since the equave is defined as exactly `1200c`, then that means the same relation holds for all other octaves.
 
 > [!CAUTION]
 > The tuning of the overrides are specified **relative to the reference pitch**, not relative to original tuning of the note before the tuning overrides.
