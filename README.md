@@ -1679,34 +1679,33 @@ I need help with tabulating the [list of all accidentals](https://docs.google.co
 
 ## Caveats
 
-- Does not intend to use the standard Accidentals at all. Accidental symbols used/created by the plugin are cosmetic symbols from the "Symbols" category of the Master Palette. This means:
+- **Does not use the standard accidentals from the "Accidentals" palette**. Accidental symbols used/created by the plugin are cosmetic symbols from the "Symbols" category of the Master Palette. This allows placing multiple accidental symbols on a note. This means:
   - You cannot drag accidentals from the "Accidentals" palette. All accidentals used must be from the "Symbols" category in the Master Palette.
   - Existing scores not made by this plugin will not work with this plugin.
   - Accidentals on grace notes can't be made smaller.
-  - Formatting may look weird as this plugin has to reconstruct how accidentals are to be positioned.
-- Only concert pitch display mode is supported. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
+  - Formatting may look different as this plugin completely reimplements how accidentals are positioned.
+- **Only concert pitch display mode is supported**. If you wish to write for transposing instruments in its transposed key, put the score in Concert Pitch mode and use a Staff Text to enter a Tuning Config such that the tuning frequency matches the transposition of the instrument.
 - Does not fully support cross-staff notation. Accidentals don't carry over between two different staves if cross-staff notation is used. However, you can specify all accidentals explicitly.
-- You cannot adjust the Z index ("Stacking order") of accidental symbols, and certain Z indices are reserved for special fingerings (3903-3905, 1000-2000).
 
 #### Smaller caveats
 
-- 5-10s freeze after starting this plugin for the first time after opening MuseSoce. [The plugin is loading](https://musescore.org/en/node/306551#comment-1005654).
+- You cannot adjust the Z index ("Stacking order") of accidental symbols, and certain Z indices are reserved for special fingering annotations/accidentals which should not be used for any other purposes (3903-3905, 1000-2000).
+- 5-10s freeze after starting this plugin for the first time after opening MuseScore. [The plugin is loading](https://musescore.org/en/node/306551#comment-1005654).
 - Does not differentiate between the order of appearance of accidentals within one note.
-- Does not intend to support having the same symbols in two different accidental chains (I am unaware of any notation system that requires this)
+- Does not intend to support having the same symbols in two different accidental chains (if required, this can be simulated using ligatures, read about how to implement the [HEJI enharmonic tilde](#weak--important-ligatures-case-study-heji))
 - Does not support grace notes occurring _after_ a note. Grace notes occuring _before_ a note are supported.
-- Octave 8va/15ma/etc... lines are not supported when non-standard number of nominals are used (e.g. bohlen pierce). You can simulate an octave line by setting the reference frequency higher/lower when needed.
-- If an undeclared accidental combination is used, the note will be regarded as without accidental, even if some (but not all) symbols are declared in accidental chains.
-- Ornaments can only be tuned within +/- 100 cents resolution.
+- Octave 8va/15ma/etc... lines are not supported when non-standard number of nominals are used (e.g. bohlen pierce). You can simulate an 8va/8vb line by setting the [reference frequency](#6-change-reference-pitch) higher/lower when needed.
+- If an undefined accidental combination is used, all accidentals on that note will be ignored, even if some (but not all) symbols are parsable.
+- Playback of ornaments is fixed to +/- 100 cent steps relative to the attached note.
 - When exporting MIDI, crescendos/diminuendos do not affect velocity. There doesn't seem to be a simple way to get the velocity of a note from the plugin API.
-- Could be very laggy...
 
 -----
 
 ## Clarifications
 
-- The use of the term _accidental chain_ in this readme is not related to ["Nominal-Accidental Chains"](https://en.xen.wiki/w/Nominal-accidental_chain). The former represents a sequence of accidentals where two adjacent accidentals differ by a more-or-less consistent interval size. The latter is a more general descriptor of the phenomenon where most western-centric notation systems involve one nominal and some accidentals which can generate a sequence of notes.
+- The use of the term _accidental chain_ in this readme is not related to ["Nominal-Accidental Chains"](https://en.xen.wiki/w/Nominal-accidental_chain). ["Accidental chain"](#accidental-chains--degrees) in this document refers to a sequence of accidentals where adjacent accidentals are a constant interval apart (unless irregular accidental offsets are used), and differs by one [degree](#accidental-chains--degrees) in its component of the [accidental vector](#accidental-vectors). The term "Nominal-Accidental Chain" on https://xen.wiki is a more general descriptor of the phenomenon where most western-centric notation systems involve one nominal and some accidentals which can generate a sequence of notes.
 
-- The "Xen Tuner" name is unrelated to [Keenan Pepper's MuseScore Xentuner plugin](https://github.com/keenanpepper/musescore-xentuner). This naming coincidence I only realized after naming the project.
+- The "Xen Tuner" name is unrelated to [Keenan Pepper's MuseScore Xentuner plugin](https://github.com/keenanpepper/musescore-xentuner). This naming coincidence I only realized after naming the project. Currently, Keenan's version supports MuseScore 4, and this one doesn't.
 
 -----
 
