@@ -18,7 +18,11 @@ If you're not familliar with git, or need assistance with creating a tuning conf
 
 - [hewm](./hewm/) --- Helmholtz-Ellis-Wolf-Monzo notation that uses text-beasd accidentals for just intonation & JI mappings
 
+- [kite](./kite/) --- Kite notation for EDOs/EDXs based off pythagorean accidentals/chain-of-fifths and up/down arrows to fill in edosteps. Up/down arrows propagate independently of pythagorean sharp/flat accidentals.
+
 - [neji](./neji/) --- Contains configs for near-equal just intonation tunings, which are notated as EDOs (TODO: there is a lot of possible variance in notation styles for NEJIs. Until one particular style is agreed upon, this should probably be in [userspace](./user/))
+
+- [sagittal](./sagittal/) --- [Sagittal notation](https://sagittal.org/) (currently only edos). Both Evo and Revo variants supported
 
 - [test](./test/) --- Random tuning configs that are used to test/debug plugin features.
 
