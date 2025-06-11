@@ -60,8 +60,8 @@ EQUAVE_SIZE = 1200
 Size of the equave in cents.
 Use 1200 for default octave size.
 
-To convert a ratio into cents, use 1200 * math.log2(<ratio>),
-e.g. for ED3s, type: 1200 * math.log2(3/1).
+To convert a ratio into cents, use `1200 * math.log2(<ratio>)`,
+e.g. for ED3s, use: `1200 * math.log2(3/1)`.
 
 This value can be positive or negative, but must be non-zero.
 
@@ -96,14 +96,14 @@ notes can only be accessed using up/down arrows.
 If 2, then pythagorean accidentals up to double flats and double sharps are provided.
 """
 
-NUM_ADDITIONAL_ARROWS = 0
+NUM_ADDITIONAL_ARROWS = 1
 """
-If 0, then only the minimum necessary amount of up/down arrows are provided
-in the arrows accidental chain, otherwise it will add the specified amount
-of additional arrows to the tuning config, for enharmonic spelling purposes.
+If 0, then only the minimum necessary amount of up/down arrows are provided in the arrows accidental
+chain, otherwise it will add the specified amount of additional arrows to the tuning config, for
+enharmonic spelling purposes.
 
-E.g. there are no required arrows for 31 edo given NUM_SHARPS_FLATS = 2,
-additional arrows have to be specified if arrows are required.
+E.g. there are no required arrows for 31 edo given NUM_SHARPS_FLATS = 2, since all 31 notes can be
+accessed using double sharps and flats. Additional arrows have to be specified here.
 """
 
 """

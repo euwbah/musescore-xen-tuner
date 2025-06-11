@@ -10,7 +10,8 @@ In summary, this notation method uses the best available fifth interval of the E
 
 -----
 
-🟢 **HIGHLY RECOMMENDED: Use the provided [`generate-edo-updown.py`](./generate-edo-updown.py) python script to generate tuning configs for new/custom EDOs.**
+> [!IMPORTANT]
+> **HIGHLY RECOMMENDED: Use the provided [`generate-edo-updown.py`](./generate-edo-updown.py) python script to generate tuning configs for new/custom EDOs.**
 
 This script allows configuring:
 - whether to use the second-best, third-best, etc. fifth interval, so tunings configs like 18b edo (see [wart notation](https://en.xen.wiki/w/Val#Shorthand_notation)) can be generated.
@@ -19,5 +20,5 @@ This script allows configuring:
 - and more...
 
 > Note: When declaring textual representations/secondary accidentals for ligatured notations, it suffices to declare text representations for each accidental chain separately. It's not necessary to have a text representation for every single combination of pythagorean accidental and arrows. See [22edo.txt](./22edo.txt)'s `sec()` declaration` for example.
-> 
+>
 > Best to leave this up to the [python script](./generate-edo-updown.py).
