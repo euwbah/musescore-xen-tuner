@@ -555,12 +555,19 @@ class TuningConfig {
     /** @type {Ligature[]} */
     ligatures;
     /**
-     * List of nominals within an equave in cents (including the first).
+     * List of nominals within an equave in cents (including the first nominal, usually 0c but can
+     * be changed).
      *
-     * @type {number[]} */
+     * `null` values correspond to leaving a gap/ignoring nominals (e.g., for sagittal gold edos
+     * 5/10/15/20/25, B and F are not used by convention)
+     *
+     * @type {(number | null)[]} */
     nominals;
     /**
      * Corresponds to {@link nominals}`.length`
+     *
+     * The number of (MIDI 12edo) nominals per equave. Also counts nominals that are skipped.
+     *
      * @type {number} */
     numNominals;
     /**
@@ -938,6 +945,17 @@ class ChangeReferenceTuning {
      * @type {boolean}
      */
     changeRelativeNominalOnly;
+
+    /**
+     * The 12edo midi note name & octave of the reference note to be tuned.
+     *
+     * For display purposes only.
+     *
+     * E.g., "A4", "C5", etc...
+     *
+     * @type {string}
+     */
+    referenceMidiNoteName;
 }
 
 /**
@@ -1713,6 +1731,46 @@ class FileIO {
      */
     write(str) { }
 }
+
+class MessageDialog {
+    /**
+     * Text to be shown in "Show Details" dropdown
+     * @type {string}
+     */
+    detailedText;
+    /**
+     * Additional text below main text.
+     * @type {string}
+     */
+    informativeText;
+    /**
+     * Main text
+     * @type {string}
+     */
+    text;
+    /**
+     * @type {string}
+     */
+    title;
+    /**
+     * True when dialog is visible.
+     * @type {boolean}
+     */
+    visible;
+    /**
+     * Shows the dialog.
+     */
+    open() {}
+    /**
+     * Closes the dialog.
+     */
+    close() {}
+}
+
+/**
+ * @type {MessageDialog}
+ */
+var alertDialog;
 
 /**
  * Opens a log file for writing.

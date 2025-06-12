@@ -480,8 +480,21 @@ C4: 440 * 16/27 // set frequency reference note (must be without accidental)
 
 // Nominals start from the above specified reference note
 // Cents must end with c, otherwise the number is treated as a JI ratio.
-// Last number specifies the interval of the equave.
-0c 200c 34/27 Math.pow(11/10, 3) Math.sqrt(49000)c 27/16 1101.1c 2/1
+// Last number specifies the size of the equave/octave.
+// "0" (not 0c) means to ignore the nominal and prevent it from being used.
+
+0c 200c 34/27 Math.pow(11/10, 3) Math.sqrt(49000)c 0 1101.1c 2/1
+
+// Relative to the tuning note C4, the there are 6 nominals per octave spanning
+// 7 staff linespaces.
+//
+// C: Tuning note = 440 * 16/27 Hz
+// D: 200c
+// E: 34/27 of C
+// F: (11/10)^3 of C
+// G: About 221.359 cents above C
+// A: This nominal will not exist in this tuning
+// B: 1101.1 cents above C
 
 // 3. Accidental chains
 
@@ -640,6 +653,15 @@ A4: 440
 
 The last interval size, `1200c`, specifies the equave size. The equaves are referenced in terms of the nominals defined, rather than the standard 12edo octave. E.g., if you only declare 2 nominals, then the next equave up from A4 will start at C5 instead of A5.
 
+> [!NOTE]
+> In some tunings, certain nominals are ignored (e.g., in 5edo, maybe you only want to use C D E G A and ignore F and B). In this case, you can use `0` to specify a nominal that should not be used.
+>
+> E.g., for C D E G A in 5edo, we can write:
+> ```txt
+> A4: 440
+> 0c 0 240c 480c 720c 0 960c 1200c
+> ```
+
 Instead of specifying cents directly, any time an interval size is to be specified, we can use any supported [relative tuning interval](#relative-tuning-interval-syntax), as follows:
 
 ### Relative tuning interval syntax
@@ -656,7 +678,7 @@ Whenever a tuning config expects a relative interval size, we can either specify
 > - `(Math.PI)c` is exactly 3.1415926... cents
 > - `Math.sqrt(4/3)` is exactly half the size of a just perfect fourth
 >
-> If for whatever reason, a JavaScript expression ends with 'c' but you don't want it to be interpreted as cents, you can just define and evaluate a variable in one line so it doesn't end with `c`, e.g., `var blah = 2 * magic; blah`.
+> If for some reason a JavaScript expression ends with 'c', but you don't want it to be interpreted as cents, you can just define and evaluate a variable in one line so it doesn't end with `c`, e.g., instead of `2 * magic`, type `var blah = 2 * magic; blah`.
 
 ### Adding accidentals
 

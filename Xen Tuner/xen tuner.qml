@@ -27,46 +27,47 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Window 2.2
 import QtQuick.Layouts 1.2
+import QtQuick.Dialogs 1.2
 import Qt.labs.settings 1.0
 import FileIO 3.0
 
 MuseScore {
-      version: "0.4.0"
-      pluginType: "dock"
-      dockArea: "left"
-      description: "Starts the XenTuner plugin.\n\n" +
+    version: "0.4.0"
+    pluginType: "dock"
+    dockArea: "left"
+    description: "Starts the XenTuner plugin.\n\n" +
         "This will open a small docked panel to the side.\n\nIMPORTANT: Do not close the window.\n"+
         "Make sure you only have 1 instance of this plugin running at a time."
-      menuPath: "Plugins.Xen Tuner.Start Xen Tuner"
-      implicitHeight: 80
-      implicitWidth: 300
-      id: pluginId
-      readonly property var window: Window.window
-      readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
+    menuPath: "Plugins.Xen Tuner.Start Xen Tuner"
+    implicitHeight: 80
+    implicitWidth: 300
+    id: pluginId
+    readonly property var window: Window.window
+    readonly property var pluginHomePath: Qt.resolvedUrl("../").replace("file:///", "")
 
-      onRun: {
+    onRun: {
         console.log('Started Xen Tuner');
         // When you want to find which import has a syntax error, uncomment this line
         // console.log(JSON.stringify(Fns));
 
         var isMS4 = mscoreMajorVersion >= 4;
         Fns.init(Accidental, NoteType, SymId, Element,
-          fileIO, curScore, isMS4);
+        fileIO, curScore, isMS4);
         console.log('present working dir: ' + pluginHomePath);
-      }
+    }
 
-      FileIO {
+    FileIO {
         id: fileIO
         source: "./"
         onError: function(err) {
-          if (err.indexOf(".json") != -1) {
+        if (err.indexOf(".json") != -1) {
             console.warn("File not found: " + fileIO.source)
-          } else {
+        } else {
             console.error(fileIO.source + ". File IO Error: " + err);
-          }
         }
-      }
-      GridLayout {
+        }
+    }
+    GridLayout {
         columns: 1
         rowSpacing: 1
         anchors.fill: parent
@@ -87,9 +88,9 @@ MuseScore {
                 pluginId.parent.Window.window.close();
             }
         }
-      }
+    }
 
-      Shortcut {
+    Shortcut {
         sequence: "Alt+R"
         context: Qt.ApplicationShortcut
         id: tuneShortcut
@@ -99,8 +100,8 @@ MuseScore {
             Fns.operationTune();
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "J"
         context: Qt.ApplicationShortcut
         id: enharmonicShortcut
@@ -110,8 +111,8 @@ MuseScore {
             Fns.operationTranspose(0, 0);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Shift+J"
         context: Qt.ApplicationShortcut
         id: enharmonicReversedShortcut
@@ -121,8 +122,8 @@ MuseScore {
             Fns.operationTranspose(2, 0);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Up"
         context: Qt.ApplicationShortcut
         id: upShortcut
@@ -132,8 +133,8 @@ MuseScore {
             Fns.operationTranspose(1, 0);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Alt+Up"
         context: Qt.ApplicationShortcut
         id: up1Shortcut
@@ -143,8 +144,8 @@ MuseScore {
             Fns.operationTranspose(1, 1);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Ctrl+Alt+Up"
         context: Qt.ApplicationShortcut
         id: up2Shortcut
@@ -154,8 +155,8 @@ MuseScore {
             Fns.operationTranspose(1, 2);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Alt+Shift+Up"
         context: Qt.ApplicationShortcut
         id: up3Shortcut
@@ -165,8 +166,8 @@ MuseScore {
             Fns.operationTranspose(1, 3);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Ctrl+Alt+Shift+Up"
         context: Qt.ApplicationShortcut
         id: up4Shortcut
@@ -176,8 +177,8 @@ MuseScore {
             Fns.operationTranspose(1, 4);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "End"
         enabled: false // set to true to enable
         context: Qt.ApplicationShortcut
@@ -188,8 +189,8 @@ MuseScore {
             Fns.operationTranspose(1, 5);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "End"
         enabled: false
         context: Qt.ApplicationShortcut
@@ -200,8 +201,8 @@ MuseScore {
             Fns.operationTranspose(1, 6);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Down"
         context: Qt.ApplicationShortcut
         id: downShortcut
@@ -211,8 +212,8 @@ MuseScore {
             Fns.operationTranspose(-1, 0);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Alt+Down"
         context: Qt.ApplicationShortcut
         id: down1Shortcut
@@ -222,8 +223,8 @@ MuseScore {
             Fns.operationTranspose(-1, 1);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Ctrl+Alt+Down"
         context: Qt.ApplicationShortcut
         id: down2Shortcut
@@ -233,8 +234,8 @@ MuseScore {
             Fns.operationTranspose(-1, 2);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Alt+Shift+Down"
         context: Qt.ApplicationShortcut
         id: down3Shortcut
@@ -244,8 +245,8 @@ MuseScore {
             Fns.operationTranspose(-1, 3);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Ctrl+Alt+Shift+Down"
         context: Qt.ApplicationShortcut
         id: down4Shortcut
@@ -255,8 +256,8 @@ MuseScore {
             Fns.operationTranspose(-1, 4);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Home"
         enabled: false
         context: Qt.ApplicationShortcut
@@ -267,8 +268,8 @@ MuseScore {
             Fns.operationTranspose(-1, 5);
             afterOperation();
         }
-      }
-      Shortcut {
+    }
+    Shortcut {
         sequence: "Home"
         enabled: false
         context: Qt.ApplicationShortcut
@@ -279,9 +280,9 @@ MuseScore {
             Fns.operationTranspose(-1, 5);
             afterOperation();
         }
-      }
+    }
 
-      onScoreStateChanged: {
+    onScoreStateChanged: {
         if (state.selectionChanged && curScore) {
             var elems = curScore.selection.elements;
             var el = elems[0];
@@ -305,26 +306,38 @@ MuseScore {
                 enharmonicReversedShortcut.enabled = true;
             }
         }
-      }
+    }
 
-      function afterOperation() {
+    function afterOperation() {
         // Don't do this, it will steal focus from the score
         // pluginId.window.requestActivate();
         Fns.postAction();
-      }
+    }
 
-      function handleClose() {
+    function handleClose() {
         console.log('Quitting');
         var shortcuts = [
-          tuneShortcut, enharmonicShortcut, enharmonicReversedShortcut, upShortcut,
-          up1Shortcut, up2Shortcut, up3Shortcut, up4Shortcut, up5Shortcut, up6Shortcut,
-          downShortcut, down1Shortcut, down2Shortcut, down3Shortcut,
-          down4Shortcut, down5Shortcut, down6Shortcut
+        tuneShortcut, enharmonicShortcut, enharmonicReversedShortcut, upShortcut,
+        up1Shortcut, up2Shortcut, up3Shortcut, up4Shortcut, up5Shortcut, up6Shortcut,
+        downShortcut, down1Shortcut, down2Shortcut, down3Shortcut,
+        down4Shortcut, down5Shortcut, down6Shortcut
         ];
         for (var i = 0; i < shortcuts.length; i++) {
-          shortcuts[i].context = Qt.WindowShortcut; // make the shortcut disappear with the window.
-          console.log('disable shortcut: ' + shortcuts[i].sequence);
+        shortcuts[i].context = Qt.WindowShortcut; // make the shortcut disappear with the window.
+        console.log('disable shortcut: ' + shortcuts[i].sequence);
         }
         Qt.quit(); // TODO: Delete for MS4, use dialog instead of dock plugin type.
-      }
+    }
+
+    MessageDialog {
+        id: alertDialog
+        title: "Alert"
+        text: "Some text"
+        onAccepted: {
+
+        }
+        Component.onCompleted: {
+            visible = false;
+        }
+    }
 }

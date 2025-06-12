@@ -8,7 +8,7 @@
 
   Note that `//` have to be escaped as `\/\/` and `\\` as `\\\\` in the tuning config .txt file.
 
-- #13: Support `independent()` declarations for independently acting accidental symbols.
+- Feature #13: Support `independent()` declarations for independently acting accidental symbols.
   - Each independent symbol group will persist until end of bar, and other symbols in other groups
     will not affect accidental state for those symbols in the group.
   - Declaring symbol groups will re-configure left-to-right order of symbols in the group.
@@ -20,7 +20,7 @@
     in the first symbol group, placing them on the right. Within a single symbol group, the symbols
     will follow order according to order of declaration of accidental chains.
 
-- Fix fingering formatting issue when two noteheads on adjacent staff lines in the same chord or
+- Fix: Fingering formatting issue when two noteheads on adjacent staff lines in the same chord or
   when multiple voices are present.
   - The default fingering text uses "Fingering" Style (`subStyle`) which in MuseScore 3.6.2 is
     assigned to the enum constant 33 (**but this changes depending on MuseScore version, so it has
@@ -28,15 +28,22 @@
   - However, this subStyle uses chord stem as X position anchor instead of notehead, and has special
     vertical alignment rules when multiple voices are present.
   - To attach the fingering text directly to the notehead with no extra formatting rules, we change
-    `subStyle = 45` which is the "User-1" style in MS 3.6.2 (**also needs to be kept updated**)
+    `subStyle = 45` which is the "User-1" style in MS 3.6.2 (**enum constant to be kept updated**)
 
-- Space-separated data in the tuning config can now have arbitrarily many spaces/tabs between each
-  entry to allow better readability (e.g., aligning vertical columns in tabular format).
+- Feature: Space-separated data in the tuning config can now have arbitrarily many spaces/tabs
+  between each entry to allow better readability (e.g., aligning vertical columns in tabular
+  format).
 
-- Added support for Functional Just System (thanks to @Aumuse for the inspiration & initial
-  implementation)
+- Tuning config: Added support for [Functional Just System](tunings/fjs) (thanks to @Aumuse for the
+  inspiration & initial implementation)
 
-- Added `Shift + J` shortcut for enharmonic cycling in reverse (opposite order of `J` cycling)
+- Tuning config: Added support for [sagittal](tunings/sagittal) edos & autogen script according to
+  edosteps definitions collated by Douglas Blumeyer.
+
+- Feature: `Shift + J` shortcut for enharmonic cycling in reverse (opposite order of `J` cycling)
+
+- Feature: Skip nominals by specifying `0` as the size of the nominal (not to be confused with `0c`
+  for 1/1). E.g., in 5edo, B and F can be skipped.
 
 ## 0.3.6
 

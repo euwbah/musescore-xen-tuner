@@ -1,6 +1,13 @@
 """
 Generates EDOs for sagittal tunings.
 
+Run this script from the root directory of Xen Tuner (not from here).
+
+```sh
+python tunings/sagittal/generate_edo.py
+```
+
+
 Methodology:
 
 We start with the Evolutionary (Evo) symbols first.
@@ -15,6 +22,41 @@ up/down or enharmonic cycling operations.
 
 import math
 import json
+
+# ============== CONFIGURE SETTINGS HERE ===================
+
+
+SKIP_NOMINALS_WHEN_GOLD = True
+"""
+Refer to the periodic table of small edos: https://sagittal.org
+
+For gold edos with very sharp fifths, the limma (diatonic semitone between B-C and E-F) have
+opposite or equal pitch ordering (B >= C, and E >= F). In this case, normally B and F are ignored
+and not used in the notation.
+
+Setting this to `True` will enable the feature that will skip B/C and E/F nominals (which also
+prevents them from showing up in enharmonic cycling). Use `GOLD_IGNORE_B` and `GOLD_IGNORE_F` to
+control which one is omitted and which one is used.
+
+If `False`, the up/down arrow keys will still prefer either one of the diatonic semitones at random,
+but the alternative can always be accessed using the `J` enharmonic cycling key.
+"""
+
+GOLD_IGNORE_B = True
+"""
+If `True`, ignores B and uses C if using a gold edo. Otherwise, uses B.
+
+The Sagittal specification recommends skipping B.
+"""
+
+GOLD_IGNORE_F = True
+"""
+If `True`, ignores F and uses E if using a gold edo. Otherwise, uses F.
+
+The Sagittal specification recommends skipping F.
+"""
+
+
 
 # ============ LOOKUP TABLES ======================
 
@@ -477,7 +519,7 @@ def generate_tuning_config(
     # Tune to A4: 440 by default, Aeolian mode.
 
     # in edosteps
-    nominals = [
+    nominals: list[int | None] = [
         0,                        # A
         APOTOME + LIMMA,          # B
         APOTOME + 2 * LIMMA,      # C
@@ -488,11 +530,18 @@ def generate_tuning_config(
         edo,                      # equave
     ]
 
-    # TODO: This doesn't work. Implement a way to skip nominals in Xen Tuner first.
-    # if is_gold:
-    #     # try to skip B and F setting them to -999 edosteps.
-    #     nominals[1] = -999
-    #     nominals[5] = -999
+    # skip nominals if requested
+    if is_gold and SKIP_NOMINALS_WHEN_GOLD:
+        # try to skip B and F setting them to -999 edosteps.
+        if GOLD_IGNORE_B:
+            nominals[1] = None # no B
+        else:
+            nominals[2] = None # no C
+
+        if GOLD_IGNORE_F:
+            nominals[5] = None # no F
+        else:
+            nominals[4] = None # no E
 
     secondary_symbols: list[tuple[str, str, float]] = []
     """
@@ -507,7 +556,7 @@ def generate_tuning_config(
     - Text representation should be escaped before using in Tuning Config.
     """
 
-    NOMINAL_STR = " ".join(f"1200*{nominals[i]}/{edo}c" for i in range(len(nominals)))
+    NOMINAL_STR = " ".join((f"1200*{nominals[i]}/{edo}c" if nominals[i] is not None else "0") for i in range(len(nominals)))
     print(f"Nominals: {NOMINAL_STR}")
 
     # First accidental chain is always standard, Revo is implemented using ligatures. Only double

@@ -375,6 +375,20 @@ function postAction() {
 }
 
 /**
+ * Show `alertDialog` MesasgeDialog.
+ *
+ * @param {string} title Title of the alert dialog.
+ * @param {string} text Text of the alert dialog.
+ * @param {string} [detailedText] Optional detailed text of the alert dialog.
+ */
+function showAlert(title, text, detailedText) {
+    alertDialog.title = title;
+    alertDialog.text = text;
+    alertDialog.detailedText = detailedText || '';
+    alertDialog.open();
+}
+
+/**
  *
  * @param {*} MSAccidental Accidental enum from MuseScore plugin API.
  * @param {*} MSNoteType NoteType enum from MuseScore plugin API.
@@ -1050,7 +1064,7 @@ function parseSymbolsDeclaration(str, suppressError) {
             if (!VALID_ASCII_ACC_ESC_CHARS[c]) {
                 // invalid escape sequence.
                 if (!suppressError)
-                    console.error('TUNING CONFIG ERROR: Invalid escape sequence: \\' + c);
+                    showAlert('Tuning Config Error', 'Invalid escape sequence: \\' + c);
                 return null;
             }
             isEscape = false;
@@ -1078,7 +1092,7 @@ function parseSymbolsDeclaration(str, suppressError) {
 
                 if (code == null) {
                     if (!suppressError)
-                        console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                        showAlert('Tuning Config Error', 'Invalid symbol: ' + currStr);
                     return null;
                 }
 
@@ -1095,7 +1109,7 @@ function parseSymbolsDeclaration(str, suppressError) {
 
     if (isQuoted) {
         if (!suppressError)
-            console.error('TUNING CONFIG ERROR: symbol missing closing quote: ' + str);
+            showAlert('Tuning Config Error', 'Symbol is missing closing quote: ' + str);
         return null;
     }
 
@@ -1112,7 +1126,7 @@ function parseSymbolsDeclaration(str, suppressError) {
 
             if (code == null) {
                 if (!suppressError)
-                    console.error('TUNING CONFIG ERROR: invalid symbol: ' + currStr);
+                    showAlert('Tuning Config Error', 'Invalid symbol: ' + currStr);
                 return null;
             }
 
@@ -1475,6 +1489,10 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     var hasInvalid = false;
     var invalidNominals = [];
     var nominals = spaceSeparated(lines[1]).map(function (x) {
+            if (x == '0') {
+                // Specify 0 for ignoring the nominal (leaves a space in the staff).
+                return null;
+            }
             var f = parseCentsOrRatio(x);
             if (f == null) {
                 hasInvalid = true;
@@ -1484,14 +1502,14 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         });
 
     if (hasInvalid) {
-        log('Invalid nominal tunings: ' + invalidNominals.join(', '));
+        showAlert('Tuning Config Error', 'Invalid nominal tunings: ' + invalidNominals.join(', '));
         return null;
     }
 
     tuningConfig.nominals = nominals.slice(0, nominals.length - 1);
     tuningConfig.equaveSize = nominals[nominals.length - 1];
     if (tuningConfig.equaveSize == 0) {
-        console.error('TUNING CONFIG ERROR: Equave size must be non-zero!');
+        showAlert('Tuning Config Error', 'Equave size must be non-zero.');
         return null;
     }
     tuningConfig.numNominals = tuningConfig.nominals.length;
@@ -1534,7 +1552,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     console.warn('TUNING CONFIG: ' + (i + 1) + ': invalid accidental chain increment: ' + matchIncrement[1]
                         + '\nAttempting to parse as symbols instead');
                 } else if (increment != null) {
-                    console.error('TUNING CONFIG ERROR: Multiple acc chain increments specified in: ' + line);
+                    showAlert('Tuning Config Error', 'Multiple accidental chain increments specified in: ' + line +
+                        '\n\nOnly one should be specified.');
                 } else {
                     increment = maybeIncrement;
                     degreesSymbols.push(null);
@@ -1554,7 +1573,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var symbolCodes = parseSymbolsDeclaration(symbols_offset[0]);
 
             if (symbolCodes == null) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Could not parse accidental decl: ' + word);
+                showAlert('Tuning Config Error: line ' + (i + 1), 'Could not parse accidental decl: ' + word);
                 return null;
             }
 
@@ -1570,7 +1589,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         }
 
         if (increment == null || centralIdx == null) {
-            console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid accidental chain: "' + accChainWords.join(' ') + '" in ' + line);
+            showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid accidental chain: "' + accChainWords.join(' ') + '" in ' + line);
             return null;
         }
 
@@ -1654,7 +1673,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     // 0: change nominal
                     // 1 to N: change accidental chain (1-based index)
                     if (isNaN(auxIdx) || auxIdx < 0 || auxIdx > tuningConfig.accChains.length) {
-                        console.error('TUNING CONFIG ERROR: ' + (auxIdx + 1) + ': Invalid accidental chain index: ' + x
+                        showAlert('Tuning Config Error: line ' + (auxIdx + 1), 'Invalid accidental chain index: ' + x
                             + '\nin aux declaration: ' + line);
                         hasInvalid = true;
                     }
@@ -1697,7 +1716,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 });
 
             if (hasInvalid) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid ligature declaration: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid ligature declaration: ' + line);
                 return null;
             }
 
@@ -1745,7 +1764,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             state = [];
             var csv = displayStepsMa[1].split(',').map(function (x) { return x.trim() });
             if (csv.length != 2) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid displaysteps declaration. Expected 2 arguments: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid displaysteps declaration. Expected 2 arguments: ' + line);
                 return null;
             }
 
@@ -1753,13 +1772,13 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var position = csv[1];
 
             if (isNaN(steps) || steps < 2) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
-                    ': Invalid displaysteps declaration, invalid edo/neji steps: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Invalid displaysteps declaration, invalid edo/neji steps: ' + line);
                 return null;
             }
             if (position != 'above' && position != 'below') {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
-                    ': Invalid displaysteps declaration, display must be above or below: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Invalid displaysteps declaration, display must be above or below: ' + line);
                 return null;
             }
 
@@ -1771,7 +1790,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             state = [];
             var csv = displayCentsMa[1].split(',').map(function (x) { return x.trim() });
             if (csv.length != 3) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid displaycents declaration. Expected 3 arguments: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid displaycents declaration. Expected 3 arguments: ' + line);
                 return null;
             }
 
@@ -1780,18 +1799,18 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var position = csv[2];
 
             if (centType != 'nominal' && centType != 'absolute' && centType != 'semitone') {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
-                    ': Invalid displaycents declaration. Cent type must be nominal/absolute/semitone: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Invalid displaycents declaration. Cent type must be nominal/absolute/semitone: ' + line);
                 return null;
             }
             if (isNaN(precision) || precision < 0 || precision > 20) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
-                    ': Invalid displaycents declaration, invalid precision specified: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Invalid displaycents declaration, invalid precision specified: ' + line);
                 return null;
             }
             if (position != 'above' && position != 'below') {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
-                    ': Invalid displaycents declaration, display must be above or below: ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Invalid displaycents declaration, display must be above or below: ' + line);
                 return null;
             }
 
@@ -1808,8 +1827,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
         // If we are here, then there are no section/setting declarations
 
         if (state.length == 0) {
-            console.error('TUNING CONFIG ERROR: ' + (i + 1)
-                + ': Expected aux(...), lig(...), sec(), explicit(), or nobold(). Instead, got '
+            showAlert('Tuning Config Error: line ' + (i + 1),
+                'Expected aux(...), lig(...), sec(), explicit(), or nobold(). Instead, got '
                 + line);
             return null;
         }
@@ -1839,7 +1858,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var firstWordSymCodes = parseSymbolsDeclaration(words[0]);
 
             if (firstWordSymCodes == null) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid secondary symbol declaration: ' + line
                     + '\n"' + words[0] + '" is not a valid symbol code combination.');
                 return null;
             }
@@ -1867,7 +1886,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 for (var wordIdx = 1; wordIdx < words.length; wordIdx++) {
                     var maybeCents = parseCentsOrRatio(words[wordIdx]);
                     if (maybeCents == null) {
-                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                        showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid secondary symbol declaration: ' + line
                             + '\n"' + words[wordIdx] + '" is not a valid cents or ratio tuning.');
                         if (words.length > 2)
                             log('HELP: Did you specify the correct number of nominals for per-nominal tuning declaration?');
@@ -1904,8 +1923,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 // Conversion always goes from ASCII
 
                 if (!firstWordIsSingleElemTextAcc) {
-                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Convert-from text must be a single-element text symbol.\n'
-                        + 'Received a multi-symbol/hybrid accidental instead' + line);
+                    showAlert('Tuning Config Error: line ' + (i + 1), 'Convert-from text must be a single-element text symbol.\n'
+                        + 'Received a multi-symbol/hybrid accidental instead: ' + line);
                     return null;
                 }
 
@@ -1914,7 +1933,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var cents = [];
 
                 if (symCodesTo == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                    showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid secondary symbol declaration: ' + line
                         + '\n"' + words[1] + '" is not a valid symbol code combination.');
                     return null;
                 }
@@ -1922,7 +1941,7 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 for (var wordIdx = 2; wordIdx < words.length; wordIdx++) {
                     var maybeCents = parseCentsOrRatio(words[wordIdx]);
                     if (maybeCents == null) {
-                        console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid secondary symbol declaration: ' + line
+                        showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid secondary symbol declaration: ' + line
                             + '\n"' + words[wordIdx] + '" is not a valid cents or ratio tuning.');
                         return null;
                     }
@@ -1946,8 +1965,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                     tuningConfig.usedSecondarySymbols[c] = true;
                 });
             } else {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1) +
-                    ': Secondary symbol declaration must have 2 or 3 (for nominal-agnostic tunings) or '
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Secondary symbol declaration must have 2 or 3 (for nominal-agnostic tunings) or '
                     + (2 + numNomsMin1) + ' or ' + (3 + numNomsMin1)
                     + ' (for nominal-specific tunings) space-separated words. Got: ' + line);
                 return null;
@@ -1963,8 +1982,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             */
 
             if (words.length != tuningConfig.accChains.length + 2) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1)
-                    + ': Override declaration has incorrect number of acc vector degrees in: ' + line
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Override declaration has incorrect number of acc vector degrees in: ' + line
                     + '\nExpected ' + tuningConfig.accChains.length + ' degrees, got ' + (words.length - 2)
                     + ' instead.');
                 log('HELP: Make sure there are no spaces in the cents/ratio tuning');
@@ -1976,8 +1995,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             var overrideCents = parseCentsOrRatio(words[words.length - 1]);
 
             if (isNaN(nominal) || nominal < 0 || nominal >= tuningConfig.numNominals) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1)
-                    + ': Override declaration has invalid nominal ' + words[0] + ' in ' + line
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Override declaration has invalid nominal ' + words[0] + ' in ' + line
                     + '\nExpected a number from 0 to ' + (tuningConfig.numNominals - 1) + ' inclusive.');
                 return null;
             }
@@ -1988,8 +2007,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
                 var min = -tuningConfig.accChains[avIdx].centralIdx;
                 var max = min + tuningConfig.accChains[avIdx].length - 1;
                 if (isNaN(deg) || deg < min || deg > max) {
-                    console.error('TUNING CONFIG ERROR: ' + (i + 1)
-                        + ': Override declaration has invalid accidental vector degree ' + words[avIdx + 1] + ' in ' + line
+                    showAlert('Tuning Config Error: line ' + (i + 1),
+                        'Override declaration has invalid accidental vector degree ' + words[avIdx + 1] + ' in ' + line
                         + '\nExpected a number from ' + min + ' to ' + max + ' inclusive.');
                     isValid = false;
                     break;
@@ -2001,8 +2020,8 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             }
 
             if (overrideCents == null) {
-                console.error('TUNING CONFIG ERROR: ' + (i + 1)
-                    + ': Override declaration has invalid cents/ratio ' + words[words.length - 1] + ' in ' + line);
+                showAlert('Tuning Config Error: line ' + (i + 1),
+                    'Override declaration has invalid cents/ratio ' + words[words.length - 1] + ' in ' + line);
                 return null;
             }
 
@@ -2025,12 +2044,12 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
             for (var j = 0; j < words.length; j++) {
                 var symCodes = parseSymbolsDeclaration(words[j]);
                 if (symCodes == null) {
-                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Invalid independent symbol declaration: ' + line
+                    showAlert('Tuning Config Error: line ' + (i + 1), 'Invalid independent symbol declaration: ' + line
                         + '\n"' + words[j] + '" is not a valid symbol code combination.');
                     return null;
                 }
                 if (symCodes.length != 1) {
-                    console.error('TUNING CONFIG ERROR: ' + (i + 1) + ': Symbol group declaration must contain individual symbols only: ' + line
+                    showAlert('Tuning Config Error: line ' + (i + 1), 'Symbol group declaration must contain individual symbols only: ' + line
                         + '\n"' + words[j] + '" is not a single symbol code.');
                     return null;
                 }
@@ -2177,7 +2196,16 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
     // Now we iterate the nominals to populate
 
     for (var nomIdx = 0; nomIdx < tuningConfig.nominals.length; nomIdx++) {
+        /**
+         * Either cents or `null` if this nominal should be skipped.
+         *
+         * @type {number?}
+         */
         var nominalCents = tuningConfig.nominals[nomIdx];
+
+        if (nominalCents == null) {
+            continue;
+        }
 
         // if there are no accidental chains, we can just add the nominal
 
@@ -2770,12 +2798,14 @@ function parseChangeReferenceTuning(text) {
         nominalsFromA4 -= 7;
 
     var changeRelativeNominalOnly = referenceTuning[1] == '';
+    /** @type {ChangeReferenceTuning} */
     var changeReferenceNote = {
         preserveNominalsMode: preserveNominalsMode,
         tuningNominal: nominalsFromA4,
         tuningNote: Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69,
         tuningFreq: changeRelativeNominalOnly ? null : parseFloat(eval(referenceTuning[1])), // specified in Hz.
-        changeRelativeNominalOnly: changeRelativeNominalOnly
+        changeRelativeNominalOnly: changeRelativeNominalOnly,
+        referenceMidiNoteName: referenceLetter.toUpperCase() + referenceOctave,
     };
 
     if (isNaN(changeReferenceNote.tuningFreq) && !changeRelativeNominalOnly) {
@@ -2873,9 +2903,8 @@ function parsePossibleConfigs(text, tick) {
             config: function (parms) {
                 if (!maybeConfig.preserveNominalsMode && !maybeConfig.changeRelativeNominalOnly) {
                     // Changes mode of the nominals.
-
-                    // When the user declares "!C4: 440", the nominals will start
-                    // from C4 instead of whatever it was.
+                    // E.g., "!C4: 440"
+                    // the nominals will start from C4, overriding the mode of the nominals.
 
                     // E.g., if the original TuningConfig was A4: 440 with aeolian mode LsLLsLL
                     // then declaring !C4: 440 will keep the same aeolian mode over C4 tuned to 440Hz
@@ -2887,12 +2916,13 @@ function parsePossibleConfigs(text, tick) {
                     parms.currTuning.tuningFreq = maybeConfig.tuningFreq;
                     parms.currTuning.originalTuningFreq = maybeConfig.tuningFreq;
                 } else if (!maybeConfig.changeRelativeNominalOnly) {
-                    // We need to preserve the tuning nominal & tuning note, but change
-                    // the tuning frequency so that the declared reference note is
-                    // effectively correct.
+                    // E.g., "C4: 440"
                     //
-                    // This prevents the nominals mode from going out of sync, unless
-                    // explicitly wanted by the user.
+                    // Keep relative mode of the original nominals
+                    //
+                    // E.g., if the original tuning config declared LsLLsLL on A aeolian using A4 as
+                    // the tuning note, then this will maintain C ionian LLsLLLs, but changing the
+                    // relative tuning of A4 to match so that "C4" is 440Hz.
 
                     /*
                     Method:
@@ -2903,8 +2933,18 @@ function parsePossibleConfigs(text, tick) {
                     */
 
                     var nominalsFromReference = maybeConfig.tuningNominal - parms.currTuning.tuningNominal;
-                    parms.currTuning.relativeTuningNominal = nominalsFromReference;
                     var xenNominal = mod(nominalsFromReference, parms.currTuning.numNominals);
+                    if (parms.currTuning.nominals[xenNominal] == null) {
+                        // This nominal does not exist/is ignored in the tuning config. This is an error.
+
+                        showAlert(
+                            "Invalid reference tuning change",
+                            "Invalid reference tuning change: The nominal "
+                                + maybeConfig.referenceMidiNoteName + " is omitted by the tuning config."
+                        );
+                        return;
+                    }
+
                     var equaves = Math.floor(nominalsFromReference / parms.currTuning.numNominals);
                     var oldCentsFromReference = parms.currTuning.nominals[xenNominal] + equaves * parms.currTuning.equaveSize;
                     var oldHz = parms.currTuning.originalTuningFreq * Math.pow(2, oldCentsFromReference / 1200);
@@ -2912,6 +2952,7 @@ function parsePossibleConfigs(text, tick) {
 
                     // log('oldHz: ' + oldHz, 'newHz: ' + newHz, 'oldCentsFromReference: ' + oldCentsFromReference);
 
+                    parms.currTuning.relativeTuningNominal = nominalsFromReference;
                     parms.currTuning.tuningFreq = newHz / oldHz * parms.currTuning.originalTuningFreq;
                 } else {
                     // Only change relative tuning nominal without changing tuning or mode of any note.
@@ -3816,7 +3857,9 @@ function calcCentsOffset(noteData, tuningConfig, absoluteFromA4) {
                     }
                     var nomsOffset = mod(tuningConfig.relativeTuningNominal, tuningConfig.numNominals);
                     var eqvOffset = Math.floor(tuningConfig.relativeTuningNominal / tuningConfig.numNominals);
-                    fingeringJIOffset += tuningConfig.nominals[nomsOffset] + eqvOffset * tuningConfig.equaveSize;
+                    // It's an invalid action to define accidentals on a `null` nominal.
+                    // Assume 0 offset from nominal.
+                    fingeringJIOffset += (tuningConfig.nominals[nomsOffset] || 0) + eqvOffset * tuningConfig.equaveSize;
                 }
                 fingering.z = PROCESSED_FINGERING_ANNOTATION_Z;
             }
@@ -6408,7 +6451,8 @@ function addStepsCentsFingering(
     // Nominal index of the relative reference note.
     var relRefNominal = mod(tuningConfig.relativeTuningNominal, tuningConfig.numNominals);
     var relRefOctOffset = Math.floor(tuningConfig.relativeTuningNominal / tuningConfig.numNominals);
-    var relRefCentsFromAbsRef = tuningConfig.nominals[relRefNominal] + relRefOctOffset * tuningConfig.equaveSize;
+    // NOTE: Invalid action to display steps/cents of a null nominal.
+    var relRefCentsFromAbsRef = (tuningConfig.nominals[relRefNominal] || 0) + relRefOctOffset * tuningConfig.equaveSize;
     var absRefCentsFromA440 = 1200 * Math.log(tuningConfig.tuningFreq / 440) / Math.log(2);
     var relRefCentsFromA440 = relRefCentsFromAbsRef + absRefCentsFromA440;
 
@@ -6477,7 +6521,7 @@ function addStepsCentsFingering(
         } else if (tuningConfig.displayCentsReference == 'nominal') {
             var nomCentsFromA440 =
                 absRefCentsFromA440
-                + tuningConfig.nominals[noteData.xen.nominal]
+                + (tuningConfig.nominals[noteData.xen.nominal] || 0)
                 + noteData.equaves * tuningConfig.equaveSize;
             var centsFromNom = centsFromA440 - nomCentsFromA440;
             cents = Math.round(centsFromNom * precisionMult)
