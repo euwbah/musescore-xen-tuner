@@ -498,7 +498,7 @@ C4: 440 * 16/27 // set frequency reference note (must be without accidental)
 
 // 3. Accidental chains
 
-// each accidental must be separated by a space.
+// each accidental must be separated by at least one space
 
 // chain 1: the usual 100c semitone accidentals
 bbb.b bbb bb b (100c) # x #x x.x
@@ -649,7 +649,7 @@ A4: 440
 
 `A4: 440` specifies the reference note and tuning in Hertz, which sets the note A4 to 440hz.
 
-`0c 200c 300c 500c 700c 800c 1000c` specifies, in cents, the tunings of each of the 7 nominals starting from the reference note of choice, A4. This means that B4 will be 200c higher than A4, C5 will be 300c higher than A4, etc... Each entry must be separated by a space.
+`0c 200c 300c 500c 700c 800c 1000c` specifies, in cents, the tunings of each of the 7 nominals starting from the reference note of choice, A4. This means that B4 will be 200c higher than A4, C5 will be 300c higher than A4, etc... Each entry must be separated by at least one space.
 
 The last interval size, `1200c`, specifies the equave size. The equaves are referenced in terms of the nominals defined, rather than the standard 12edo octave. E.g., if you only declare 2 nominals, then the next equave up from A4 will start at C5 instead of A5.
 
@@ -690,7 +690,7 @@ A4: 440
 bb b (100c) # x
 ```
 
-The last line adds a chain of accidentals ranging from double flat to double sharp. You can specify the accidental symbols as Symbol Codes or Text Codes, each degree of the accidental chain must be separated by space, and the `(100c)` in the middle means that increasing the degree on this chain by 1 will result in a 100 cent pitch increase.
+The last line adds a chain of accidentals ranging from double flat to double sharp. You can specify the accidental symbols as Symbol Codes or Text Codes, each degree of the accidental chain must be separated by at least one space, and the `(100c)` in the middle means that increasing the degree on this chain by 1 will result in a 100 cent pitch increase.
 
 ### Adding too many accidentals
 
@@ -1203,7 +1203,7 @@ n bb b # x
 '◇' 'ᴠ' 'ʌ'
 ```
 
-Each line declares a group of independent accidental symbols, separated by spaces. An independent symbol group propagates independently of other groups, **which applies to both accidentals and key signature**. For example,
+Each line declares a group of independent accidental symbols, each symbol separated by at least one space. An independent symbol group propagates independently of other groups, **which applies to both accidentals and key signature**. For example,
 
 ![key sig example](imgs/keysig-example.png)
 
