@@ -783,7 +783,9 @@ This note's `tpc` is still 4 (Ebb), because the Full Accidental is still in effe
 
 In this situation, we need to check for prior notes in this staff line with explicit accidentals using the `getAccidental` function. This function returns the `accidentals` object of a preceding note with explicit accidentals that affect the current one, or `null` if there are no prior notes with explicit accidentals.
 
-As of now, this plugin does not intend to support the ability to have independently explicit/implicit accidentals per accidental chain. This means that ups and downs notation where prior sharps/flats carry through an up/down accidental will not be supported. If there's enough demand for that, then this feature will be a goal.
+~~As of now, this plugin does not intend to support the ability to have independently explicit/implicit accidentals per accidental chain. This means that ups and downs notation where prior sharps/flats carry through an up/down accidental will not be supported. If there's enough demand for that, then this feature will be a goal.~~
+
+EDIT: As of v0.4, independently propagating symbols are supported.
 
 ### Parsing a note
 
@@ -884,13 +886,15 @@ A ligatured entry will contribute additional `XenNote` spellings pointing to the
 
 With these additional lookup entries, a ligatured spelling is implemented simply as an 'enharmonic spelling', and ligatures can be toggled with the enharmonic cycling operation.
 
-When creating/managing accidentals during up/down operations, this plugin favours spellings with lesser symbols. If for whatever reason, a ligatured spelling has more symbols than an non-ligatured one, the plugin will not automatically use the ligatured spelling. Thus, it only makes sense to define ligatures if the ligatured spellings will always have fewer symbols than the non-ligatured one.
+~~When creating/managing accidentals during up/down operations, this plugin favours spellings with lesser symbols. If for whatever reason, a ligatured spelling has more symbols than an non-ligatured one, the plugin will not automatically use the ligatured spelling. Thus, it only makes sense to define ligatures if the ligatured spellings will always have fewer symbols than the non-ligatured one.~~
+
+EDIT: as of v0.2.1, important ligatures allow forcing a set of ligatures to be used.
 
 -----
 
 ## Docking plugin
 
-In order to prevent recalculating/reparsing tuning config data, the plugin has to be persistent so that cached data live in memory.
+In order to prevent recalculating/reparsing tuning config data for every up/down/tune/cycle operation, the plugin has to be persistent so that cached data live in memory.
 
 See [this forum post](https://musescore.org/en/node/314928) about application-level shortcuts working in a `pluginType: "dock"` plugin.
 
@@ -1088,9 +1092,9 @@ Tempo changes are denoted by having `-2` staff index. Tempo is given in BPM, and
 ## Data Structures
 
 > ⚠️ **IMPORTANT**
-> This documentation is deprecated.
+> This documentation is outdated.
 >
-> Refer to `types.js` instead.
+> Refer to [`types.js`](./types.js/) instead.
 
 #### `SymbolCode`
 
