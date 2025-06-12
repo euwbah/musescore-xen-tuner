@@ -1741,6 +1741,10 @@ See dev notes for technical implementation details & how to contribute.
 
 ## Support me
 
+I've spent &geq;1000 hours developing this plugin over the past 7 years for free because I believe that notating microtonal music should be easy and accessible to everyone.
+
+If you believe that this plugin has helped you, please consider sharing this plugin and my other works, and fund my efforts by sponsoring. Thank you :)
+
 [![YouTube](https://img.shields.io/youtube/channel/subscribers/UC5KoRLrbkARhAUQC1tBngaA?label=YouTube%3A%20euwbah&style=social)](https://www.youtube.com/channel/UC5KoRLrbkARhAUQC1tBngaA)
 
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/euwbah?style=for-the-badge)](https://github.com/sponsors/euwbah)
