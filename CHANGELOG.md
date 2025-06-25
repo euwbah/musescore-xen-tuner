@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+- Fix: In voices 2/3/4, when bars are skipped in that voice, there will be as many accidentals
+  missed as bars skipped. (The bar count increment logic is now a loop instead of a one-shot to support skipped bars)
+- Fix: Editing a different score tab requires a plugin restart. This was caused by the
+  `Fns._curScore` reference "pointer" not being updated to the new score.
+
 ## 0.4.0
 
 - **BREAKING CHANGE**: Text Code for Sagittal symbols used to have `=` in place of `//` or `\\` to

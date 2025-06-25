@@ -1374,6 +1374,10 @@ class PluginAPIElement {
      * @type {number}
      */
     track;
+    /**
+     * @type {Array<PluginAPINote>}
+     */
+    notes;
     /** @type {QPoint} */
     pagePos;
     /** @type {number} */

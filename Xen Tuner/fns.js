@@ -566,8 +566,12 @@ function tokenizeNote(note) {
     //     accidentals[symCode] = 1;
     // }
 
+    // log("Tokenizing note: pitch: " + note.pitch + ", line: " + note.line);
+
     for (var i = 0; i < note.elements.length; i++) {
         // If note has a Full/Half supported accidental,
+
+        // log("Found attached element: " + note.elements[i].name);
 
         var elem = note.elements[i];
 
@@ -6738,6 +6742,7 @@ function operationTune(display) {
         _curScore.startCmd();
 
         for (var voice = 0; voice < 4; voice++) {
+
             // After each voice & rewind,
             // reset all configs back to default
             resetParms(parms);
@@ -6756,7 +6761,7 @@ function operationTune(display) {
             var tickOfThisBar = parms.bars[currBar];
             var tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
 
-            log("Tuning. staff: " + staff + ", voice: " + voice);
+            log("\n\n\n----------- Tuning staff: " + staff + ", voice: " + voice + " -----------\n");
             // log("Starting bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
 
             // Tuning doesn't affect note/accidental state,
@@ -6767,14 +6772,17 @@ function operationTune(display) {
 
             // Loop elements of a voice
             while (cursor.segment && (fullScore || cursor.tick < endTick)) {
-                if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
+                while (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
                     // Update bar boundaries.
+                    //
+                    // This is a loop because for voices 2/3/4, we can skip bars.
+
                     currBar++;
                     tickOfThisBar = tickOfNextBar;
                     tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
-                    // log("Next bar: " + currBar + ", tickOfThisBar: " + tickOfThisBar + ", tickOfNextBar: " + tickOfNextBar);
                     // reset bar state.
                     reusedBarState = {};
+                    log("\n-------- Bar " + currBar + ": " + tickOfThisBar + "--" + tickOfNextBar + " ------");
                 }
 
                 // Apply all declared configs up to current cursor position.
@@ -6795,6 +6803,8 @@ function operationTune(display) {
                             // iterate through all grace chords
                             var notes = graceChords[i].notes;
                             for (var j = 0; j < notes.length; j++) {
+                                log("Tuning grace notes (" + i + ") @ " + cursor.tick + ", bar bounds: "
+                                    + tickOfThisBar + "--" + tickOfNextBar);
                                 tuneNote(notes[j], parms.currKeySig, parms.currTuning,
                                     tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
                                 if (display) {
@@ -6806,6 +6816,8 @@ function operationTune(display) {
                         }
                         var notes = cursor.element.notes;
                         for (var i = 0; i < notes.length; i++) {
+                            log("Tuning note @ " + cursor.tick + ", bar bounds: "
+                                    + tickOfThisBar + "--" + tickOfNextBar);
                             tuneNote(notes[i], parms.currKeySig, parms.currTuning,
                                 tickOfThisBar, tickOfNextBar, cursor, reusedBarState, newElement);
                             if (display) {
@@ -6820,6 +6832,7 @@ function operationTune(display) {
                 }
                 cursor.next();
             }
+
         } // end of voice loop
 
         _curScore.endCmd();
@@ -7110,11 +7123,14 @@ function operationTranspose(stepwiseDirection, stepwiseAux) {
 
                 // Loop elements of a voice
                 while (cursor.segment && (cursor.tick < endTick)) {
-                    if (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
+                    while (tickOfNextBar != -1 && cursor.tick >= tickOfNextBar) {
                         // Update bar boundaries.
+                        //
+                        // This is a loop because for voices 2/3/4, we can skip bars.
                         currBar++;
                         tickOfThisBar = tickOfNextBar;
                         tickOfNextBar = currBar == parms.bars.length - 1 ? -1 : parms.bars[currBar + 1];
+                        log("\n-------- Bar " + currBar + ": " + tickOfThisBar + "--" + tickOfNextBar + " ------");
                     }
 
                     for (var i = 0; i < parms.staffConfigs[staff].length; i++) {
