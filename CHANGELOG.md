@@ -6,6 +6,7 @@
   missed as bars skipped. (The bar count increment logic is now a loop instead of a one-shot to support skipped bars)
 - Fix: Editing a different score tab requires a plugin restart. This was caused by the
   `Fns._curScore` reference "pointer" not being updated to the new score.
+- Fix: `eval` not wrapped in try-catch, causing crashes when text objects unintentionally match tuning config/reference pitch change syntax.
 
 ## 0.4.0
 

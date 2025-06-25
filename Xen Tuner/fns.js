@@ -1479,7 +1479,11 @@ function parseTuningConfig(textOrPath, isNotPath, silent) {
 
     tuningConfig.tuningNominal = nominalsFromA4;
     tuningConfig.tuningNote = Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69;
-    tuningConfig.tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
+    try {
+        tuningConfig.tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
+    } catch (e) {
+        return null; // Fail silently, this is not a tuning config.
+    }
     tuningConfig.originalTuningFreq = tuningConfig.tuningFreq;
 
     if (isNaN(tuningConfig.tuningFreq)) {
@@ -2803,18 +2807,26 @@ function parseChangeReferenceTuning(text) {
 
     var changeRelativeNominalOnly = referenceTuning[1] == '';
     /** @type {ChangeReferenceTuning} */
+    var tuningFreq = NaN;
+    if (!changeRelativeNominalOnly) {
+        try {
+            tuningFreq = parseFloat(eval(referenceTuning[1])); // specified in Hz.
+        } catch (e) {
+            return null; // fail silently, not a change reference note text.
+        }
+        if (isNaN(tuningFreq)) {
+            return null; // fail silently, not a change reference note text.
+        }
+    }
+
     var changeReferenceNote = {
         preserveNominalsMode: preserveNominalsMode,
         tuningNominal: nominalsFromA4,
         tuningNote: Lookup.LETTERS_TO_SEMITONES[referenceLetter] + (referenceOctave - 4) * 12 + 69,
-        tuningFreq: changeRelativeNominalOnly ? null : parseFloat(eval(referenceTuning[1])), // specified in Hz.
+        tuningFreq: changeRelativeNominalOnly ? null : tuningFreq, // specified in Hz.
         changeRelativeNominalOnly: changeRelativeNominalOnly,
         referenceMidiNoteName: referenceLetter.toUpperCase() + referenceOctave,
     };
-
-    if (isNaN(changeReferenceNote.tuningFreq) && !changeRelativeNominalOnly) {
-        return null;
-    }
 
     return changeReferenceNote;
 }
