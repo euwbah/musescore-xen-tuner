@@ -307,6 +307,7 @@ This is still a work in progress. Free for all to edit, and [in need of communit
 - [Updating the plugin](#updating-the-plugin)
 - [Troubleshooting](#troubleshooting)
   - [The tuning is wrong/off](#the-tuning-is-wrongoff)
+  - [Putting two notes in the same chord and staff line makes one of the notes out of tune when I select it](#putting-two-notes-in-the-same-chord-and-staff-line-makes-one-of-the-notes-out-of-tune-when-i-select-it)
   - [I made my own tuning config, but it doesn't seem to be doing anything, and notes are treated as 12edo](#i-made-my-own-tuning-config-but-it-doesnt-seem-to-be-doing-anything-and-notes-are-treated-as-12edo)
   - [The plugin just breaks when I use certain accidental symbols/text-entry combinations](#the-plugin-just-breaks-when-i-use-certain-accidental-symbolstext-entry-combinations)
   - [I changed the tuning config text, but the plugin isn't picking up the changes](#i-changed-the-tuning-config-text-but-the-plugin-isnt-picking-up-the-changes)
@@ -1563,9 +1564,17 @@ Checklist:
 
 If all else fails, [report an issue](#reporting-an-issue). Include the tuning config text you were trying to use and provide a score example.
 
+### Putting two notes in the same chord and staff line makes one of the notes out of tune when I select it
+
+![Two notes same line and chord](imgs/two-notes-same-chord-line.png)
+
+This is not a problem, but the result of a workaround for a default MuseScore behavior that prevents two notes with the same internal playback "note on" event from having different tunings. To work around this, the plugin will intentionally modify the underlying midi note of one of the notes to be off by a semitone for it to receive its own playback event, then adjust the tuning accordingly to compensate.
+
+This results in accurate playback (from pressing spacebar), but one of the nots will sound out of tune when selected outside of playback.
+
 ### I made my own tuning config, but it doesn't seem to be doing anything, and notes are treated as 12edo
 
-This usually means that there's an error in the tuning config itself. On your laptop/PC, go to the [Xen Tuner Tuning Config compiler website](https://euwbah.github.io/musescore-xen-tuner/), paste your tuning config there, and click 'Debug config (js console)', which will print messages/syntax errors to the [browser's JavaScript console](https://balsamiq.com/support/faqs/browserconsole/) about any issues with your declaration of the tuning config.
+This usually means that there's an error in the tuning config itself (there will be a popup dialog explaining the syntax error). On your laptop/PC, go to the [Xen Tuner Tuning Config compiler website](https://euwbah.github.io/musescore-xen-tuner/), paste your tuning config there, and click 'Debug config (js console)', which will print messages/syntax errors to the [browser's JavaScript console](https://balsamiq.com/support/faqs/browserconsole/) about any issues with your declaration of the tuning config.
 
 If you need help understanding the error messages, feel free to [open an issue to ask for help](#reporting-an-issue) using the "[help wanted](https://github.com/euwbah/musescore-xen-tuner/labels/help%20wanted)" tag.
 
