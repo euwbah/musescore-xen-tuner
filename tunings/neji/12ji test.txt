@@ -7,7 +7,7 @@ A4: 440
 // the nominal & accidental chain tunings don't matter because all of them
 // will be overriden by the tuning override
 
-0 0 0 0 0 0 0 2/1 // equave tuning needs to be specified
+0c 0c 0c 0c 0c 0c 0c 2/1 // equave tuning needs to be specified
 
 bb b (0) # x
 
