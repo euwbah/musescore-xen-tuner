@@ -14,7 +14,7 @@ A4: 440
 
 // When generating tuning overrides, make sure the first nominal declared
 // matches the reference note of the tuning config!
-0 0 0 0 0 0 0 2/1
+0c 0c 0c 0c 0c 0c 0c 2/1
 
 bb b (0) # x
 v3 v2 v (0) ^ ^2 ^3
