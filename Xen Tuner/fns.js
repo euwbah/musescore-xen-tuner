@@ -5350,6 +5350,18 @@ function forceExplicitAccidentalsAfterNote(
  *  need to be recalculated so often.
  */
 function executeTranspose(note, direction, aux, parms, newElement, cursor) {
+    // Fall back to default pitch-up/pitch-down command if note is in an unpitched staff.
+
+    if (!note.staff.part.hasPitchedStaff) {
+        if (direction == 1) {
+            cmd('pitch-up');
+        } else if (direction == -1) {
+            cmd('pitch-down');
+        }
+        var emptyBarState = {};
+        return emptyBarState;
+    }
+
     var tuningConfig = parms.currTuning;
     var keySig = parms.currKeySig; // may be null/invalid
     /** @type {ConstantConstrictions} */
@@ -6808,7 +6820,9 @@ function operationTune(display) {
 
                 // Tune the note!
 
-                if (cursor.element) {
+                // Check if staff/voice is unpitched percussion. If it is, do not do any tuning.
+                if (cursor.element && cursor.element.staff.part.hasPitchedStaff) {
+
                     if (cursor.element.name == "Chord") {
                         var graceChords = cursor.element.graceNotes;
                         for (var i = 0; i < graceChords.length; i++) {

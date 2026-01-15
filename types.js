@@ -1494,12 +1494,41 @@ class PluginAPIElement {
     subStyle;
 
     /**
+     * @type {PluginAPIStaff}
+     */
+    staff;
+
+    /**
      * Checks if two element wrapper objects point to the same element in the score.
      *
      * @param {PluginAPIElement} elem other element
      * @returns {boolean} `true` if this element is the same as `elem`.
      */
     is(elem) { }
+}
+
+/**
+ * The Staff data type in the plugin API.
+ */
+class PluginAPIStaff {
+    /** @type {PluginAPIPart} */
+    part;
+}
+
+class PluginAPIPart {
+    /**
+     * Whether it is a percussion staff.
+     *
+     * @type {boolean}
+     */
+    hasDrumStaff;
+
+    /**
+     * Whether it is a "normal" staff with notes.
+     *
+     * @type {boolean}
+     */
+    hasPitchedStaff;
 }
 
 /**
